@@ -221,7 +221,10 @@ static void low_level_init(struct netif *netif)
   heth.Init.RxBuffLen = 1536;
 
   /* USER CODE BEGIN MACADDRESS */
-
+  uint32_t sn0 = *(uint32_t *)(0x1FF0F420);//STM32 cpu id
+  MACAddr[3] = (sn0 >> 16) & 0xFF;
+  MACAddr[4] = (sn0 >> 8) & 0xFF;
+  MACAddr[5] = sn0 & 0xFF;
   /* USER CODE END MACADDRESS */
 
   hal_eth_init_status = HAL_ETH_Init(&heth);
@@ -839,7 +842,7 @@ void ethernet_link_thread(void* argument)
   }
 
 /* USER CODE BEGIN ETH link Thread core code for User BSP */
-  TCPServerComponentHandler();
+  //TCPServerComponentHandler();
 /* USER CODE END ETH link Thread core code for User BSP */
 
     osDelay(100);

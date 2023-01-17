@@ -1,8 +1,9 @@
 //==============================================================================
 //includes:
 
-#include <stdarg.h>
 #include "Components.h"
+
+#include "Hermes/Sources/SNTP.h"
 //==============================================================================
 //variables:
 
@@ -12,9 +13,15 @@ static uint8_t time1_ms;
 static uint8_t time5_ms;
 static uint16_t time1000_ms;
 
-static led_toggle_time_stamp;
+static uint32_t led_toggle_time_stamp;
+static uint32_t sntp_update_time_stamp;
 //==============================================================================
 //functions:
+static inline uint32_t PrivateGetTimeDifference(uint32_t time_stamp)
+{
+	return 0;
+}
+//------------------------------------------------------------------------------
 
 static void PrivateTerminalComponentEventListener(TerminalT* terminal, TerminalEventSelector selector, void* arg, ...)
 {
@@ -91,6 +98,8 @@ void ComponentsRequestListener(ComponentObjectBaseT* port, int selector, void* a
  */
 void ComponentsHandler()
 {
+	extern bool SNTP_GetTime(void);
+
 	if (!time1_ms)
 	{
 		time1_ms = 1;
@@ -129,6 +138,13 @@ void ComponentsHandler()
 		led_toggle_time_stamp = ComponentsSysGetTime();
 
 		LED_YELLOW_GPIO_Port->ODR ^= LED_YELLOW_Pin;
+	}
+
+	if (ComponentsSysGetTime() - sntp_update_time_stamp > 10000)
+	{
+		sntp_update_time_stamp = ComponentsSysGetTime();
+
+		SNTP_GetTime();
 	}
 }
 //------------------------------------------------------------------------------
@@ -237,6 +253,10 @@ xResult ComponentsInit(void* parent)
 	Timer4->Control1.CounterEnable = true;
 
 	TerminalTxBind(&SerialPortUART.Tx);
+
+	sntp_update_time_stamp = 20000;
+
+	SNTP_Init();
 
 	return xResultAccept;
 }

@@ -38,6 +38,9 @@ xResult _SerialPortRequestListener(SerialPortT* port, SerialPortRequestSelector 
 
 #define SerialPortEventListener(port, selector, arg, ...) ((SerialPortT*)port)->Interface->EventListener(port, selector, arg, ##__VA_ARGS__)
 #define SerialPortRequestListener(port, selector, arg, ...) ((SerialPortT*)port)->Interface->RequestListener(port, selector, arg, ##__VA_ARGS__)
+
+#define SerialPortTransmitData(port, data, size) xTxTransmitData(port->Tx, data, size)
+#define SerialPortTransmitString(port, data) //xTxTransmitString(port->Tx, data)
 //==============================================================================
 #ifdef __cplusplus
 }

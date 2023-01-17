@@ -120,7 +120,7 @@ typedef enum status_code {
 	//STATUS_OK               =  0, //!< Success
 	ERR_IO_ERROR            =  -1, //!< I/O error
 	ERR_FLUSHED             =  -2, //!< Request flushed from queue
-	ERR_TIMEOUT             =  -3, //!< Operation timed out
+	//ERR_TIMEOUT             =  -3, //!< Operation timed out
 	ERR_BAD_DATA            =  -4, //!< Data integrity check failed
 	ERR_PROTOCOL            =  -5, //!< Protocol error
 	ERR_UNSUPPORTED_DEV     =  -6, //!< Unsupported device

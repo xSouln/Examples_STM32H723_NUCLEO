@@ -9,6 +9,8 @@ extern "C" {
 //includes:
 
 #include <string.h>
+#include <stdbool.h>
+#include <stdarg.h>
 #include "main.h"
 #include "Common/xTypes.h"
 #include "Registers/registers.h"

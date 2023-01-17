@@ -1032,8 +1032,8 @@ typedef U8                  Byte;       //!< 8-bit unsigned integer.
     (*(uint32_t *)(data))
 
 /* Converts a 8 Byte array into a 64-Bit value */
-//#define convert_byte_array_to_64_bit(data)\
-	((((uint64_t)convert_byte_array_to_32_bit((uint8_t*)data + sizeof(uint32_t)) << 32) | convert_byte_array_to_32_bit(data)))
+//#define convert_byte_array_to_64_bit(data)
+	//((((uint64_t)convert_byte_array_to_32_bit((uint8_t*)data + sizeof(uint32_t)) << 32) | convert_byte_array_to_32_bit(data)))
 	//((((uint64_t)convert_byte_array_to_32_bit((uint8_t*)data + sizeof(uint32_t)))) | convert_byte_array_to_32_bit(data))
     //(*(uint64_t *)(data))
 

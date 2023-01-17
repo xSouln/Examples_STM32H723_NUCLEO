@@ -18,7 +18,22 @@ extern "C" {
 //#define SUREFLAP_COMPONENT_ENABLE 1
 //==============================================================================
 //defines:
+/*
+#elif defined(STM32H723xx)
+	#define WOLFSSL_STM32H7
+	#define HAL_CONSOLE_UART huart3
+*/
 
+/*
+	ip_addr_t add1;
+	osDelay(3000);
+
+	add1.addr = PP_HTONL(LWIP_MAKEU32(213, 184, 225, 37));//213.184.225.37 //82, 209, 240, 241
+	dns_setserver(0, &add1);
+
+	add1.addr = PP_HTONL(LWIP_MAKEU32(213, 184, 224, 254));//213.184.224.254 //82, 209, 243, 241
+	dns_setserver(1, &add1);
+ */
 
 //==============================================================================
 //macros:

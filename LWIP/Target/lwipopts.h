@@ -51,12 +51,14 @@
 /* Parameters set in STM32CubeMX LwIP Configuration GUI -*/
 /*----- Default value in ETH configuration GUI in CubeMx: 1524 -----*/
 #define ETH_RX_BUFFER_SIZE 1536
+/*----- Default Value for LWIP_DNS: 0 ---*/
+#define LWIP_DNS 1
 /*----- Value in opt.h for MEM_ALIGNMENT: 1 -----*/
 #define MEM_ALIGNMENT 4
 /*----- Default Value for MEM_SIZE: 1600 ---*/
-#define MEM_SIZE 4096
+#define MEM_SIZE 8192
 /*----- Default Value for H7 devices: 0x30044000 -----*/
-#define LWIP_RAM_HEAP_POINTER 0x30002000//0x30002000
+#define LWIP_RAM_HEAP_POINTER 0x30004000
 /*----- Value supported for H7 devices: 1 -----*/
 #define LWIP_SUPPORT_CUSTOM_PBUF 1
 /*----- Value in opt.h for LWIP_ETHERNET: LWIP_ARP || PPPOE_SUPPORT -*/
@@ -95,10 +97,10 @@
 #define DEFAULT_ACCEPTMBOX_SIZE 6
 /*----- Value in opt.h for RECV_BUFSIZE_DEFAULT: INT_MAX -----*/
 #define RECV_BUFSIZE_DEFAULT 2000000000
-/*----- Default Value for LWIP_STATS: 0 ---*/
-#define LWIP_STATS 1
-/*----- Value in opt.h for MIB2_STATS: 0 or SNMP_LWIP_MIB2 -----*/
-#define MIB2_STATS 0
+/*----- Default Value for LWIP_SNTP: 0 ---*/
+#define LWIP_SNTP 1
+/*----- Value in opt.h for LWIP_STATS: 1 -----*/
+#define LWIP_STATS 0
 /*----- Value in opt.h for CHECKSUM_GEN_IP: 1 -----*/
 #define CHECKSUM_GEN_IP 0
 /*----- Value in opt.h for CHECKSUM_GEN_UDP: 1 -----*/

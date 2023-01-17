@@ -29,7 +29,8 @@
 #include <string.h>
 
 /* USER CODE BEGIN 0 */
-
+#include "sntp.h"
+#include "dns.h"
 /* USER CODE END 0 */
 /* Private function prototypes -----------------------------------------------*/
 static void ethernet_link_status_updated(struct netif *netif);
@@ -77,6 +78,7 @@ void MX_LWIP_Init(void)
   GATEWAY_ADDRESS[3] = 1;
 
 /* USER CODE BEGIN IP_ADDRESSES */
+  //sntp_setoperatingmode(SNTP_OPMODE_POLL);
 /* USER CODE END IP_ADDRESSES */
 
   /* Initilialize the LwIP stack with RTOS */
@@ -117,7 +119,24 @@ void MX_LWIP_Init(void)
 /* USER CODE END H7_OS_THREAD_NEW_CMSIS_RTOS_V2 */
 
 /* USER CODE BEGIN 3 */
+  //sntp_enabled();
 
+  //sntp_setservername(0, "pool.ntp.org");
+  ip_addr_t add1;
+  osDelay(3000);
+
+  add1.addr = PP_HTONL(LWIP_MAKEU32(213, 184, 225, 37));//213.184.225.37 //82, 209, 240, 241
+  dns_setserver(0, &add1);
+
+  add1.addr = PP_HTONL(LWIP_MAKEU32(213, 184, 224, 254));//213.184.224.254 //82, 209, 243, 241
+  dns_setserver(1, &add1);
+/*
+  osDelay(1000);
+
+  sntp_setoperatingmode(SNTP_OPMODE_POLL);//129.70.132.37
+  sntp_init();
+  sntp_setservername(0, "pool.ntp.org");//http://www.ntp.org/pool.ntp.org
+  */
 /* USER CODE END 3 */
 }
 

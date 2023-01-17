@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include "crc.h"
 #include "dma.h"
 #include "lwip.h"
 #include "rng.h"
@@ -112,6 +113,8 @@ int main(void)
   MX_TIM4_Init();
   MX_TIM5_Init();
   MX_RNG_Init();
+  MX_CRC_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   ComponentsInit(main);
 

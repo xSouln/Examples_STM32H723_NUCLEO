@@ -116,6 +116,8 @@ void StartDefaultTask(void *argument)
 {
   /* init code for LWIP */
   MX_LWIP_Init();
+
+  SCB_EnableDCache();
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
   for(;;)
