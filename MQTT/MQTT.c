@@ -50,6 +50,8 @@
 
 #include "wolfssl/wolfcrypt/sha256.h"
 
+#include "rng.h"
+
 #ifndef MQTT_SERVER_SIMULATED
 
 extern QueueHandle_t		xOutgoingMQTTMessageMailbox;
@@ -130,9 +132,13 @@ void MQTT_Task(void *pvParameters)
 						mqtt_connection_state = MQTT_STATE_GET_CREDENTIALS;
 						//process_system_event(STATUS_GETTING_CREDENTIALS);//Alternate Red
 
-					} else
-					{	// Failed to get the time, which we need for TLS, so come back later.
-						vTaskDelay(pdMS_TO_TICKS(3000+(rand() & 0xfff)));	// randomise it a bit to hopefully avoid NTP kiss of death
+					}
+					else
+					{
+						// Failed to get the time, which we need for TLS, so come back later.
+						uint32_t rand;
+						HAL_RNG_GenerateRandomNumber(&hrng, &rand);
+						vTaskDelay(pdMS_TO_TICKS(3000 + (rand & 0xfff)));	// randomise it a bit to hopefully avoid NTP kiss of death
 					}
 				}
 				break;

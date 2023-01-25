@@ -76,12 +76,12 @@ void HTTPPostTask(void *pvParameters)
 {
 	HTTP_POST_Request_params params;
 	bool result = true;
-
+/*
 	while(true)
 	{
 		osDelay(1);
 	}
-/*
+*/
 	while(1)
 	{
 		if (xQueueReceive( xHTTPPostRequestMailbox, &params, portMAX_DELAY ) == pdPASS )
@@ -99,10 +99,10 @@ void HTTPPostTask(void *pvParameters)
 				result = false;	// no network
 			}
 			// Now send the result to the calling task
-			xTaskNotify(params.xClientTaskHandle,result,eSetValueWithOverwrite);
+			xTaskNotify(params.xClientTaskHandle, result, eSetValueWithOverwrite);
 		}
 	}
-	*/
+
 }
 
 
@@ -130,7 +130,8 @@ bool HTTP_POST_Request(char* URL, char* resource, char* contents, char* response
 	if( true == wait )
 	{
 		wait_time = portMAX_DELAY;	// caller wants to wait until this function can continue
-	} else
+	}
+	else
 	{
 		wait_time = 0;	// caller does not want to wait
 	}
@@ -179,6 +180,7 @@ bool HTTP_POST_Request(char* URL, char* resource, char* contents, char* response
 			// the response buffer provided by the calling function
 
 			HTTP_Read_Content(&connection, &response_data);
+
 		} while( false );
 
 		HTTP_Kill_Connection(&connection);
@@ -188,7 +190,8 @@ bool HTTP_POST_Request(char* URL, char* resource, char* contents, char* response
 		if( 0 < connection.bytes_read )
 		{
 			http_printf(HTTP_LINE "Response Received: %s\r\n", response_buffer);// tut tut, assumes a text reply, not true for f/w images!
-		} else
+		}
+		else
 		{
 			http_printf(HTTP_LINE "POST Failure.\r\n");
 		}
@@ -237,7 +240,8 @@ bool HTTP_POST_Request(char* URL, char* resource, char* contents, char* response
 		
 		// no errors, no special flags, so we got a good response!
 		return (0 < connection.bytes_read);
-	} else
+	}
+	else
 	{	// could not take semaphore in allotted time
 		return false;
 	}
@@ -541,28 +545,34 @@ static bool HTTP_Process_Header(WOLFSSL* ssl, HTTP_RESPONSE_DATA* response_data)
 		{	// Content Length received.
 			sscanf((const char*)&line_buffer[strlen(length_header)], " %d", &response_data->content_length);
 			http_printf("\tExpecting Content Length: %d\r\n", response_data->content_length);
-		} else if(	(0 == strcmp(GatewayTimeout,(const char*)line_buffer)) ||
-					(0 == strcmp(ServiceUnavailable,(const char*)line_buffer)) )
+		}
+		else if((0 == strcmp(GatewayTimeout,(const char*)line_buffer)) ||
+				(0 == strcmp(ServiceUnavailable,(const char*)line_buffer)) )
 		{
 			zprintf(LOW_IMPORTANCE,"Server Error: %s\r\n",line_buffer);
 			response_data->server_error = true;
 			end_of_header_reached = true;	// there will be nothing more from the Server.
-		} else if( 0 == strncmp(receivedSignatureHeader,(const char*)line_buffer, strlen(receivedSignatureHeader)) )
+		}
+		else if( 0 == strncmp(receivedSignatureHeader,(const char*)line_buffer, strlen(receivedSignatureHeader)) )
 		{	// got the x-signature field
 			memcpy(response_data->received_signature, &line_buffer[SIGNATURE_OFFSET], SIGNATURE_LENGTH_ASCII);	// we use memcpy to defend against malformed headers. Definitely will not copy too many bytes
 			response_data->received_signature[SIGNATURE_LENGTH_ASCII] = '\0';
 			response_data->got_signature = true;
-		} else if( 0 == strncmp(transfer_encoding,(const char*)line_buffer,strlen(transfer_encoding)) )
+		}
+		else if( 0 == strncmp(transfer_encoding,(const char*)line_buffer,strlen(transfer_encoding)) )
 		{
 			response_data->chunked = true;
-		} else if( 0 == strncmp(xenc_r,(const char*)line_buffer,strlen(xenc_r)) )
+		}
+		else if( 0 == strncmp(xenc_r,(const char*)line_buffer,strlen(xenc_r)) )
 		{	// got the x-enc field, now read what's in it.
 			sscanf((const char*)&line_buffer[strlen(xenc_r)],"%d",&response_data->encrypted_data);
 			//zprintf(CRITICAL_IMPORTANCE,"Received encrypted data parameter %d\r\n",response_data->encrypted_data);
-		} else if( 0 == strncmp(update,(const char*)line_buffer,strlen(update)) )
+		}
+		else if( 0 == strncmp(update,(const char*)line_buffer,strlen(update)) )
 		{	// got the x-update field
 			response_data->got_update = true;	// need to know this for signature calculation later on
-		} else if( 0 == strncmp(xtime_r, (const char*)line_buffer, strlen(xtime_r)) )
+		}
+		else if( 0 == strncmp(xtime_r, (const char*)line_buffer, strlen(xtime_r)) )
 		{	// got the x-time field
 			sscanf((const char*)&line_buffer[strlen(xtime_r)], " %lld", &response_data->message_time);
 			get_UTC_ms(&time_now);

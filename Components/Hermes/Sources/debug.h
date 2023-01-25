@@ -61,14 +61,7 @@
 #define LED_DISP_GPT		LED_GREEN_LEFT
 #define LED_DISP_SYSTICK	LED_GREEN_RIGHT
 
-//#define	LED_SET(param)	GPIO2->DR_CLEAR = 0x07800000; \
-//						GPIO2->DR_SET = (param<<23);
-
 #define LED_SET(param)	// called by the ISRs
-
-//#define	LED_SET_2(param)	GPIO2->DR_CLEAR = 0x07800000; \
-//							GPIO2->DR_SET = (param<<23);
-
 #define	LED_SET_2(param)
 
 static inline void LED_SET_3(uint32_t s, uint32_t c)

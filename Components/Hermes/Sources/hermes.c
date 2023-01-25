@@ -860,9 +860,12 @@ void connectToServer(void)
  **************************************************************/
 int hermes_rand(void)
 {
+#include "rng.h"
+
 	int result;
 	portENTER_CRITICAL();
-	result = rand();
+	//result = rand();
+	HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&result);
 	portEXIT_CRITICAL();
 	return result;
 }

@@ -50,6 +50,10 @@
 
 /* ST includes. */
 #include "stm32h7xx_hal.h"
+#include "lwipopts.h"
+
+#define ETH_RX_BUF_SIZE ETH_RX_BUFFER_SIZE
+#define ETH_TX_BUF_SIZE 1024
 
 #ifndef STM32Hxx_HAL_ETH_H
 
@@ -62,7 +66,7 @@
  * and also make sure that you have defined 'HAL_ETH_MODULE_ENABLED'
  * in your copy of "stm32h7xx_hal_conf".
  */
-    #error stm32hxx_hal_eth.h is possibly not included
+    //#error stm32hxx_hal_eth.h is possibly not included
 #endif
 
 /* Interrupt events to process: reception, transmission and error handling. */
@@ -123,7 +127,7 @@ static ETH_TxPacketConfig xTxConfig;
  *
  */
 /* Ethernet Rx DMA Descriptors */
-ETH_DMADescTypeDef DMARxDscrTab[ ETH_RX_DESC_CNT ]    __attribute__( ( section( ".ethernet_data" ), aligned( 32 ) ) );
+ETH_DMADescTypeDef DMARxDscrTab[ ETH_RX_DESC_CNT ] __attribute__( ( section( ".ethernet_data" ), aligned( 32 ) ) );
 
 /* Ethernet Receive Buffer */
 #if ( ipconfigZERO_COPY_TX_DRIVER == 0 )
@@ -131,11 +135,11 @@ ETH_DMADescTypeDef DMARxDscrTab[ ETH_RX_DESC_CNT ]    __attribute__( ( section( 
 #endif
 
 /* Ethernet Tx DMA Descriptors */
-ETH_DMADescTypeDef DMATxDscrTab[ ETH_TX_DESC_CNT ]    __attribute__( ( section( ".ethernet_data" ), aligned( 32 ) ) );
+ETH_DMADescTypeDef DMATxDscrTab[ ETH_TX_DESC_CNT ] __attribute__( ( section( ".ethernet_data" ), aligned( 32 ) ) );
 
 /* Ethernet Transmit Buffer */
 #if ( ipconfigZERO_COPY_TX_DRIVER == 0 )
-    uint8_t Tx_Buff[ ETH_TX_DESC_CNT ][ ETH_TX_BUF_SIZE ]                __attribute__( ( section( ".ethernet_data" ), aligned( 32 ) ) );
+    uint8_t Tx_Buff[ ETH_TX_DESC_CNT ][ ETH_TX_BUF_SIZE ] __attribute__( ( section( ".ethernet_data" ), aligned( 32 ) ) );
 #endif
 
 /* This function binds PHY IO functions, then inits and configures */

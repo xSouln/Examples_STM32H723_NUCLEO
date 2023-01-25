@@ -35,22 +35,19 @@
 #include "task.h"
 #include "queue.h"
 #include "semphr.h"
+#include "event_groups.h"
 
 /* FreeRTOS+TCP includes. */
-/*
-#include "FreeRTOS_IP.h"
-#include "FreeRTOS_Sockets.h"
-#include "FreeRTOS_IP_Private.h"
-#include "NetworkBufferManagement.h"
-#include "NetworkInterface.h"
-*/
+#include "lwip.h"
+#include "ethernetif.h"
 
 /* Hardware includes */
-
 
 #include "Hermes-app.h"
 #include "debug.h"
 #include "hermes-time.h"
+
+BaseType_t 					InitialiseNetwork(void); // prototype
 
 static void iprxisr_task(void *pvParameters);
 static TaskHandle_t xIpRxIsr_task_handle = NULL;
@@ -58,6 +55,8 @@ static void network_watchdog_task(void *pvParameters);
 static TaskHandle_t xNetworkWatchdog_task_handle = NULL;
 volatile uint32_t last_ethernet_packet_timestamp = 0;
 QueueHandle_t xRestartNetworkMailbox;
+
+extern EventGroupHandle_t xConnectionStatus_EventGroup;
 
 // This function initialises the MAC and PHY using helper functions in fsl_enet.c and fsl.phy.c
 // Note it can be called in two scenarios:
@@ -72,27 +71,47 @@ BaseType_t xNetworkInterfaceInitialise( void )
 	UBaseType_t xCurrentPriority;
 	BaseType_t xRetVal;
 
-	if( true == xFirstTime)
+	if(xFirstTime)
 	{
 		xRestartNetworkMailbox	= xQueueCreate(1, sizeof(bool));	// only make this once		
-		/*
-		// now start the deferred interrupt handler task
-		if( xTaskCreate(iprxisr_task, "IpRxISR", ipISR_TASK_STACK_SIZE_WORDS, NULL, ISR_TASK_PRIORITY, &xIpRxIsr_task_handle) != pdPASS )
-		{
-			zprintf(CRITICAL_IMPORTANCE, "IP RX ISR task creation failed!.\r\n");
-			xReturn = pdFAIL;
-		}
-		// And the Network Watchdog task
-		if( PRODUCT_CONFIGURED == product_configuration.product_state)
-		{
-			if( xTaskCreate(network_watchdog_task, "Network Watchdog", NETWORK_WATCHDOG_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &xNetworkWatchdog_task_handle) != pdPASS )
-			{
-				zprintf(CRITICAL_IMPORTANCE, "Network Watchdog task creation failed!.\r\n");
-				xReturn = pdFAIL;
-			}		
-		}
-		*/
+		
 	}
+	
+	xFirstTime = false;	// future invocations of this call tree will do less initialisation
 	
     return xReturn;
 }
+
+bool NetworkInterface_IsActive(void)
+{
+	return ((CONN_STATUS_NETWORK_UP & xEventGroupGetBits(xConnectionStatus_EventGroup)) > 0);
+}
+/*
+void HAL_ETH_WakeUpCallback(ETH_HandleTypeDef *heth)
+{
+    switch (heth->Init)
+    {
+        case eNetworkDown:
+            zprintf(LOW_IMPORTANCE,"Network down.\r\n");
+			xEventGroupClearBits(xConnectionStatus_EventGroup, CONN_STATUS_NETWORK_UP);
+            break;
+        case eNetworkUp:
+//            zprintf(LOW_IMPORTANCE,"Network up.\r\n");
+			xEventGroupSetBits(xConnectionStatus_EventGroup, CONN_STATUS_NETWORK_UP);
+            break;
+        default:
+            zprintf(MEDIUM_IMPORTANCE,"Unknown IP Network Event Hook\r\n");
+            break;
+    }
+}
+*/
+uint32_t ulApplicationGetNextSequenceNumber( uint32_t ulSourceAddress,
+													uint16_t usSourcePort,
+													uint32_t ulDestinationAddress,
+													uint16_t usDestinationPort )
+{
+	uint32_t result;
+    result = hermes_rand();
+	return result;
+}
+
