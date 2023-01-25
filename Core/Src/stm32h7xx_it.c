@@ -193,6 +193,21 @@ void DMA1_Stream1_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles EXTI line[9:5] interrupts.
+  */
+void EXTI9_5_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI9_5_IRQn 0 */
+	extern void RF_IRQ_HANDLER(void);
+  /* USER CODE END EXTI9_5_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(AT86RF233_IRQ_Pin);
+  HAL_GPIO_EXTI_IRQHandler(USB_FS_OVCR_Pin);
+  /* USER CODE BEGIN EXTI9_5_IRQn 1 */
+  RF_IRQ_HANDLER();
+  /* USER CODE END EXTI9_5_IRQn 1 */
+}
+
+/**
   * @brief This function handles TIM4 global interrupt.
   */
 void TIM4_IRQHandler(void)
@@ -247,20 +262,6 @@ void ETH_IRQHandler(void)
   /* USER CODE BEGIN ETH_IRQn 1 */
 
   /* USER CODE END ETH_IRQn 1 */
-}
-
-/**
-  * @brief This function handles Ethernet wake-up interrupt through EXTI line 86.
-  */
-void ETH_WKUP_IRQHandler(void)
-{
-  /* USER CODE BEGIN ETH_WKUP_IRQn 0 */
-
-  /* USER CODE END ETH_WKUP_IRQn 0 */
-  HAL_ETH_IRQHandler(&heth);
-  /* USER CODE BEGIN ETH_WKUP_IRQn 1 */
-
-  /* USER CODE END ETH_WKUP_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

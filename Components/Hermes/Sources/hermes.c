@@ -95,12 +95,45 @@ static void service_watchdog(void);
 uint8_t printLevel = LOW_IMPORTANCE;
 void Core_detect(void);
 bool immediate_firmware_update = false;
-uint64_t	rfmac;	// global because a pointer to this variable is used by the RF Stack
+uint64_t rfmac = 0x811125408e9cbf75; // global because a pointer to this variable is used by the RF Stack
 bool rf_channel_override = false;
 
 /*******************************************************************************
  * Code
  ******************************************************************************/
+
+void HermesComponentInit()
+{
+	/*
+	if (xTaskCreate(StartUpTask, "Startup", STARTUP_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &xStartupTaskHandle) != pdPASS)
+	{
+		while(1)
+		{
+
+		}
+	}
+	*/
+	led_driver_init();
+	hermes_app_init();
+
+	surenet_init(&rfmac, product_configuration.rf_pan_id, initial_RF_channel);
+
+	SNTP_Init();
+	if(xTaskCreate(SNTP_Task, "SNTP Task", SNTP_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS)
+	{
+		zprintf(CRITICAL_IMPORTANCE, "SNTP Task creation failed!\r\n");
+	}
+
+	if(xTaskCreate(led_task, "led_task", LED_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS)
+	{
+		zprintf(CRITICAL_IMPORTANCE,"LED task creation failed!\r\n");
+	}
+
+	if(xTaskCreate(hermes_app_task, "Hermes Application", HERMES_APPLICATION_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS)
+	{
+		zprintf(CRITICAL_IMPORTANCE, "Hermes Application task creation failed!\r\n");
+	}
+}
 
 /**************************************************************
  * Function Name   : StartUpTask
@@ -115,7 +148,7 @@ static void StartUpTask(void *pvParameters)
 {
     uint32_t		notifyValue;
 	uint32_t		i;
-
+/*
     xQueueSend(xNvStoreMailboxSend, &notifyValue, 0);	// get device table into RAM
 
     if( xTaskNotifyWait(0, 0, &notifyValue, portMAX_DELAY) == pdTRUE )
@@ -151,17 +184,18 @@ static void StartUpTask(void *pvParameters)
 				for( i=0; i<DERIVED_KEY_LENGTH; i++) { product_configuration.DerivedKey[i] = 0xff; }
 				write_product_configuration();
 
-/*
+
 				FM_store_persistent_data(PERSISTENT_BRIGHTNESS, (uint32_t)LED_MODE_NORMAL);
 				FM_store_persistent_data(PERSISTENT_PRINTLEVEL, (uint32_t)printLevel);
 				FM_store_persistent_data(PERSISTENT_RF_CHANNEL, (uint32_t)INITIAL_CHANNEL);
-				*/
+
 			}
 		}
 	}
-
+*/
+	// we mangle it by putting 0xfffe in the middle, and use the 6 byte Ethernet one around it
 	if( true == product_configuration.rf_mac_mangle)
-	{ // we mangle it by putting 0xfffe in the middle, and use the 6 byte Ethernet one around it
+	{
 	// This is because Pet Doors reject Hub MAC addresses that do not have 0xfffe in the middle
 		((uint8_t *)&rfmac)[7] = product_configuration.ethernet_mac[0];
 		((uint8_t *)&rfmac)[6] = product_configuration.ethernet_mac[1];
@@ -225,16 +259,18 @@ static void StartUpTask(void *pvParameters)
 			{
 				zprintf(CRITICAL_IMPORTANCE,"Shell task creation failed!\r\n");
 			}
-			FreeRTOS_IPInit( ucIPAddress, ucNetMask, ucGatewayAddress, ucDNSServerAddress, product_configuration.ethernet_mac);
+			//FreeRTOS_IPInit( ucIPAddress, ucNetMask, ucGatewayAddress, ucDNSServerAddress, product_configuration.ethernet_mac);
             /* The call to surenet_init() is now controlled by the Programmer, via CLI */
 			if( xTaskCreate(led_task, "led_task", LED_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
     		{
 				zprintf(CRITICAL_IMPORTANCE,"LED task creation failed!\r\n");
     		}
+#ifdef HERMES_TEST_MODE
 			if (xTaskCreate(hermesTestTask, "Hermes_Test", TEST_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &xHermesTestTaskHandle) != pdPASS)
     		{
 				zprintf(CRITICAL_IMPORTANCE,"Hermes Test task creation failed!.\r\n");
 			}
+#endif
 			if( xTaskCreate(watchdog_task, "watchdog_task", WATCHDOG_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
 			{
 				zprintf(CRITICAL_IMPORTANCE,"Watchdog task creation failed! - tick... tick... tick...\r\n");
@@ -250,7 +286,7 @@ static void StartUpTask(void *pvParameters)
 			{
 				zprintf(CRITICAL_IMPORTANCE,"Shell task creation failed!\r\n");
 			}
-			FreeRTOS_IPInit( ucIPAddress_printer, ucNetMask, ucIPAddress_printer, ucIPAddress_printer, product_configuration.ethernet_mac);
+			//FreeRTOS_IPInit( ucIPAddress_printer, ucNetMask, ucIPAddress_printer, ucIPAddress_printer, product_configuration.ethernet_mac);
 			if( xTaskCreate(led_task, "led_task", LED_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
 			{
 				zprintf(CRITICAL_IMPORTANCE,"LED task creation failed!\r\n");
@@ -304,7 +340,7 @@ static void StartUpTask(void *pvParameters)
 				{
 					zprintf(CRITICAL_IMPORTANCE,"Shell task creation failed!\r\n");
 				}
-				FreeRTOS_IPInit( ucIPAddress, ucNetMask, ucGatewayAddress, ucDNSServerAddress, product_configuration.ethernet_mac);
+				//FreeRTOS_IPInit( ucIPAddress, ucNetMask, ucGatewayAddress, ucDNSServerAddress, product_configuration.ethernet_mac);
 
 				// Start SureNet
 
@@ -333,20 +369,24 @@ static void StartUpTask(void *pvParameters)
 					zprintf(CRITICAL_IMPORTANCE,"MQTT Task creation failed!\r\n");
 				}
 
+#ifdef HERMES_TEST_MODE
 				if (xTaskCreate(hermesTestTask, "Hermes_Test", TEST_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &xHermesTestTaskHandle) != pdPASS)
 				{
 					zprintf(CRITICAL_IMPORTANCE,"Hermes Test task creation failed!.\r\n");
 				}
+#endif
 
 				if (xTaskCreate(HTTPPostTask, "HTTP Post", HTTP_POST_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &xHTTPPostTaskHandle) != pdPASS)
 				{
 					zprintf(CRITICAL_IMPORTANCE,"HTTP Post task creation failed!.\r\n");
 				}
+
 				if (xTaskCreate(HFU_task, "Hub Firmware Update", HFU_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &xHFUTaskHandle) != pdPASS)
 				{
 					zprintf(CRITICAL_IMPORTANCE,"Hub Firmware Update task creation failed!.\r\n");
 				}
-			} else	// 	immediate_firmware_update == true
+			}
+			else	// 	immediate_firmware_update == true
 			{		// So we don't need to do a lot here
 				LED_Request_Pattern(LED_MODE_NORMAL, COLOUR_RED, LED_PATTERN_SOLID, 0);
 
@@ -355,7 +395,7 @@ static void StartUpTask(void *pvParameters)
 				{
 					zprintf(CRITICAL_IMPORTANCE,"Shell task creation failed!\r\n");
 				}
-				FreeRTOS_IPInit( ucIPAddress, ucNetMask, ucGatewayAddress, ucDNSServerAddress, product_configuration.ethernet_mac);
+				//FreeRTOS_IPInit( ucIPAddress, ucNetMask, ucGatewayAddress, ucDNSServerAddress, product_configuration.ethernet_mac);
 
 				HTTPPostTask_init();
 
@@ -518,19 +558,21 @@ static void shell_task(void *pvParameters)
     while(1)
     {
         zprintf(CRITICAL_IMPORTANCE, "HERMES >");
-        LOG_ReadLine((uint8_t *)input, sizeof(input));
+        //LOG_ReadLine((uint8_t *)input, sizeof(input));
         zprintf(CRITICAL_IMPORTANCE, "\r\n");
         do
         {
-		    result = FreeRTOS_CLIProcessCommand( input, output, sizeof(output) );  // process input and generate some output
+		    //result = FreeRTOS_CLIProcessCommand( input, output, sizeof(output) );  // process input and generate some output
 			if( strlen(output)>256)
 			{
 				zprintf(CRITICAL_IMPORTANCE,"CLI Output too long! - system may become unstable");
 				output[sizeof(output)-1]='\0';	// we still want to know what the output was for debugging purposes
 			}
             zprintf(CRITICAL_IMPORTANCE, output); // print the partial output
-			DbgConsole_Flush();
-        } while( result == pdTRUE ); // keep looping around until all output has been generated
+
+        }
+        while( result == pdTRUE ); // keep looping around until all output has been generated
+
         vTaskDelay(pdMS_TO_TICKS( 100 ));   // give up CPU for 100ms
     }
 }
@@ -565,7 +607,6 @@ static void watchdog_task(void *pvParameters)
 			if( (get_microseconds_tick()-mqtt_reboot_timestamp) > MQTT_REBOOT_TIMEOUT)
 			{
 				zprintf(CRITICAL_IMPORTANCE,"MQTT detected lack of traffic - restarting system...\r\n");
-				DbgConsole_Flush();
 				NVIC_SystemReset(); // never returns
 			}
 		}
@@ -601,6 +642,7 @@ void WDOG1_IRQHandler(void)
 #define ZBUFFER_SIZE	384
 void zprintf(ZPRINTF_IMPORTANCE importanceLevel, const char *arg0, ...)
 {
+	/*
 	static uint32_t zprintfCorrelationIDCounter = 0;
 	uint32_t 			len;
     va_list 			args;	
@@ -694,6 +736,7 @@ void zprintf(ZPRINTF_IMPORTANCE importanceLevel, const char *arg0, ...)
 			vPortFree(zbuffer);
 		}
 	}
+	*/
 }
 /**************************************************************
  * Function Name   : Core_detect
@@ -861,7 +904,7 @@ void mem_dump(uint8_t *addr, uint32_t len)
 				zprintf(LOW_IMPORTANCE,".");		
 		}
 		zprintf(LOW_IMPORTANCE,"\r\n");
-		DbgConsole_Flush();
+		//DbgConsole_Flush();
 		addr+=LINELEN;
 	}
 }

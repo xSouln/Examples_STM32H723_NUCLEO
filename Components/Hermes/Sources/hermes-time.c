@@ -98,7 +98,7 @@ void delay_us(uint32_t delay)
 
 void delay_ms(uint32_t delay)
 {
-    delay_us(delay * 1008);	// calibrated for 992KHz timer
+    delay_us(delay * 1000);	// calibrated for 992KHz timer
 }
 
 uint32_t get_microseconds_tick(void)

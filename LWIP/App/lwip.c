@@ -130,13 +130,12 @@ void MX_LWIP_Init(void)
 
   add1.addr = PP_HTONL(LWIP_MAKEU32(213, 184, 224, 254));//213.184.224.254 //82, 209, 243, 241
   dns_setserver(1, &add1);
-/*
-  osDelay(1000);
 
+/*
   sntp_setoperatingmode(SNTP_OPMODE_POLL);//129.70.132.37
   sntp_init();
   sntp_setservername(0, "pool.ntp.org");//http://www.ntp.org/pool.ntp.org
-  */
+*/
 /* USER CODE END 3 */
 }
 

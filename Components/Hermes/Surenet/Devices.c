@@ -74,7 +74,7 @@ void sn_devicetable_init(void)
 	uint32_t	notifyValue;
 	
 	memset(device_status_extra, 0, sizeof(device_status_extra)); // hose extra part of Device Statuses. Maybe should store this too?
-	
+	/*
 	xQueueSend(xNvStoreMailboxSend, &notifyValue, 0); // get device table into RAM
 	
 	if( xTaskNotifyWait(0, 0, &notifyValue, 100 ) == pdTRUE ) // nominal time to wait for notification, or use portMAX_DELAY if blocking
@@ -107,6 +107,7 @@ void sn_devicetable_init(void)
 	{	// couldn't read from NVM
 		zprintf(HIGH_IMPORTANCE, "Failed to read Device Status from NVM\r\n");
 	}
+	*/
 	memset(device_status_extra, 0, sizeof(device_status_extra));	// clear the extra part always
 	// apart from the SendSecurityKey because it's random and we have just started up, we must send it to the devices
 	// when they try and talk to us.
@@ -249,7 +250,7 @@ bool remove_pairing_table_entry(uint64_t mac)
 	if( mac == 0 )
 	{	  
 		zprintf(MEDIUM_IMPORTANCE, "Wiping all of the pairing table!\r\n");
-		memset(&device_status[0], 0, sizeof (device_status)*MAX_NUMBER_OF_DEVICES);
+		memset(device_status, 0, sizeof(device_status));
 		store_device_table();
 		retval = true;
 	} else

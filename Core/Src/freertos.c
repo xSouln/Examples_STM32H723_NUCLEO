@@ -57,7 +57,7 @@ const osThreadAttr_t defaultTask_attributes = {
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-
+extern void HermesComponentInit();
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
@@ -116,9 +116,8 @@ void StartDefaultTask(void *argument)
 {
   /* init code for LWIP */
   MX_LWIP_Init();
-
-  SCB_EnableDCache();
   /* USER CODE BEGIN StartDefaultTask */
+  HermesComponentInit();
   /* Infinite loop */
   for(;;)
   {

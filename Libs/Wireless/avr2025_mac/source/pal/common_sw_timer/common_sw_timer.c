@@ -88,6 +88,20 @@ static void internal_timer_handler(void);
 static inline bool compare_time(uint32_t t1, uint32_t t2);
 static void load_hw_timer(uint8_t timer_id);
 
+//==============================================================================
+//modify:
+
+static void common_tc_delay(uint32_t ms)
+{
+	HAL_Delay(ms);
+}
+
+static void common_tc_compare_stop()
+{
+
+}
+//==============================================================================
+
 status_code_t sw_timer_get_id(uint8_t *timer_id)
 {
 	if (alloc_timer_id < TOTAL_NUMBER_OF_SW_TIMERS) {
@@ -245,18 +259,6 @@ static void start_absolute_timer(uint8_t timer_id,
 
 	//! is modified
 	//cpu_irq_restore(flags);
-}
-//==============================================================================
-//modify:
-
-static void common_tc_delay(uint32_t ms)
-{
-	HAL_Delay(ms);
-}
-
-static void common_tc_compare_stop()
-{
-
 }
 //==============================================================================
 static void load_hw_timer(uint8_t timer_id)

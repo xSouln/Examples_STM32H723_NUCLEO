@@ -13,9 +13,10 @@ extern "C" {
 
 #define TERMINAL_COMPONENT_ENABLE 1
 #define SERIAL_PORT_COMPONENT_ENABLE 1
-#define TCP_SERVER_COMPONENT_ENABLE 1
+//#define TCP_SERVER_COMPONENT_ENABLE 1
 //#define ZIGBEE_COMPONENT_ENABLE 1
 //#define SUREFLAP_COMPONENT_ENABLE 1
+#define HERMES_COMPONENT_ENABLE 1
 //==============================================================================
 //defines:
 /*

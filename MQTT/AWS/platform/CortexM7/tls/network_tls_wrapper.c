@@ -125,45 +125,32 @@ IoT_Error_t iot_tls_init(	Network* pNetwork, char* pRootCALocation, char* pDevic
 	wolfSSL_set_using_nonblock(pNetwork->tlsDataParams.ssl_obj, 1);
 
 	/* create a TCP socket */
-	pNetwork->tlsDataParams.socket = socket(AF_INET, SOCK_STREAM, 0);
+	pNetwork->tlsDataParams.socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (pNetwork->tlsDataParams.socket < 0)
 	{
 		return TCP_SETUP_ERROR;
 	}
 
 	wolfSSL_set_fd(pNetwork->tlsDataParams.ssl_obj, (int)pNetwork->tlsDataParams.socket);
-
+	/*
 	uint32_t timeout = SOCKET_RX_BLOCK_TIME;
 	lwip_setsockopt(pNetwork->tlsDataParams.socket, 0, SO_RCVTIMEO, &timeout, sizeof(timeout));
 	timeout = SOCKET_TX_BLOCK_TIME;
 	lwip_setsockopt(pNetwork->tlsDataParams.socket, 0, SO_SNDTIMEO, &timeout, sizeof(timeout));
-
-	/*
-	//bind to port 80 at any interface
-	address.sin_family = AF_INET;
-	address.sin_port = HTTP_PORT;
-	address.sin_addr.s_addr = gethostbyname(URL);
-
-	if (bind(sock, (struct sockaddr *)&address, sizeof (address)) < 0)
-	{
-		return TCP_SETUP_ERROR;
-	}
-
-	wolfSSL_set_fd(pNetwork->tlsDataParams.ssl_obj, (int)pNetwork->tlsDataParams.socket);
-
-	uint32_t timeout = SOCKET_RX_BLOCK_TIME;
-
-	FreeRTOS_setsockopt( pNetwork->tlsDataParams.socket, 0, FREERTOS_SO_RCVTIMEO, &timeout, sizeof(timeout) );
-	timeout = SOCKET_TX_BLOCK_TIME;
-	FreeRTOS_setsockopt( pNetwork->tlsDataParams.socket, 0, FREERTOS_SO_SNDTIMEO, &timeout, sizeof(timeout) );
 	*/
+	struct timeval timeout = { 0 };
+
+	timeout.tv_sec = SOCKET_RX_BLOCK_TIME;
+	setsockopt(pNetwork->tlsDataParams.socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+
+	timeout.tv_sec = SOCKET_TX_BLOCK_TIME;
+	setsockopt(pNetwork->tlsDataParams.socket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 
 	return SUCCESS;
 }
 
 IoT_Error_t iot_tls_connect(Network* pNetwork, TLSConnectParams* TLSParams)
 {
-	struct sockaddr_in address;
 	struct hostent* hostent_result;
 
 	if(pNetwork->tlsDataParams.socket < 0)
@@ -172,15 +159,17 @@ IoT_Error_t iot_tls_connect(Network* pNetwork, TLSConnectParams* TLSParams)
 		return NETWORK_ERR_NET_SOCKET_FAILED;
 	}
 
-	hostent_result = lwip_gethostbyname(pNetwork->tlsConnectParams.pDestinationURL);
+	hostent_result = gethostbyname(pNetwork->tlsConnectParams.pDestinationURL);
 
 	if (!hostent_result)
 	{
 		return NETWORK_ERR_NET_SOCKET_FAILED;
 	}
 
-	//address.sin_addr = hostent_result->h_addr_list
-	address.sin_port = lwip_htons(pNetwork->tlsConnectParams.DestinationPort);
+	struct sockaddr_in address;
+	address.sin_family = AF_UNSPEC;
+	address.sin_addr.s_addr = ((ip_addr_t*)(hostent_result->h_addr_list[0]))[0].addr;
+	address.sin_port = htons(pNetwork->tlsConnectParams.DestinationPort);
 
 	if(address.sin_addr.s_addr == 0)
 	{
@@ -189,7 +178,7 @@ IoT_Error_t iot_tls_connect(Network* pNetwork, TLSConnectParams* TLSParams)
 	}
 
 	//int32_t result = FreeRTOS_connect(pNetwork->tlsDataParams.socket, &address, sizeof(address));
-	int32_t result = lwip_connect(pNetwork->tlsDataParams.socket, (const struct sockaddr*)&address, sizeof(address));
+	int32_t result = connect(pNetwork->tlsDataParams.socket, (const struct sockaddr*)&address, sizeof(address));
 	if( pdFREERTOS_ERRNO_NONE != result )
 	{
 		wrapper_printf("\r\n\t--- Socket Connect Failed: %d\r\n", result);
@@ -279,11 +268,11 @@ IoT_Error_t iot_tls_disconnect( Network* pNetwork )
 
 	if( WOLFSSL_SHUTDOWN_NOT_DONE == ret ) {zprintf(LOW_IMPORTANCE,"wolfSSL_shutdown() never succeeded\r\n");}
 
-	lwip_shutdown(pNetwork->tlsDataParams.socket, SHUT_RDWR);
+	shutdown(pNetwork->tlsDataParams.socket, SHUT_RDWR);
 
 	wrapper_printf("\r\n\tShutting down TLS Socket: %d\r\n", shutdown_ret);
 
-	lwip_close(pNetwork->tlsDataParams.socket);
+	close(pNetwork->tlsDataParams.socket);
 	pNetwork->tlsDataParams.socket = -1;
 
 	return SUCCESS;

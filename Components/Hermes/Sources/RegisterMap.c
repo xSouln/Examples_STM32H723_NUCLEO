@@ -483,7 +483,7 @@ uint8_t checksum_read(uint16_t address)
 {
   	uint32_t 			i;
 	static uint16_t 	crc=0;
-
+/*
 	if( HR_HUB_FIRMWARE_CHECKSUM_LOW == address)
   {
 		crc = CRC16((uint8_t *)&m_bank_a_start, (uint32_t)&m_bank_a_size, 0xcccc);
@@ -491,6 +491,8 @@ uint8_t checksum_read(uint16_t address)
 
 	if( address == HR_HUB_FIRMWARE_CHECKSUM_LOW ) return crc & 0xFF;
 	return (crc >> 8) & 0xFF;
+	*/
+	return 0;
 }
 
 /**************************************************************
@@ -768,31 +770,9 @@ uint8_t hub_uptime_read(uint16_t address)
  * Outputs         :
  * Returns         :
  **************************************************************/
-extern const BANK_DESCRIPTOR	BankA_Descriptor;
-extern const BANK_DESCRIPTOR	BankB_Descriptor;
 uint8_t bank_desc_read(uint16_t address)
 {
-	uint8_t retval = 0;
-
-	switch( address )
-	{
-		case HR_HUB_BANK_A_MARK:
-			retval = (uint8_t)BankA_Descriptor.bank_mark;
-			break;
-		case HR_HUB_BANK_A_WDOG_RESETS:
-			retval = (uint8_t)BankA_Descriptor.watchdog_resets;
-			break;
-		case HR_HUB_BANK_B_MARK:
-			retval = (uint8_t)BankB_Descriptor.bank_mark;
-			break;
-		case HR_HUB_BANK_B_WDOG_RESETS:
-			retval = (uint8_t)BankB_Descriptor.watchdog_resets;
-			break;
-	}
-	hubRegisterBank[address].value = retval;
-	hubRegisterBank[address].updateWebFlag = true;
-
-	return retval;
+	return 0;
 }
 
 /**************************************************************
@@ -999,39 +979,8 @@ void HubReg_Dump(void)
 
 uint8_t HRM_Read_Image_Hash(uint16_t address)
 {
-	char					result[WC_SHA256_DIGEST_SIZE];
-	uint16_t				base_address;
-	int						i, j;
-	wc_Sha256				hash_context;
-	const BANK_DESCRIPTOR*	descriptor = NULL;
 
-	if( address == HR_HUB_BANK_B_HASH_LOW )
-	{
-		base_address = HR_HUB_BANK_B_HASH_LOW;
-		descriptor = &BankB_Descriptor;
-	} else if( address == HR_HUB_BANK_A_HASH_LOW )
-	{
-		base_address = HR_HUB_BANK_A_HASH_LOW;
-		descriptor = &BankA_Descriptor;
-	}
-
-	if( NULL == descriptor ){ return hubRegisterBank[address].value; }
-
-	wc_InitSha256(&hash_context);
-	wc_Sha256Update(&hash_context, (const byte*)descriptor->vector_table_offset, descriptor->image_size);
-	wc_Sha256Final(&hash_context, (byte*)result);
-
-	for( i = 0; i < 4; i++ )
-	{
-		hubRegisterBank[base_address + i].value = 0;
-		hubRegisterBank[base_address + i].updateWebFlag = true;
-		for( j = i; j < WC_SHA256_DIGEST_SIZE; j += 4 )
-		{
-			hubRegisterBank[base_address + i].value ^= result[j];
-		}
-	}
-
-	return hubRegisterBank[address].value;
+	return 0;
 }
 
 uint32_t HubReg_Get_Integer(uint16_t address)

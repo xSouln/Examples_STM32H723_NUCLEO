@@ -144,7 +144,7 @@ void ComponentsHandler()
 	{
 		sntp_update_time_stamp = ComponentsSysGetTime();
 
-		SNTP_GetTime();
+		//SNTP_GetTime();
 	}
 }
 //------------------------------------------------------------------------------
@@ -256,7 +256,7 @@ xResult ComponentsInit(void* parent)
 
 	sntp_update_time_stamp = 20000;
 
-	SNTP_Init();
+	//SNTP_Init();
 
 	return xResultAccept;
 }

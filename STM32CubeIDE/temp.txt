@@ -1,0 +1,46 @@
+typedef struct
+{
+	uint8_t d_mac[6];
+	uint8_t s_mac[6];
+	uint16_t type;
+
+} eth_header_t;
+
+typedef struct
+{
+	struct
+	{
+		uint8_t ip_ver : 4;
+		uint8_t IHL : 4;
+	};
+	uint8_t TOS;
+	uint16_t len;
+
+	uint16_t id;
+	uint16_t flag;
+
+	uint8_t TTL;
+	uint8_t protocol;
+	uint16_t crc;
+
+	struct
+	{
+		uint32_t ip_4 : 8;
+		uint32_t ip_3 : 8;
+		uint32_t ip_2 : 8;
+		uint32_t ip_1 : 8;
+	} sip;
+
+	struct
+	{
+		uint32_t ip_4 : 8;
+		uint32_t ip_3 : 8;
+		uint32_t ip_2 : 8;
+		uint32_t ip_1 : 8;
+	} dip;
+
+} ip_header_t;
+
+eth_header_t eth_header;
+ip_header_t ip_header_0;
+ip_header_t ip_header_1;

@@ -39,6 +39,8 @@
 #include "lwip.h"
 #include "sockets.h"
 #include "netdb.h"
+#include "api.h"
+#include "dns.h"
 
 static bool HTTP_Open_Connection(HTTP_CONNECTION* connection, char* URL);
 static void HTTP_Kill_Connection(HTTP_CONNECTION* connection);
@@ -75,6 +77,11 @@ void HTTPPostTask(void *pvParameters)
 	HTTP_POST_Request_params params;
 	bool result = true;
 
+	while(true)
+	{
+		osDelay(1);
+	}
+/*
 	while(1)
 	{
 		if (xQueueReceive( xHTTPPostRequestMailbox, &params, portMAX_DELAY ) == pdPASS )
@@ -95,6 +102,7 @@ void HTTPPostTask(void *pvParameters)
 			xTaskNotify(params.xClientTaskHandle,result,eSetValueWithOverwrite);
 		}
 	}
+	*/
 }
 
 
@@ -271,12 +279,21 @@ static bool HTTP_Open_Connection(HTTP_CONNECTION* connection, char* URL)
 		return false;
 	}
 
+	struct timeval timeout = { 0 };
+	timeout.tv_sec = 1000;
+	/*
+	setsockopt(sntpSocket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+	setsockopt(sntpSocket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+	*/
+	/*
 	lwip_setsockopt(connection->socket, 0, SO_RCVTIMEO, &rx_timeout, sizeof(rx_timeout));
 	lwip_setsockopt(connection->socket, 0, SO_SNDTIMEO, &rx_timeout, sizeof(rx_timeout));
+	*/
 	wolfSSL_set_fd(connection->session, (int)connection->socket);
 
 	http_printf(HTTP_LINE "Resolving URL: %s | ", URL);
 	struct sockaddr_in address;
+	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = gethostbyname(URL);
 	address.sin_port = htons(HTTP_PORT);
 
@@ -315,7 +332,8 @@ static bool HTTP_Read_Content(HTTP_CONNECTION* connection, HTTP_RESPONSE_DATA* r
 	if( false == response_data->reject_message )
 	{
 		if( false != response_data->chunked )
-		{	// chunked. This means we have 1 or more chunks, each chunk being a length in ascii hex,
+		{
+			// chunked. This means we have 1 or more chunks, each chunk being a length in ascii hex,
 			// followed by \r\n, then that number of bytes followed by \r\n.
 			// The final chunk has a length of 0, thus it becomes 0\r\n\r\n
 			uint32_t	chunk_size;
@@ -327,7 +345,8 @@ static bool HTTP_Read_Content(HTTP_CONNECTION* connection, HTTP_RESPONSE_DATA* r
 			while( (false == end_of_response) &&
 				   (connection->bytes_read < response_data->buffer_length) &&
 				   ((get_microseconds_tick() - response_data->activity_timestamp) < HTTP_POST_TIMEOUT) )
-			{ // we repeatedly read in chunks
+			{
+				// we repeatedly read in chunks
 				chunk_size = 0;
 				chunk_size_hex_index = 0;
 				memset(chunk_size_hex, 0, sizeof(chunk_size_hex));
@@ -351,7 +370,8 @@ static bool HTTP_Read_Content(HTTP_CONNECTION* connection, HTTP_RESPONSE_DATA* r
 				if( 0 == chunk_size )
 				{
 					end_of_response = true;
-				} else
+				}
+				else
 				{
 					while( (chunk_bytes_read < chunk_size) &&
 						   (connection->bytes_read < response_data->buffer_length) &&
@@ -380,7 +400,8 @@ static bool HTTP_Read_Content(HTTP_CONNECTION* connection, HTTP_RESPONSE_DATA* r
 				wolfSSL_read(connection->session, chunk_size_hex, 2);	// consume the trailing \r\n
 				if( chunk_size_hex[0] != '\r' ) zprintf(LOW_IMPORTANCE,"Chunk termination incorrect\r\n");
 			}
-		} else
+		}
+		else
 		{	// Not chunked, so must have Content Length.
 			while(	(connection->bytes_read < response_data->content_length) &&
 					(connection->bytes_read < response_data->buffer_length) &&

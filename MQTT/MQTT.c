@@ -258,6 +258,7 @@ uint32_t MQTT_Unpack_Credentials(SUREFLAP_CREDENTIALS* credentials)
 
 		if( 0 == credentials->decode_result )
 		{
+			/*
 			if( true != hermesFlashRequestCredentialWrite(credentials->decoded_cert, (void*)&MQTT_Stored_Certificate, credentials->decoded_cert_size) )
 			{
 				credentials->decode_result |= 1;
@@ -267,7 +268,7 @@ uint32_t MQTT_Unpack_Credentials(SUREFLAP_CREDENTIALS* credentials)
 			{
 				credentials->decode_result |= 2;
 			}
-
+*/
 			if( 0 == credentials->decode_result )
 			{
 				vPortFree(credentials->decoded_cert);
@@ -428,7 +429,7 @@ static bool MQTT_Send_Credential_Request(SUREFLAP_CREDENTIALS* creds)
 		zprintf(LOW_IMPORTANCE,"Storing Derived Key in Flash\r\n");
 		StoreDerivedKey();
 		cred_req_key_type = CRED_REQ_USE_FLASH_KEY;
-		retval = true;	// success
+		retval = true;	// AWS_SUCCESS
 	}
 	else
 	{	// we got a response, but the parser failed to parse it. This probably means the server did not like the
@@ -517,7 +518,7 @@ static bool MQTT_Connect(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentia
 
 	IoT_Error_t result = AWS_Connect(client, credentials, last_will, clean_connect);
 
-	if( SUCCESS == result )
+	if( AWS_SUCCESS == result )
 	{
 		Backoff_Reset(&connect_backoff);
 		SERVER_MESSAGE	online_buffered_message = {(uint8_t*)online_msg, 0};
@@ -559,7 +560,7 @@ static bool MQTT_Subscribe(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credent
 
 	IoT_Error_t result = AWS_Resubscribe(client);
 
-	if( SUCCESS == result || MQTT_RX_BUFFER_TOO_SHORT_ERROR == result )
+	if( AWS_SUCCESS == result || MQTT_RX_BUFFER_TOO_SHORT_ERROR == result )
 	{
 		Backoff_Reset(&subscribe_backoff);
 		return true;
@@ -599,14 +600,14 @@ static bool MQTT_Poll(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials)
 		sprintf(&signed_message[64]," %s",outgoing_message.message);
 		pending_message = &outgoing_message;
 		result = AWS_Publish(client, credentials, pending_message->subtopic, signed_message, strlen(signed_message), QOS1);
-		if( SUCCESS == result )
+		if( AWS_SUCCESS == result )
 		{
 			pending_message = NULL;
 		}
 	}
 
 	result = aws_iot_mqtt_yield(client, AWS_YIELD_TIMEOUT);
-	if( (SUCCESS != result) && (NETWORK_SSL_NOTHING_TO_READ != result) && (MQTT_RX_BUFFER_TOO_SHORT_ERROR != result) )
+	if( (AWS_SUCCESS != result) && (NETWORK_SSL_NOTHING_TO_READ != result) && (MQTT_RX_BUFFER_TOO_SHORT_ERROR != result) )
 	{
 		aws_printf("\r\n--- Yield Failed: %d\r\n", result);
 		return false;
@@ -621,7 +622,7 @@ static bool MQTT_Poll(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials)
 static bool MQTT_Disconnect(AWS_IoT_Client* client)
 {
 	IoT_Error_t result = aws_iot_mqtt_disconnect(client);
-	if( (SUCCESS == result) || (NETWORK_DISCONNECTED_ERROR == result) )
+	if( (AWS_SUCCESS == result) || (NETWORK_DISCONNECTED_ERROR == result) )
 	{
 		return true;
 	}

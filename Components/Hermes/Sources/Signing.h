@@ -23,7 +23,8 @@
 #ifndef __SIGNING_H__
 #define __SIGNING_H__
 
-#include "Components.h"
+#include "Components_Config.h"
+#include "Components_Types.h"
 
 #define SHARED_SECRET_LENGTH	16
 #define DERIVED_KEY_LENGTH		32	// 256bits

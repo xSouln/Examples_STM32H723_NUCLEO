@@ -100,7 +100,7 @@
 #define WOLF_CONF_PSK      0
 
 /*---------- WOLF_CONF_PWDBASED -----------*/
-#define WOLF_CONF_PWDBASED      0
+#define WOLF_CONF_PWDBASED      1
 
 /*---------- WOLF_CONF_KEEP_PEER_CERT -----------*/
 #define WOLF_CONF_KEEP_PEER_CERT      0

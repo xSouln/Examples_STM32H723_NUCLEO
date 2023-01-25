@@ -58,6 +58,7 @@
 									<listOptionValue builtIn="false" value="HAVE_SNI=1"/>
 									<listOptionValue builtIn="false" value="JSMN_STATIC"/>
 									<listOptionValue builtIn="false" value="SNTP_SERVER_DNS=1"/>
+									<listOptionValue builtIn="false" value="LWIP_SO_SNDTIMEO=1"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.includepaths.693797389" name="Include paths (-I)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.includepaths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="../../Core/Inc"/>
@@ -116,6 +117,20 @@
 									<listOptionValue builtIn="false" value="../../wolfSSL"/>
 									<listOptionValue builtIn="false" value="../../Middlewares/Third_Party/wolfSSL_wolfSSL_wolfSSL/wolfssl/"/>
 									<listOptionValue builtIn="false" value="../../WolfSSL"/>
+									<listOptionValue builtIn="false" value="../../Hermes/Surenet/SureNetDriver/include"/>
+									<listOptionValue builtIn="false" value="../../Hermes/Surenet/SureNetDriver/mac/inc"/>
+									<listOptionValue builtIn="false" value="../../Hermes/Surenet/SureNetDriver/pal"/>
+									<listOptionValue builtIn="false" value="../../Hermes/Surenet/SureNetDriver/resources/buffer/inc"/>
+									<listOptionValue builtIn="false" value="../../Hermes/Surenet/SureNetDriver/resources/module_config"/>
+									<listOptionValue builtIn="false" value="../../Hermes/Surenet/SureNetDriver/resources/nvm"/>
+									<listOptionValue builtIn="false" value="../../Hermes/Surenet/SureNetDriver/resources/queue/inc"/>
+									<listOptionValue builtIn="false" value="../../Hermes/Surenet/SureNetDriver/tal/inc"/>
+									<listOptionValue builtIn="false" value="../../Hermes/Surenet/SureNetDriver/tal/at86rf233/inc"/>
+									<listOptionValue builtIn="false" value="&quot;../..\Middlewares\Third_Party\FreeRTOS\FreeRTOS-Plus-CLI&quot;"/>
+									<listOptionValue builtIn="false" value="../../Middlewares/Third_Party/FreeRTOS/FreeRTOS-Plus-TCP/source/include"/>
+									<listOptionValue builtIn="false" value="../../Middlewares/Third_Party/FreeRTOS/FreeRTOS-Plus-TCP/source/portable/Compiler/GCC"/>
+									<listOptionValue builtIn="false" value="../../Middlewares/Third_Party/FreeRTOS/FreeRTOS-Plus-TCP/source/portable/NetworkInterface/STM32Hxx"/>
+									<listOptionValue builtIn="false" value="../../Middlewares/Third_Party/FreeRTOS/FreeRTOS-Plus-TCP/source/portable/NetworkInterface/include"/>
 								</option>
 								<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.languagestandard.317766743" name="Language standard" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.languagestandard" useByScannerDiscovery="true" value="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.languagestandard.value.gnu18" valueType="enumerated"/>
 								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c.541946347" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c"/>
@@ -259,6 +274,13 @@
 			<autodiscovery enabled="false" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
 	</storageModule>
-	<storageModule moduleId="refreshScope"/>
+	<storageModule moduleId="refreshScope" versionNumber="2">
+		<configuration configurationName="Debug">
+			<resource resourceType="PROJECT" workspacePath="/Examples_STM32H723_NUCLEO"/>
+		</configuration>
+		<configuration configurationName="Release">
+			<resource resourceType="PROJECT" workspacePath="/Examples_STM32H723_NUCLEO"/>
+		</configuration>
+	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
 </cproject>

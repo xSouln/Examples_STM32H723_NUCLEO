@@ -38,6 +38,8 @@
  * Licensed under Atmel's Limited License Agreement --> EULA.txt
  */
 
+#include "Components_Config.h"
+#include "Components_Types.h"
 #include "trx_access.h"
 #include "spi.h"
 
@@ -70,10 +72,12 @@ void trx_irq_handler(void)
 	}
 }
 
-static void trx_wait_spi()
+static void trx_wait_spi(SPI_HandleTypeDef* spi)
 {
 	/*
-	while (__HAL_SPI_GET_FLAG(&hspi3, SPI_FLAG_BSY))
+	REG_SPI_T* reg = (REG_SPI_T*)(spi->Instance);
+
+	while (!reg->Status.TxFifoComplete)
 	{
 
 	}
@@ -104,7 +108,7 @@ uint8_t trx_reg_read(uint8_t addr)
 	//result = HAL_SPI_TransmitReceive(&hspi2, packet, packet, sizeof(packet), 100);
 
 	/* Stop the SPI transaction by setting SEL high */
-	trx_wait_spi();
+	trx_wait_spi(&hspi3);
 
 	TRX_DESELECT_DEVICE();
 
@@ -135,7 +139,7 @@ void trx_reg_write(uint8_t addr, uint8_t data)
 	result = HAL_SPI_Transmit(&hspi3, &data, sizeof(data), 100);
 
 	/* Stop the SPI transaction by setting SEL high */
-	trx_wait_spi();
+	trx_wait_spi(&hspi3);
 
 	TRX_DESELECT_DEVICE();
 
@@ -199,7 +203,7 @@ void trx_frame_read(uint8_t *data, uint8_t length)
 
 	result = HAL_SPI_TransmitReceive(&hspi3, buffer, buffer, sizeof(command) + length, 100);
 
-	trx_wait_spi();
+	trx_wait_spi(&hspi3);
 
 	memcpy(data, buffer + 1, length);
 
@@ -234,7 +238,7 @@ void trx_frame_write(uint8_t *data, uint8_t length)
 	result = HAL_SPI_Transmit(&hspi3, buffer, sizeof(command) + length, 100);
 	//result = HAL_SPI_Transmit(&hspi2, data, length, 100);
 
-	trx_wait_spi();
+	trx_wait_spi(&hspi3);
 
 	/* Stop the SPI transaction by setting SEL high */
 	TRX_DESELECT_DEVICE();
@@ -275,7 +279,7 @@ void trx_sram_write(uint8_t addr, uint8_t *data, uint8_t length)
 
 	result = HAL_SPI_Transmit(&hspi3, data, length, 100);
 
-	trx_wait_spi();
+	trx_wait_spi(&hspi3);
 
 	/* Stop the SPI transaction by setting SEL high */
 	TRX_DESELECT_DEVICE();
@@ -320,7 +324,7 @@ void trx_sram_read(uint8_t addr, uint8_t *data, uint8_t length)
 	/* Upload the received byte in the user provided location */
 	result = HAL_SPI_Receive(&hspi3, data, length, 100);
 
-	trx_wait_spi();
+	trx_wait_spi(&hspi3);
 
 	/* Stop the SPI transaction by setting SEL high */
 	TRX_DESELECT_DEVICE();

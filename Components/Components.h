@@ -40,6 +40,10 @@ extern "C" {
 #ifdef SUREFLAP_COMPONENT_ENABLE
 #include "SureFlap/SureFlap_Component.h"
 #endif
+
+#ifdef HERMES_COMPONENT_ENABLE
+#include "Hermes/Sources/hermes.h"
+#endif
 //==============================================================================
 //functions:
 

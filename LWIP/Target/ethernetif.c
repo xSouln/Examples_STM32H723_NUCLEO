@@ -53,7 +53,30 @@
 /* ETH_RX_BUFFER_SIZE parameter is defined in lwipopts.h */
 
 /* USER CODE BEGIN 1 */
+volatile struct
+{
+	uint32_t TxComplite : 1;
+	uint32_t RxComplite : 1;
 
+} Events;
+
+//__attribute__((section(".user_reg_2")));
+
+#define LWIP_MEMPOOL_DECLARE_USER(name,num,size,desc) \
+  LWIP_DECLARE_MEMORY_ALIGNED(memp_memory_ ## name ## _base, ((num) * (MEMP_SIZE + MEMP_ALIGN_SIZE(size)))) __attribute__((section(".lwip_mem"))); \
+    \
+  LWIP_MEMPOOL_DECLARE_STATS_INSTANCE(memp_stats_ ## name) \
+    \
+  static struct memp *memp_tab_ ## name; \
+    \
+  const struct memp_desc memp_ ## name = { \
+    DECLARE_LWIP_MEMPOOL_DESC(desc) \
+    LWIP_MEMPOOL_DECLARE_STATS_REFERENCE(memp_stats_ ## name) \
+    LWIP_MEM_ALIGN_SIZE(size), \
+    (num), \
+    memp_memory_ ## name ## _base, \
+    &memp_tab_ ## name \
+  };
 /* USER CODE END 1 */
 
 /* Private variables ---------------------------------------------------------*/
@@ -94,7 +117,7 @@ typedef struct
 
 /* Memory Pool Declaration */
 #define ETH_RX_BUFFER_CNT             12U
-LWIP_MEMPOOL_DECLARE(RX_POOL, ETH_RX_BUFFER_CNT, sizeof(RxBuff_t), "Zero-copy RX PBUF pool");
+LWIP_MEMPOOL_DECLARE_USER(RX_POOL, ETH_RX_BUFFER_CNT, sizeof(RxBuff_t), "Zero-copy RX PBUF pool");
 
 /* Variable Definitions */
 static uint8_t RxAllocStatus;
@@ -119,7 +142,8 @@ ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT] __attribute__((section(".TxDecr
 #endif
 
 /* USER CODE BEGIN 2 */
-
+HAL_StatusTypeDef transmit_action_result;
+uint8_t lwip_mem[MEM_SIZE] __attribute__((section(".lwip_mem"))) __ALIGNED(32) = {0};
 /* USER CODE END 2 */
 
 osSemaphoreId RxPktSemaphore = NULL;   /* Semaphore to signal incoming packets */
@@ -225,6 +249,8 @@ static void low_level_init(struct netif *netif)
   MACAddr[3] = (sn0 >> 16) & 0xFF;
   MACAddr[4] = (sn0 >> 8) & 0xFF;
   MACAddr[5] = sn0 & 0xFF;
+
+  lwip_mem[0] = 0;
   /* USER CODE END MACADDRESS */
 
   hal_eth_init_status = HAL_ETH_Init(&heth);
@@ -652,10 +678,7 @@ void HAL_ETH_MspInit(ETH_HandleTypeDef* ethHandle)
     /* Peripheral interrupt init */
     HAL_NVIC_SetPriority(ETH_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(ETH_IRQn);
-    HAL_NVIC_SetPriority(ETH_WKUP_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(ETH_WKUP_IRQn);
   /* USER CODE BEGIN ETH_MspInit 1 */
-
   /* USER CODE END ETH_MspInit 1 */
   }
 }
@@ -693,8 +716,6 @@ void HAL_ETH_MspDeInit(ETH_HandleTypeDef* ethHandle)
 
     /* Peripheral interrupt Deinit*/
     HAL_NVIC_DisableIRQ(ETH_IRQn);
-
-    HAL_NVIC_DisableIRQ(ETH_WKUP_IRQn);
 
   /* USER CODE BEGIN ETH_MspDeInit 1 */
 
@@ -787,7 +808,7 @@ void ethernet_link_thread(void* argument)
 
   struct netif *netif = (struct netif *) argument;
 /* USER CODE BEGIN ETH link init */
-  TCPServerComponentInit(ethernet_link_thread);
+
 /* USER CODE END ETH link init */
 
   for(;;)
@@ -842,7 +863,7 @@ void ethernet_link_thread(void* argument)
   }
 
 /* USER CODE BEGIN ETH link Thread core code for User BSP */
-  //TCPServerComponentHandler();
+
 /* USER CODE END ETH link Thread core code for User BSP */
 
     osDelay(100);

@@ -917,7 +917,7 @@ typedef enum phy_enum_tag {
 	 * read-only.
 	 */
 	PHY_READ_ONLY                         = (0x0B)
-} SHORTENUM phy_enum_t;
+} phy_enum_t;
 
 /* Non-standard values / extensions */
 
@@ -1403,7 +1403,7 @@ typedef enum trx_cca_mode_tag {
 	TRX_CCA_MODE1 = 1, /* Energy above threshold */
 	TRX_CCA_MODE2 = 2, /* Carrier sense only */
 	TRX_CCA_MODE3 = 3 /* Carrier sense AND energy above threshold */
-} SHORTENUM
+}
 
 /**
  * CCA Modes of the transceiver
@@ -1421,7 +1421,7 @@ typedef enum cca_mode_tag {
 	CCA_MODE_2_CS,
 	CCA_MODE_3_CS_ED,
 	CCA_MODE_4_ALOHA
-} SHORTENUM cca_mode_t;
+} cca_mode_t;
 
 typedef enum ch_pg_tag {
 	CH_PG_2003 = 0,
@@ -1435,7 +1435,7 @@ typedef enum ch_pg_tag {
 	CH_PG_16 = 16,
 	CH_PG_18 = 18,
 	CH_PG_INVALID = 0xFF
-} SHORTENUM ch_pg_t;
+} ch_pg_t;
 
 /* === Externals ============================================================ */
 

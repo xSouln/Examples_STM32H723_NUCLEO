@@ -36,6 +36,7 @@
 #include <ctype.h>      // isxdigit()
 
 /* FreeRTOS includes. */
+#include "cmsis_os.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
@@ -50,6 +51,7 @@
 #include "mac_api.h"
 #include "tal.h"
 #include "bmm.h"
+#include "pal.h"
 #include "app_config.h"
 
 #include "debug.h"
@@ -76,31 +78,50 @@ typedef struct associated_device_tag {
 }associated_device_t;
 
 // Private functions
-static void rfisr_task(void *pvParameters);
 static bool assign_new_short_addr(uint64_t addr64, uint16_t *addr16);
 
 // Private variables
-static uint8_t current_channel;	// this is the master reference.
+static uint8_t current_channel = RF_CHANNEL1;	// this is the master reference.
 static uint8_t current_channel_page=0;
-static TaskHandle_t xrfisr_task_handle = NULL;
 /** This array stores all device related information. */
 static associated_device_t device_list[MAX_NUMBER_OF_DEVICES];
 // Note that beacon_request_device_data.xx is not actually used, it is just stored. A hook could be added
 // to pass it out higher up the stack if a need was found for the information.
-BEACON_REQUEST_DEVICE_DATA beacon_request_device_data={.mac_addr=0,.device_channel=0,.device_platform=INVALID_DEVICE};
+BEACON_REQUEST_DEVICE_DATA beacon_request_device_data =
+{
+	.mac_addr = 0,
+	.device_channel = 0,
+	.device_platform = INVALID_DEVICE
+};
+
 typedef enum
 {
 	BEACON_PAYLOAD_SUREFLAP_PROTOCOL_ID,
 	BEACON_PAYLOAD_SUREFLAP_VERSION,
 	BEACON_PAYLOAD_SOLE_PAN_COORDINATOR,
+
 } BEACON_PAYLOAD_INDEX;
-static uint8_t Beacon_Payload[]={SUREFLAP_HUB,HUB_SUPPORTS_THALAMUS,HUB_IS_SOLE_PAN_COORDINATOR};
+
+static uint8_t Beacon_Payload[] =
+{
+	SUREFLAP_HUB,
+	HUB_SUPPORTS_THALAMUS,
+	HUB_IS_SOLE_PAN_COORDINATOR
+};
+
+
 bool beacon_payload_update;		// used to indicate whether an update to the beacon payload is part of the
 								// initialisation (false) (and therefore the callback it triggers performs the next
 								// part of the sequence), or whether it's a 'run time' update of the payload (true)
 								// and should NOT perform the next part of the sequence.
 static ASSOCIATION_SUCCESS_INFORMATION assoc_info; // stored when the association request arrives, for use if the request is successful
-static PAIRING_REQUEST requested_pairing_mode={0,false,PAIRING_REQUEST_SOURCE_UNKNOWN};
+
+static PAIRING_REQUEST requested_pairing_mode =
+{
+	0,
+	false,
+	PAIRING_REQUEST_SOURCE_UNKNOWN
+};
 
 // Private defines
 /** Defines the short address of the coordinator. */
@@ -108,12 +129,14 @@ static PAIRING_REQUEST requested_pairing_mode={0,false,PAIRING_REQUEST_SOURCE_UN
 
 //local copy of pan_id
 uint16_t pan_id;
+uint64_t request_mac_addr;
 
 typedef struct
 {
 	uint32_t 	timestamp;
 	uint32_t	timeout;
 	bool 		active;
+
 } PAIRING_MODE_TIMEOUT;
 
 PAIRING_MODE_TIMEOUT pairing_mode_timeout = {0,false};
@@ -129,28 +152,39 @@ BaseType_t snd_init(uint64_t *mac_addr, uint16_t panid, uint8_t channel)
 {
     BaseType_t xReturn = pdPASS;
 
-	pan_id = panid;
+	pan_id = SUREFLAP_PAN_ID;
 
-    // set up MAC address for stack
-    pal_ps_set(EE_IEEE_ADDR, 8, (uint8_t *)mac_addr);
+	request_mac_addr = *mac_addr;
 
-    // now start the deferred interrupt handler task
-    if (xTaskCreate(rfisr_task, "RF-ISR", 512, NULL, ISR_TASK_PRIORITY, &xrfisr_task_handle) != pdPASS)
-    {
-        zprintf(CRITICAL_IMPORTANCE, "RF ISR task creation failed!.\r\n");
-        while (1);
-    }
-	
-	snd_set_channel(channel);	
-	
+	snd_stack_init();
+
+	for (uint8_t i = 0; i < 10; i++)
+	{
+		snd_stack_task();
+		osDelay(10);
+	}
+
+	wpan_mlme_set_req(macIeeeAddress, &request_mac_addr);
+
+	for (uint8_t i = 0; i < 10; i++)
+	{
+		snd_stack_task();
+		osDelay(10);
+	}
+
+	snd_set_channel(15);
+
     return xReturn;
 }
+
+//------------------------------------------------------------------------------
 
 // This task is the SureNet Driver task. All activity relating to the Atmel AT86RF233 IC is handled in this task except
 // that ISR's aren't, instead they are handled in rfisr_task and communicated with this one via Notifications
 // Note that this function is called by sn_task() i.e. from the higher levels of the stack, and
 // is also called during transmit_packet().
 static uint8_t reentrancy_count=0;
+static uint8_t irq_update_flag;
 void snd_stack_task(void)
 {
 	if( reentrancy_count>3)
@@ -158,6 +192,14 @@ void snd_stack_task(void)
 		zprintf(CRITICAL_IMPORTANCE,"wpan_task() reentered %c times",reentrancy_count+0x30);
 	}
 	reentrancy_count++;
+
+	if(irq_update_flag)
+	{
+		irq_update_flag = false;
+
+		trx_irq_handler();
+	}
+
     wpan_task();
 	reentrancy_count--;
 	
@@ -177,63 +219,32 @@ void snd_stack_task(void)
 	}	
 }
 
-/* This function handles the transceiver generated interrupts.
- */
-extern irq_handler_t irq_hdl_trx;
-
 /**
  * \brief ISR for transceiver's main interrupt
  */
-void RF_IRQ_HANDLER(void)   // overrides weakly linked handler in startup_MIMXRT1021.s
+// overrides weakly linked handler in stm32h7xx_it.c
+void RF_IRQ_HANDLER(void)
 {
-	/*Clearing the AT86RFx interrupt */
-    /* clear the interrupt status */
-  	//LED_SET(LED_DISP_RF);
-    //GPIO_PortClearInterruptFlags(RF_INT_PORT, 1U << RF_INT_PIN);
+	extern bool tal_awake_end_flag;
 
-	/*Calling the interrupt routines */
-    BaseType_t pxHigherPriorityTaskWoken = pdFALSE;
-
-    if (xrfisr_task_handle!=NULL)
-    {
-        vTaskNotifyGiveFromISR( xrfisr_task_handle, &pxHigherPriorityTaskWoken );
-        portYIELD_FROM_ISR(pxHigherPriorityTaskWoken);  // Once this ISR is finished,
-                                                    // PendSV will fire, and switch
-    }
-    /* Add for ARM errata 838869, affects Cortex-M4, Cortex-M4F Store immediate overlapping
-      exception return operation might vector to incorrect interrupt */
-
-#if defined __CORTEX_M && (__CORTEX_M == 4U)
-    __DSB();
-#endif
-}
-
-// This task waits for a Notification from the ISR, whereupon it handles received data from the AT86RF233.
-static void rfisr_task(void *pvParameters)
-{
-    for( ;; )
-    {
-        /* Wait for the interrupt from the AT86RF233 */
-        ulTaskNotifyTake( pdFALSE, portMAX_DELAY );
-        //USER_LED_TOGGLE();
-        /*Calling the interrupt routines*/
-        if (irq_hdl_trx) {
-            irq_hdl_trx();
-        }
-    }
+    tal_awake_end_flag = true;
+    irq_update_flag = true;
 }
 
 // Initialises the RF Stack
 void snd_stack_init(void)
 {
-    sw_timer_init();    // initialise timers in the PAL
+	// initialise timers in the PAL
+    sw_timer_init();
+
     if (MAC_SUCCESS != wpan_init()) // initialise MAC and children.
     {
         zprintf(HIGH_IMPORTANCE,"RF Stack initialisation FAIL\r\n");
         vTaskDelete(NULL);  // suicide
     }
 
-    wpan_mlme_reset_req(true); // This starts a chain of calls and callbacks to configure the stack.
+    // This starts a chain of calls and callbacks to configure the stack.
+    wpan_mlme_reset_req(true);
 }
 
 /**************************************************************
@@ -329,13 +340,22 @@ bool snd_transmit_packet(TX_BUFFER *pcTxBuffer)
     xDestinationAddress.PANId=pan_id;
     xDestinationAddress.AddrMode=WPAN_ADDRMODE_LONG;
     xDestinationAddress.Addr.long_address=pcTxBuffer->uiDestAddr;
-    if (pcTxBuffer->xRequestAck==true)
-        tx_options = WPAN_TXOPT_ACK;
-    else
-        tx_options = WPAN_TXOPT_OFF;
-    return wpan_mcps_data_req(WPAN_ADDRMODE_LONG,&xDestinationAddress,pcTxBuffer->ucBufferLength,
-                        pcTxBuffer->pucTxBuffer,0xcc, tx_options);
 
+    if (pcTxBuffer->xRequestAck==true)
+    {
+        tx_options = WPAN_TXOPT_ACK;
+    }
+    else
+    {
+        tx_options = WPAN_TXOPT_OFF;
+    }
+
+    return wpan_mcps_data_req(WPAN_ADDRMODE_LONG,
+    		&xDestinationAddress,
+			pcTxBuffer->ucBufferLength,
+			pcTxBuffer->pucTxBuffer,
+			0xcc,
+			tx_options);
 }
 
 // What follows are callbacks etc. from the MAC layer
@@ -353,7 +373,8 @@ void usr_mcps_data_conf(uint8_t msduHandle, uint8_t status) // Called back when 
     if (MAC_SUCCESS != status)
     {
         zprintf(LOW_IMPORTANCE, "Something went wrong transmitting a message, error 0x%02x\r\n", status);
-    } else
+    }
+    else
     {
         sn_mark_transmission_complete();
     }
@@ -365,7 +386,8 @@ void usr_mlme_reset_conf(uint8_t status) // this is a callback from wpan_mlme_re
 	if( status == MAC_SUCCESS )
 	{
 		wpan_mlme_get_req(phyCurrentPage);
-	} else
+	}
+	else
 	{	/* something went wrong; restart */
 		wpan_mlme_reset_req(true);
 	}
@@ -378,16 +400,19 @@ void usr_mlme_get_conf(uint8_t status, uint8_t PIBAttribute, void *PIBAttributeV
     {
 		current_channel_page = *(uint8_t *)PIBAttributeValue;
 		wpan_mlme_get_req(phyChannelsSupported);    // will cause a callback back to this function.
-	} else if ((status == MAC_SUCCESS) && (PIBAttribute == phyChannelsSupported))
+	}
+	else if ((status == MAC_SUCCESS) && (PIBAttribute == phyChannelsSupported))
     {
         uint8_t short_addr[2];
         short_addr[0] = (uint8_t)COORD_SHORT_ADDR; /* low byte */
         short_addr[1] = (uint8_t)(COORD_SHORT_ADDR >> 8); /*high byte */
         wpan_mlme_set_req(macShortAddress, short_addr);
-	} else if( (status == MAC_SUCCESS) && (PIBAttribute == phyCurrentChannel) )
+	}
+	else if( (status == MAC_SUCCESS) && (PIBAttribute == phyCurrentChannel) )
     {   // response from call to get current channel. So put it in a mailbox and set event group
         current_channel = *(uint8_t *)PIBAttributeValue;
-	} else
+	}
+	else
     {
 		/* Something went wrong; restart */
         zprintf(HIGH_IMPORTANCE, "Unexpected attribute get callback - restarting stack\r\n");
@@ -411,22 +436,24 @@ void usr_mlme_get_conf(uint8_t status, uint8_t PIBAttribute, void *PIBAttributeV
  **************************************************************/
 void set_beacon_payload(void *payload, bool update)
 {
-		wpan_mlme_set_req(macBeaconPayload,payload);    // will call back to usr_mlme_set_conf()
-		beacon_payload_update = update;
+	// will call back to usr_mlme_set_conf()
+	wpan_mlme_set_req(macBeaconPayload,payload);
+	beacon_payload_update = update;
 }
 
 // callback from wpan_mlme_set_req()
-void usr_mlme_set_conf(uint8_t status,
-		uint8_t PIBAttribute)
+void usr_mlme_set_conf(uint8_t status, uint8_t PIBAttribute)
 {
 	if( (status == MAC_SUCCESS) && (PIBAttribute == macShortAddress) )
     {   /* Set length of Beacon Payload  - have to do this before setting beacon payload*/
 		uint8_t beacon_payload_len = sizeof(Beacon_Payload);
 		wpan_mlme_set_req(macBeaconPayloadLength, &beacon_payload_len);    // will call back to usr_mlme_set_conf()
-	} else if( (status == MAC_SUCCESS) && (PIBAttribute == macBeaconPayloadLength) )
+	}
+	else if( (status == MAC_SUCCESS) && (PIBAttribute == macBeaconPayloadLength) )
     {   /* Set Beacon Payload */
 		set_beacon_payload(Beacon_Payload, false);
-	} else if( (status == MAC_SUCCESS) && (PIBAttribute == macBeaconPayload) )
+	}
+	else if( (status == MAC_SUCCESS) && (PIBAttribute == macBeaconPayload) )
     {   /* Set RX on when idle to enable the receiver as default.
 		 * Use: bool wpan_mlme_set_req(uint8_t PIBAttribute, void *PIBAttributeValue); */
 		if( beacon_payload_update == false )
@@ -434,7 +461,8 @@ void usr_mlme_set_conf(uint8_t status,
 			bool rx_on_when_idle = true;
 			wpan_mlme_set_req(macRxOnWhenIdle, &rx_on_when_idle);   // will call back to usr_mlme_set_conf()
 		}
-	} else if( (status == MAC_SUCCESS) && (PIBAttribute == macRxOnWhenIdle) )
+	}
+	else if( (status == MAC_SUCCESS) && (PIBAttribute == macRxOnWhenIdle) )
     {
 		/*
 		 * Start a nonbeacon-enabled network
@@ -454,18 +482,23 @@ void usr_mlme_set_conf(uint8_t status,
         // where it is set via TAL_CURRENT_CHANNEL_DEFAULT. But we do it here to ensure consistency
         // between SureNetDriver and the MAC. The 'master' value is now current_channel which is
         // in SureNetDriver, and this is manipulated via snd_set_channel() and snd_get_channel()
+		//wpan_mlme_start_req(pan_id, current_channel, current_channel_page, 15, 15, true, false, false);
 		wpan_mlme_start_req(pan_id, current_channel, current_channel_page, 15, 15, true, false, false);
     	wpan_mlme_set_req(phyTransmitPower,&TX_Power_Per_Channel[current_channel]);			
-	} else if( (status == MAC_SUCCESS) && (PIBAttribute == macAssociationPermit) )
+	}
+	else if( (status == MAC_SUCCESS) && (PIBAttribute == macAssociationPermit) )
     { // this callback occurs whenever AssociationPermit is changed via a call to wpan_mlme_set_req()
         sn_association_changed(requested_pairing_mode);
-    } else if( (status == MAC_SUCCESS) && (PIBAttribute == phyCurrentChannel) )
+    }
+	else if( (status == MAC_SUCCESS) && (PIBAttribute == phyCurrentChannel) )
     {
         // do nothing
-    } else if( (status == MAC_SUCCESS) && (PIBAttribute == phyTransmitPower) )
+    }
+	else if( (status == MAC_SUCCESS) && (PIBAttribute == phyTransmitPower) )
     {
         // do nothing
-    } else
+    }
+	else
     {   /* something went wrong; restart */
         zprintf(HIGH_IMPORTANCE, "Unexpected attribute change %d, restarting stack\r\n",PIBAttribute);
 		wpan_mlme_reset_req(true);
@@ -476,7 +509,14 @@ void usr_mlme_set_conf(uint8_t status,
 void usr_mlme_start_conf(uint8_t status)
 {
     if (status!=MAC_SUCCESS)
+    {
         zprintf(CRITICAL_IMPORTANCE,"RF Stack initialisation FAIL\r\n");
+    }
+}
+
+bool usr_mac_process_associate_request(uint64_t mac_address)
+{
+	return snd_have_we_seen_beacon(mac_address);// && are_we_paired_with_source(mac_address);
 }
 
 // called when the MAC receives an association request
@@ -484,7 +524,9 @@ void usr_mlme_start_conf(uint8_t status)
 // Association Requests even if they are not in pairing mode. So we need to reject them here
 // if they are not in our pairing table.
 void usr_mlme_associate_ind(uint64_t DeviceAddress,
-		uint8_t CapabilityInformation, uint8_t dev_type, uint8_t dev_rssi)
+		uint8_t CapabilityInformation,
+		uint8_t dev_type,
+		uint8_t dev_rssi)
 {
     // store the characteristics of the device attempting to associate, so if the pairing
     // is successful, we can add the info to the pairing table
@@ -518,6 +560,71 @@ void usr_mlme_associate_ind(uint64_t DeviceAddress,
 
 }
 
+//------------------------------------------------------------------------------
+void usr_mlme_associate_conf(uint16_t AssocShortAddress, uint8_t status)
+{
+
+}
+
+//------------------------------------------------------------------------------
+void usr_mlme_beacon_notify_ind(uint8_t BSN,
+		wpan_pandescriptor_t *PANDescriptor,
+		uint8_t PendAddrSpec,
+		uint8_t *AddrList,
+		uint8_t sduLength,
+		uint8_t *sdu)
+{
+
+}
+
+//------------------------------------------------------------------------------
+// Callback function usr_mlme_disassociate_conf
+// @param status             Result of requested disassociate operation.
+// @param DeviceAddrSpec     Pointer to wpan_addr_spec_t structure for device
+//                           that has either requested disassociation or been
+// @return void
+void usr_mlme_disassociate_conf(uint8_t status, wpan_addr_spec_t *DeviceAddrSpec)
+{
+
+}
+
+//------------------------------------------------------------------------------
+void usr_mlme_disassociate_ind(uint64_t DeviceAddress, uint8_t DisassociateReason)
+{
+
+}
+
+//------------------------------------------------------------------------------
+void usr_mlme_sync_loss_ind(uint8_t LossReason,
+		uint16_t PANId,
+		uint8_t LogicalChannel,
+		uint8_t ChannelPage)
+{
+
+}
+
+//------------------------------------------------------------------------------
+void usr_mlme_scan_conf(uint8_t status,
+		uint8_t ScanType,
+		uint8_t ChannelPage,
+		uint32_t UnscannedChannels,
+		uint8_t ResultListSize,
+		void *ResultList)
+{
+
+}
+
+//------------------------------------------------------------------------------
+void usr_mlme_orphan_ind(uint64_t OrphanAddress)
+{
+
+}
+
+//------------------------------------------------------------------------------
+void usr_mlme_poll_conf(uint8_t status)
+{
+
+}
 
 // This gets called when a data message is received over the RF Interface.
 // Note that the buffer is freed immediately after this function returns, so
@@ -558,22 +665,27 @@ static bool assign_new_short_addr(uint64_t addr64, uint16_t *addr16)
 	uint8_t i;
 
 	/* Check if device has been associated before */
-	for (i = 0; i < MAX_NUMBER_OF_DEVICES; i++) {
-		if (device_list[i].short_addr == 0x0000) {
+	for (i = 0; i < MAX_NUMBER_OF_DEVICES; i++)
+	{
+		if (device_list[i].short_addr == 0x0000)
+		{
 			/* If the short address is 0x0000, it has not been used
 			 * before */
 			continue;
 		}
 
-		if (device_list[i].ieee_addr == addr64) {
+		if (device_list[i].ieee_addr == addr64)
+		{
 			/* Assign the previously assigned short address again */
 			*addr16 = device_list[i].short_addr;
 			return true;
 		}
 	}
 
-	for (i = 0; i < MAX_NUMBER_OF_DEVICES; i++) {
-		if (device_list[i].short_addr == 0x0000) {
+	for (i = 0; i < MAX_NUMBER_OF_DEVICES; i++)
+	{
+		if (device_list[i].short_addr == 0x0000)
+		{
 			*addr16 = CPU_ENDIAN_TO_LE16(i + 0x0001);
 			device_list[i].short_addr = CPU_ENDIAN_TO_LE16(i + 0x0001);/* get next short address **/
 			device_list[i].ieee_addr = addr64; /* store extended
@@ -609,14 +721,17 @@ void usr_mlme_comm_status_ind(wpan_addr_spec_t *SrcAddrSpec,
         if( DstAddrSpec->Addr.long_address == assoc_info.association_addr )
         {   // this should always be true
             sn_device_pairing_success(&assoc_info);    // call back to say association successful
-        }  else
+        }
+        else
         {	// This is probably because an already paired device has re-associated, so we don't
 			// have any record in assoc_info.association_Addr of this association negotiation.
         }
-    } else if (status == MAC_TRANSACTION_EXPIRED)
+    }
+	else if (status == MAC_TRANSACTION_EXPIRED)
     {
         zprintf(HIGH_IMPORTANCE,"usr_mlme_comm_status_ind() called with status = MAC_TRANSACTION_EXPIRED (0xf0)\r\n");
-    } else
+    }
+	else
     {
         zprintf(HIGH_IMPORTANCE,"usr_mlme_comm_status_ind() called with status=0x%02X\r\n",status);
     }
@@ -657,15 +772,39 @@ bool snd_have_we_seen_beacon(uint64_t mac_address)
 // process to complete.
 bool set_beacon_request_data(uint64_t mac_address, uint8_t src_address_mode, uint8_t data)
 {
-	if( FCF_NO_ADDR == src_address_mode ){ return false; } // No source address, so reject.
+	 // No source address, so reject.
+	if( FCF_NO_ADDR == src_address_mode )
+	{
+		return false;
+	}
 
     PAIRING_REQUEST mode = sn_get_hub_pairing_mode();
 	bool send_beacon = mode.enable;
-    zprintf(LOW_IMPORTANCE,"BEACON REQUEST from %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\r\n",(uint8_t)(mac_address>>56),(uint8_t)(mac_address>>48),(uint8_t)(mac_address>>40),(uint8_t)(mac_address>>32),(uint8_t)(mac_address>>24),(uint8_t)(mac_address>>16),(uint8_t)(mac_address>>8),(uint8_t)mac_address);
-	if(true == send_beacon) {zprintf(LOW_IMPORTANCE,"Already in pairing mode\r\n");}else{zprintf(LOW_IMPORTANCE,"Not in pairing mode\r\n");}
+
+    zprintf(LOW_IMPORTANCE,"BEACON REQUEST from %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\r\n",
+    		(uint8_t)(mac_address>>56),
+			(uint8_t)(mac_address>>48),
+			(uint8_t)(mac_address>>40),
+			(uint8_t)(mac_address>>32),
+			(uint8_t)(mac_address>>24),
+			(uint8_t)(mac_address>>16),
+			(uint8_t)(mac_address>>8),
+			(uint8_t)mac_address);
+
+	if(true == send_beacon)
+	{
+		zprintf(LOW_IMPORTANCE,"Already in pairing mode\r\n");
+	}
+	else
+	{
+		zprintf(LOW_IMPORTANCE,"Not in pairing mode\r\n");
+	}
+
     beacon_request_device_data.device_channel = data & 0x1f;
-    beacon_request_device_data.mac_addr = mac_address;  // store this for use in deciding how to respond to an ASSOCIATION_REQUEST
-    if ((data & 0x20) ==0)
+
+    // store this for use in deciding how to respond to an ASSOCIATION_REQUEST
+    beacon_request_device_data.mac_addr = mac_address;
+    if ((data & 0x20) == 0)
 	{
         beacon_request_device_data.device_platform = NON_THALAMUS_BASED_DEVICE;
 		Beacon_Payload[BEACON_PAYLOAD_SUREFLAP_VERSION]=HUB_DOES_NOT_SUPPORT_THALAMUS;
@@ -678,7 +817,8 @@ bool set_beacon_request_data(uint64_t mac_address, uint8_t src_address_mode, uin
 		set_beacon_payload (Beacon_Payload, true);
 	}
 
-    if( true == are_we_paired_with_source(mac_address))
+    //if( true == are_we_paired_with_source(mac_address))
+    //if ((get_microseconds_tick() - pairing_mode_timeout.timestamp) < 10000 || pairing_mode_timeout.timestamp == 0)
     {   // We are already paired with this device, so set ASSOCIATION_PERMIT
         // Note it might already be set if we are in pairing mode.
         send_beacon=true;
@@ -688,6 +828,13 @@ bool set_beacon_request_data(uint64_t mac_address, uint8_t src_address_mode, uin
     }
 
     return send_beacon;	// if true, caller should send a beacon. If false, it shouldn't as we're not in pairing mode
+}
+
+bool usr_mac_process_beacon_request(uint64_t mac_address, uint8_t src_address_mode, uint8_t data)
+{
+	return set_beacon_request_data(mac_address,
+			src_address_mode,
+			data);
 }
 
 /* EOF */

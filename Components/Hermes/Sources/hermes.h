@@ -23,10 +23,10 @@
 #ifndef __HERMES_H__
 #define __HERMES_H__
 
-#include "Components.h"
+#include "Components_Config.h"
+#include "Components_Types.h"
 
 #include <stdint.h>
-#include "debug.h"	// for LED based debugging for when all else fails!
 #include "Signing.h"
 
 #define SHOULD_I_PACKAGE	true
@@ -36,6 +36,8 @@
 #define HUB_HARDWARE_REVISION_MINOR 0	// this is populated with the binary weighted hardware resistor values on the PCB
 
 #define GPT1_ONE_SECOND 1000000
+
+#define MYUSERNAME ""
 
 // Stringification!
 #define XSTR(s)	STR(s)
@@ -206,7 +208,7 @@ typedef enum
 #define HFU_TASK_STACK_SIZE (0x400/4) //(0x800/4)
 #define HERMES_APPLICATION_TASK_STACK_SIZE (0x800/4) //
 #define rfISR_TASK_STACK_SIZE (0x600/4) //(0x800/4)
-#define SURENET_TASK_STACK_SIZE (0x800/4) //(0x2000/4)
+#define SURENET_TASK_STACK_SIZE (0x1600/4) //(0x2000/4)
 
 #define HUB_SEND_TIME_UPDATES_FROM_DEVICES_EVERY_MINUTE	0x01			// default is every hour
 #define HUB_SEND_HUB_STATUS_UPDATES_EVERY_MINUTE 		0x02			// default is every hour
@@ -222,10 +224,6 @@ void hermes_srand(int seed);	// thread safe
 int hermes_rand(void);			// thread safe
 void initSureNetByProgrammer(void);
 void connectToServer(void);
-
-
-
-
 
 #endif //__HERMES_H__
 

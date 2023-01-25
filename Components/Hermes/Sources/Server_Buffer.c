@@ -159,7 +159,7 @@ bool server_buffer_add(SERVER_MESSAGE* message)   // Add this message and topic
 			(uint32_t)(((message->source_mac)>>32) & 0xffffffff),
 			(uint32_t)((message->source_mac) & 0xffffffff),
 			message->message_ptr);
-		DbgConsole_Flush();
+		//DbgConsole_Flush();
 	}
     if( i == SERVER_BUFFER_ENTRIES )
     {
@@ -389,7 +389,7 @@ void server_buffer_dump()  // dump valid messages out of the UART
                                                                  (uint32_t)((server_buffer[i].source_mac&0xffffffff00000000)>>32), \
                                                                  (uint32_t)(server_buffer[i].source_mac&0xffffffff  ));
             zprintf(HIGH_IMPORTANCE,"%s\r\n",server_buffer[i].message);
-			DbgConsole_Flush();
+			//DbgConsole_Flush();
         }
     }
 }

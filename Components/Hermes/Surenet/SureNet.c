@@ -49,6 +49,8 @@
 #include "DeviceFirmwareUpdate.h"	// for some useful parameters describing firmware chunks
 #include "wolfssl/wolfcrypt/sha256.h"
 #include "wolfssl/wolfcrypt/chacha.h"
+#include "ieee_const.h"
+#include "mac_internal.h"
 
 #define PET_DOOR_DELAY		true	// This introduces a 50ms delay for Pet Doors between 
 									// PACKET_DEVICE_AWAKE and the sending of PACKET_END_SESSION
@@ -353,16 +355,26 @@ BaseType_t sn_init(uint64_t *mac, uint16_t panid, uint8_t channel)
     int i;
 
     if (pdPASS != snd_init(mac, panid, channel)) // Create ISR task first
+    {
         return pdFAIL;
+    }
     rf_mac = mac;
 
     rx_seq_init();
     for (i=0; i<ACKNOWLEDGE_QUEUE_SIZE; i++)
+    {
         acknowledge_queue[i].valid=0;
+    }
+
     for (i=0; i<DATA_ACKNOWLEDGE_QUEUE_SIZE; i++)
+    {
         data_acknowledge_queue[i].valid=0;
+    }
+
     for (i=0; i<RX_SEQ_BUFFER_SIZE; i++)
+    {
         received_sequence_numbers[i].valid=0;
+    }
 
     for (i=0; i<MAX_NUMBER_OF_DEVICES; i++)
     {
@@ -470,12 +482,15 @@ void sn_task(void *pvParameters)
 
 	memset(&ping_stats,0,sizeof(ping_stats));
 
-    snd_stack_init();    // start initialising the RF Stack. Note that multiple calls to snd_stack_task()
+    //snd_stack_init();    // start initialising the RF Stack. Note that multiple calls to snd_stack_task()
                         // are required before initialisation is complete.
     sn_devicetable_init();
 
 	// Do this after initialising device_status[] as SecretKey requires MAC addresses
-	for (i=0; i<MAX_NUMBER_OF_DEVICES; i++)	{ sn_CalculateSecretKey(i); }
+	for (i=0; i<MAX_NUMBER_OF_DEVICES; i++)
+	{
+		sn_CalculateSecretKey(i);
+	}
 	
     while(1)
     {
@@ -614,8 +629,9 @@ void sn_task(void *pvParameters)
             ageing_tick = get_microseconds_tick();
         }
 
+        // Need to send some ping results up to the application to be sent on to the Server
 		if (ping_stats.report_ping==true)
-		{	// Need to send some ping results up to the application to be sent on to the Server
+		{
 			xQueueSend(xPingDeviceMailbox_resp,&ping_stats,0);
 			ping_stats.report_ping = false;	// just send the result the once.
 		}
@@ -643,15 +659,24 @@ void sn_device_pairing_success(ASSOCIATION_SUCCESS_INFORMATION *assoc_info)    /
 	// The logic is a bit counter-intuitive here - if the device is known already
 	// then adding the mac will fail silently (no problem), and add_device_characteristics
 	// will update the device RSSI (which we do want)
-	add_mac_to_pairing_table(assoc_info->association_addr);   // store MAC in pairing table
-	add_device_characteristics_to_pairing_table(assoc_info->association_addr,assoc_info->association_dev_type,assoc_info->association_dev_rssi);
-	trigger_key_send(assoc_info->association_addr);   // need to send a new encryption key to the Device
+	// store MAC in pairing table
+	add_mac_to_pairing_table(assoc_info->association_addr);
+
+	add_device_characteristics_to_pairing_table(assoc_info->association_addr,
+			assoc_info->association_dev_type,
+			assoc_info->association_dev_rssi);
+
+	// need to send a new encryption key to the Device
+	trigger_key_send(assoc_info->association_addr);
+
 	if (known==false)
 	{
-		store_device_table();	// write result to NVM
+		// write result to NVM
+		store_device_table();
 	}
 
-    xQueueSend(xAssociationSuccessfulMailbox,assoc_info,0);   // put result in mailbox for Surenet-Interface
+	// put result in mailbox for Surenet-Interface
+    xQueueSend(xAssociationSuccessfulMailbox,assoc_info,0);
 }
 
 /**************************************************************
@@ -687,9 +712,14 @@ int16_t sn_transmit_packet(PACKET_TYPE type, uint64_t dest, uint8_t *payload_ptr
       return -1;
     }
 
-    for( i = 0; i < length; i++ ) PayLoad[i+2] = *payload_ptr++;  // copy payload over into our buffer
+    for( i = 0; i < length; i++ )
+	{
+    	// copy payload over into our buffer
+		PayLoad[i+2] = *payload_ptr++;
+	}
 
-    if (PACKET_DATA == type)  //if PACKET_DATA, then encrypt the payload
+    //if PACKET_DATA, then encrypt the payload
+    if (PACKET_DATA == type)
     {
       	PayLoad[0] = sn_Encrypt(&PayLoad[2], length, PayLoad[1], current_conversee);
     }
@@ -713,7 +743,8 @@ int16_t sn_transmit_packet(PACKET_TYPE type, uint64_t dest, uint8_t *payload_ptr
     do
     { // This is slightly hokey but as we are in the same task, we can't spin until the transmission has completed.
         snd_stack_task(); // run the stack to facilitate the transmission
-    } while( (sn_transmission_complete == false) && ((get_microseconds_tick() - timestamp) < (usTICK_MILLISECONDS * 100)) );
+    }
+    while((sn_transmission_complete == false) && ((get_microseconds_tick() - timestamp) < (usTICK_MILLISECONDS * 100)));
 
     if( sn_transmission_complete == false )
     {
@@ -763,6 +794,7 @@ void sn_ping_device(uint64_t device, uint8_t value)
 			return;
 		}
 	}
+
 	if (device_status[index].status.valid!=0)
 	{
 		surenet_printf("Setting send_ping to true\r\n");
@@ -1583,7 +1615,6 @@ void convert_IEEE_to_sureflap(RECEIVED_PACKET *rx_packet, RX_BUFFER *rx_buffer)
 	if (rx_buffer->ucBufferLength<2)
 	{
 		zprintf(CRITICAL_IMPORTANCE,"CORRUPTED RX BUFFER - HALTED RF STACK - NEED TO INVESTIGATE WHY\r\n");
-		DbgConsole_Flush();
 		// if ucBufferLength is less than 2, then the memcpy() line below will try to copy
 		// a negative number of bytes, which will translate to a huge positive number and so will
 		// run out of memory!!
@@ -2312,7 +2343,6 @@ void dump_surenet_log(void)
 			delta = 0;
 		zprintf(CRITICAL_IMPORTANCE,"[%02d] %09d %9d %s %03d\r\n",i,surenet_log_entry[i].timestamp,
 				delta, log_names[surenet_log_entry[i].activity], surenet_log_entry[i].parameter);
-		DbgConsole_Flush();
 	}
 }
 

@@ -155,8 +155,7 @@
                              } while(0)
 
 #else  /* LWIP_DEBUG */
-#include "SerialPort/SerialPort_Component.h"
-#define LWIP_DEBUGF(debug, message) SerialPortTransmitString(&SerialPortUART, message)
+#define LWIP_DEBUGF(debug, message)
 #endif /* LWIP_DEBUG */
 
 #endif /* LWIP_HDR_DEBUG_H */

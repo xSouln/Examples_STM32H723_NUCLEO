@@ -283,6 +283,9 @@ void trx_spi_disable(void);
 void trx_spi_enable(void);
 
 /* ! @} */
+
+void trx_irq_handler(void);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
