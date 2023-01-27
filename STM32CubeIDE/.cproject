@@ -59,6 +59,7 @@
 									<listOptionValue builtIn="false" value="JSMN_STATIC"/>
 									<listOptionValue builtIn="false" value="SNTP_SERVER_DNS=1"/>
 									<listOptionValue builtIn="false" value="LWIP_SO_SNDTIMEO=1"/>
+									<listOptionValue builtIn="false" value="_CLOCKS_PER_SEC_"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.includepaths.693797389" name="Include paths (-I)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.includepaths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="../../Core/Inc"/>

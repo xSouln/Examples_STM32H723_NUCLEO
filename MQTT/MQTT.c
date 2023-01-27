@@ -50,6 +50,7 @@
 
 #include "wolfssl/wolfcrypt/sha256.h"
 
+#include "lwip.h"
 #include "rng.h"
 
 #ifndef MQTT_SERVER_SIMULATED
@@ -110,7 +111,10 @@ void MQTT_Task(void *pvParameters)
 	{
 		// If we have received an x-update:1 during our credential request,
 		// then we stop the state machine and supress the MQTT watchdog
-		if( true == no_creds) { mqtt_connection_state = MQTT_STATE_STOP; }
+		if( true == no_creds)
+		{
+			mqtt_connection_state = MQTT_STATE_STOP;
+		}
 
 		switch( mqtt_connection_state )
 		{
@@ -373,10 +377,13 @@ typedef enum
 	CRED_REQ_USE_RAM_KEY,
 } CRED_REQ_KEY_TYPE;
 
+static uint8_t response_buffer[CREDENTIAL_BUFFER_SIZE];
+
 static bool MQTT_Send_Credential_Request(SUREFLAP_CREDENTIALS* creds)
 {
 	char		fullContent[]	= "serial_number=####-#######&mac_address=################&product_id=1&firmware_version=######.######&bv=################################&tv=##############\0"; //&cred_hash=########\0";
-	char*		postContent		= "serial_number=%s&mac_address=0000%02X%02X%02X%02X%02X%02X&product_id=1&firmware_version=%d.%d&bv=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x&tv=%llu\0"; //&cred_hash=%08X\0";
+	char*		postContent		= "serial_number=%s&mac_address=0000%02X%02X%02X%02X%02X%02X&product_id=1&firmware_version=%06d.%06d&bv=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x&tv=%014u\0"; //&cred_hash=%08X\0";
+
 
 	bool		http_req_result	= false;
 	bool		parse_result 	= false;
@@ -405,6 +412,9 @@ static bool MQTT_Send_Credential_Request(SUREFLAP_CREDENTIALS* creds)
 
 	get_UTC_ms(&time_since_epoch_ms);
 
+	time_since_epoch_ms /= 1000;
+	time_since_epoch_ms += 3600 * 3;
+
 	uint32_t length = snprintf(	fullContent, sizeof(fullContent), postContent, product_configuration.serial_number, \
 								product_configuration.ethernet_mac[0], product_configuration.ethernet_mac[1], \
 								product_configuration.ethernet_mac[2], product_configuration.ethernet_mac[3], \
@@ -417,7 +427,8 @@ static bool MQTT_Send_Credential_Request(SUREFLAP_CREDENTIALS* creds)
 								time_since_epoch_ms);
 	if( length > sizeof(fullContent) ){ return false; }
 
-	char* response_buffer = pvPortMalloc(CREDENTIAL_BUFFER_SIZE);
+	//char* response_buffer = pvPortMalloc(CREDENTIAL_BUFFER_SIZE);
+	//char response_buffer[CREDENTIAL_BUFFER_SIZE];// = malloc(CREDENTIAL_BUFFER_SIZE);//;mem_malloc(CREDENTIAL_BUFFER_SIZE);
 	if( NULL != response_buffer)
 	{
 		memset(response_buffer, 0, CREDENTIAL_BUFFER_SIZE);	// cannot guarantee that creds are null terminated.
@@ -427,7 +438,8 @@ static bool MQTT_Send_Credential_Request(SUREFLAP_CREDENTIALS* creds)
 		http_req_result = HTTP_POST_Request(HUB_API_SERVER, "/api/credentials", fullContent, response_buffer, CREDENTIAL_BUFFER_SIZE, true, key, DERIVED_KEY_CURRENT, &encrypted_data, NULL);
 		// Note that an 'empty' response from the server is v02:0::::1::: and this causes MQTT_Interpret_Credentials() to return false
 		if( true == http_req_result ) parse_result = MQTT_Interpret_Credentials(creds, response_buffer);
-		vPortFree(response_buffer);
+		//vPortFree(response_buffer);
+		//mem_free(response_buffer);
 	}
 	if( (true == http_req_result) && (true == parse_result))
 	{ // To get this far, we have used the Derived Key to check the signature on the credentials

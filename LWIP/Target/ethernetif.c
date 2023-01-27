@@ -16,6 +16,7 @@
   *
   ******************************************************************************
   */
+
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
@@ -33,6 +34,7 @@
 
 /* Within 'USER CODE' section, code will be kept by default at each generation */
 /* USER CODE BEGIN 0 */
+#ifndef FREERTOS_TCP_ENABLE
 #include "TCPServer/TCPServer_Component.h"
 /* USER CODE END 0 */
 
@@ -144,6 +146,7 @@ ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT] __attribute__((section(".TxDecr
 /* USER CODE BEGIN 2 */
 HAL_StatusTypeDef transmit_action_result;
 uint8_t lwip_mem[MEM_SIZE] __attribute__((section(".lwip_mem"))) __ALIGNED(32) = {0};
+uint8_t MACAddr[6];
 /* USER CODE END 2 */
 
 osSemaphoreId RxPktSemaphore = NULL;   /* Semaphore to signal incoming packets */
@@ -230,14 +233,14 @@ static void low_level_init(struct netif *netif)
   ETH_MACConfigTypeDef MACConf = {0};
   /* Start ETH HAL Init */
 
-   uint8_t MACAddr[6] ;
+
   heth.Instance = ETH;
-  MACAddr[0] = 0x00;
-  MACAddr[1] = 0x80;
-  MACAddr[2] = 0xE1;
-  MACAddr[3] = 0x00;
-  MACAddr[4] = 0x00;
-  MACAddr[5] = 0x00;
+  MACAddr[0] = 0x98;
+  MACAddr[1] = 0x27;
+  MACAddr[2] = 0x82;
+  MACAddr[3] = 0xE0;
+  MACAddr[4] = 0x1F;
+  MACAddr[5] = 0xDC;
   heth.Init.MACAddr = &MACAddr[0];
   heth.Init.MediaInterface = HAL_ETH_RMII_MODE;
   heth.Init.TxDesc = DMATxDscrTab;
@@ -245,11 +248,14 @@ static void low_level_init(struct netif *netif)
   heth.Init.RxBuffLen = 1536;
 
   /* USER CODE BEGIN MACADDRESS */
+  /*
   uint32_t sn0 = *(uint32_t *)(0x1FF0F420);//STM32 cpu id
+
+  MACAddr[0] = (sn0 >> 24) & 0xFF;
   MACAddr[3] = (sn0 >> 16) & 0xFF;
   MACAddr[4] = (sn0 >> 8) & 0xFF;
   MACAddr[5] = sn0 & 0xFF;
-
+   */
   lwip_mem[0] = 0;
   /* USER CODE END MACADDRESS */
 
@@ -592,7 +598,7 @@ void pbuf_free_custom(struct pbuf *p)
 }
 
 /* USER CODE BEGIN 6 */
-
+#endif
 /**
 * @brief  Returns the current time in milliseconds
 *         when LWIP_TIMERS == 1 and NO_SYS == 1
@@ -718,7 +724,12 @@ void HAL_ETH_MspDeInit(ETH_HandleTypeDef* ethHandle)
     HAL_NVIC_DisableIRQ(ETH_IRQn);
 
   /* USER CODE BEGIN ETH_MspDeInit 1 */
+#ifdef FREERTOS_TCP_ENABLE
+  }
+}
+#endif
 
+#ifndef FREERTOS_TCP_ENABLE
   /* USER CODE END ETH_MspDeInit 1 */
   }
 }
@@ -942,6 +953,6 @@ void HAL_ETH_TxFreeCallback(uint32_t * buff)
 }
 
 /* USER CODE BEGIN 8 */
-
+#endif
 /* USER CODE END 8 */
 

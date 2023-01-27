@@ -256,11 +256,15 @@ void TIM6_DAC_IRQHandler(void)
 void ETH_IRQHandler(void)
 {
   /* USER CODE BEGIN ETH_IRQn 0 */
-
+#ifndef LWIP_IP_ENABLE
   /* USER CODE END ETH_IRQn 0 */
   HAL_ETH_IRQHandler(&heth);
   /* USER CODE BEGIN ETH_IRQn 1 */
-
+#endif
+#ifdef FREERTOS_TCP_ENABLE
+  extern ETH_HandleTypeDef xEthHandle;
+  HAL_ETH_IRQHandler(&xEthHandle);
+#endif
   /* USER CODE END ETH_IRQn 1 */
 }
 

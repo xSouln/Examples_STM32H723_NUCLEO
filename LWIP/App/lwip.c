@@ -16,6 +16,7 @@
   *
   ******************************************************************************
   */
+
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
@@ -29,6 +30,7 @@
 #include <string.h>
 
 /* USER CODE BEGIN 0 */
+#ifndef FREERTOS_TCP_ENABLE
 #include "sntp.h"
 #include "dns.h"
 /* USER CODE END 0 */
@@ -50,12 +52,15 @@ uint8_t IP_ADDRESS[4];
 uint8_t NETMASK_ADDRESS[4];
 uint8_t GATEWAY_ADDRESS[4];
 /* USER CODE BEGIN OS_THREAD_ATTR_CMSIS_RTOS_V2 */
-#define INTERFACE_THREAD_STACK_SIZE ( 1024 )
+#define INTERFACE_THREAD_STACK_SIZE (1024)
 osThreadAttr_t attributes;
 /* USER CODE END OS_THREAD_ATTR_CMSIS_RTOS_V2 */
 
 /* USER CODE BEGIN 2 */
-
+void LWIP_UpdateLinkState()
+{
+	ethernet_link_status_updated(&gnetif);
+}
 /* USER CODE END 2 */
 
 /**
@@ -67,7 +72,7 @@ void MX_LWIP_Init(void)
   IP_ADDRESS[0] = 192;
   IP_ADDRESS[1] = 168;
   IP_ADDRESS[2] = 0;
-  IP_ADDRESS[3] = 50;
+  IP_ADDRESS[3] = 2;
   NETMASK_ADDRESS[0] = 255;
   NETMASK_ADDRESS[1] = 255;
   NETMASK_ADDRESS[2] = 255;
@@ -79,6 +84,7 @@ void MX_LWIP_Init(void)
 
 /* USER CODE BEGIN IP_ADDRESSES */
   //sntp_setoperatingmode(SNTP_OPMODE_POLL);
+
 /* USER CODE END IP_ADDRESSES */
 
   /* Initilialize the LwIP stack with RTOS */
@@ -125,11 +131,11 @@ void MX_LWIP_Init(void)
   ip_addr_t add1;
   osDelay(3000);
 
-  add1.addr = PP_HTONL(LWIP_MAKEU32(213, 184, 225, 37));//213.184.225.37 //82, 209, 240, 241
+  add1.addr = PP_HTONL(LWIP_MAKEU32(192, 168, 0, 1));//LWIP_MAKEU32(213, 184, 225, 37)//213.184.225.37 //82, 209, 240, 241
   dns_setserver(0, &add1);
 
-  add1.addr = PP_HTONL(LWIP_MAKEU32(213, 184, 224, 254));//213.184.224.254 //82, 209, 243, 241
-  dns_setserver(1, &add1);
+  //add1.addr = PP_HTONL(LWIP_MAKEU32(213, 184, 224, 254));//213.184.224.254 //82, 209, 243, 241
+  //dns_setserver(1, &add1);
 
 /*
   sntp_setoperatingmode(SNTP_OPMODE_POLL);//129.70.132.37
@@ -143,6 +149,7 @@ void MX_LWIP_Init(void)
 /* Kept to help code migration. (See new 4_1, 4_2... sections) */
 /* Avoid to use this user section which will become obsolete. */
 /* USER CODE BEGIN 4 */
+#endif //LWIP_IP_ENABLE
 /* USER CODE END 4 */
 #endif
 
@@ -156,11 +163,15 @@ static void ethernet_link_status_updated(struct netif *netif)
   if (netif_is_up(netif))
   {
 /* USER CODE BEGIN 5 */
+	  extern void NetworkInterfaceLinkUp(void* arg);
+	  NetworkInterfaceLinkUp(netif);
 /* USER CODE END 5 */
   }
   else /* netif is down */
   {
 /* USER CODE BEGIN 6 */
+	  extern void NetworkInterfaceLinkDown(void* arg);
+	  NetworkInterfaceLinkDown(netif);
 /* USER CODE END 6 */
   }
 }

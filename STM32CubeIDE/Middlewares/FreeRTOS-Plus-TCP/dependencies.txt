@@ -1,4 +1,0 @@
-../Middlewares/Third_Party/FreeRTOS/FreeRTOS-Plus-TCP/source/include
-../Middlewares/Third_Party/FreeRTOS/FreeRTOS-Plus-TCP/source/portable/Compiler/GCC
-../Middlewares/Third_Party/FreeRTOS/FreeRTOS-Plus-TCP/source/portable/NetworkInterface/STM32Hxx
-../Middlewares/Third_Party/FreeRTOS/FreeRTOS-Plus-TCP/source/portable/NetworkInterface/include

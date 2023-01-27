@@ -130,7 +130,8 @@ void hermes_app_task(void *pvParameters)
 		bootRN = (uint8_t)random_value;
 						// Note this is not the same as Hub1. In Hub1, BootRN gets set to the low byte of
 						// current time when MQTT subscription is successful.
-	} while(0 == bootRN);
+	}
+	while(0 == bootRN);
 
 	process_system_event(STATUS_RF_OFFLINE);	// set up LED status to reflect initial value of rf_online variable
 
@@ -150,7 +151,10 @@ void hermes_app_task(void *pvParameters)
                                         // Furthermore, the devices remain awake waiting for the reply, so
                                         // the faster we can reply, the longer their batteries will last.
 
-		if( true == SNTP_IsTimeValid() ){ DFU_Handler(); }	// process any firmware update activity
+		if(SNTP_IsTimeValid())
+		{
+			DFU_Handler();
+		}	// process any firmware update activity
 
 		HubReg_Check_Full();	// Check for any registers whose values need to be sent to the Server
 

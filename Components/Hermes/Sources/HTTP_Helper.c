@@ -37,6 +37,7 @@
 #include "tls/network_platform.h"
 
 #include "lwip.h"
+//#include "ap"
 #include "sockets.h"
 #include "netdb.h"
 #include "api.h"
@@ -89,10 +90,16 @@ void HTTPPostTask(void *pvParameters)
 			if (true == NetworkInterface_IsActive())
 			{ // only make a request if the TCP/IP connection is up.
 				zprintf(LOW_IMPORTANCE,"HTTP_POST_Request to %s\r\n",params.URL);
-				result = HTTP_POST_Request( params.URL, params.resource, params.contents, \
-											params.response_buffer, params.response_size, \
-											true, params.tx_key_source, params.rx_key_source, \
-											params.encrypted_data, params.bytes_read);
+				result = HTTP_POST_Request(params.URL,
+											params.resource,
+											params.contents,
+											params.response_buffer,
+											params.response_size,
+											true,
+											params.tx_key_source,
+											params.rx_key_source,
+											params.encrypted_data,
+											params.bytes_read);
 			}
 			else
 			{
@@ -163,6 +170,7 @@ bool HTTP_POST_Request(char* URL, char* resource, char* contents, char* response
 			http_printf(HTTP_LINE "Reading Response | ");
 
 			wolfSSL_peek(connection.session, &connection.result, 1); // Load up the buffers!
+			//wolfSSL_read(connection.session, &connection.result, 100);
 
 			// The entire HTTP response is held within a WolfSSL internal buffer.
 			// We can both peek and read bytes from it.
@@ -181,15 +189,21 @@ bool HTTP_POST_Request(char* URL, char* resource, char* contents, char* response
 
 			HTTP_Read_Content(&connection, &response_data);
 
-		} while( false );
+		}
+		while( false );
 
 		HTTP_Kill_Connection(&connection);
 
-		if( NULL != bytes_read) *bytes_read = connection.bytes_read;	// This is used by Hub Firmware Update.
+		if( NULL != bytes_read)
+		{
+			// This is used by Hub Firmware Update.
+			*bytes_read = connection.bytes_read;
+		}
 		
 		if( 0 < connection.bytes_read )
 		{
-			http_printf(HTTP_LINE "Response Received: %s\r\n", response_buffer);// tut tut, assumes a text reply, not true for f/w images!
+			// tut tut, assumes a text reply, not true for f/w images!
+			http_printf(HTTP_LINE "Response Received: %s\r\n", response_buffer);
 		}
 		else
 		{
@@ -251,7 +265,6 @@ bool HTTP_POST_Request(char* URL, char* resource, char* contents, char* response
 static bool HTTP_Open_Connection(HTTP_CONNECTION* connection, char* URL)
 {
 	extern const char* 	starfield_fixed_ca_cert;
-	uint32_t rx_timeout = 10000;
 
 	if( NULL == (connection->context = wolfSSL_CTX_new(wolfTLSv1_2_client_method())) )
 	{
@@ -275,41 +288,53 @@ static bool HTTP_Open_Connection(HTTP_CONNECTION* connection, char* URL)
 	}
 	wolfSSL_check_domain_name(connection->session, URL);
 
+	ip_addr_t hostent_addr;
+
+	/* query host IP address */
+	err_t err = netconn_gethostbyname(URL, &hostent_addr);
+
+	if(err != ERR_OK || hostent_addr.addr == 0)
+	{
+		http_printf("Failed!\r\n");
+		return false;
+	}
+
 	http_printf(HTTP_LINE "Setting up Socket.\r\n");
-	connection->socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	connection->socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);//IPPROTO_TCP);IPPROTO_IP
 
 	if(connection->socket < 0)
 	{
 		return false;
 	}
 
+	struct sockaddr_in host_address;
+	host_address.sin_family = AF_INET;
+	host_address.sin_port = 0;
+	host_address.sin_addr.s_addr = IPADDR_ANY;
+
+	if (bind(connection->socket, (struct sockaddr*)&host_address, sizeof(host_address)) != 0)
+	{
+		return false;
+	}
+
 	struct timeval timeout = { 0 };
-	timeout.tv_sec = 1000;
-	/*
-	setsockopt(sntpSocket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-	setsockopt(sntpSocket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
-	*/
-	/*
-	lwip_setsockopt(connection->socket, 0, SO_RCVTIMEO, &rx_timeout, sizeof(rx_timeout));
-	lwip_setsockopt(connection->socket, 0, SO_SNDTIMEO, &rx_timeout, sizeof(rx_timeout));
-	*/
+	timeout.tv_sec = 10000;
+
+	setsockopt(connection->socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+	setsockopt(connection->socket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+
 	wolfSSL_set_fd(connection->session, (int)connection->socket);
 
 	http_printf(HTTP_LINE "Resolving URL: %s | ", URL);
 	struct sockaddr_in address;
 	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = gethostbyname(URL);
+	address.sin_addr.s_addr = hostent_addr.addr;
 	address.sin_port = htons(HTTP_PORT);
 
-	if(address.sin_addr.s_addr == 0)
-	{
-		http_printf("Failed!\r\n");
-		return false;
-	}
 	http_printf("Found at %08x.\r\n", address.sin_addr);
 	http_printf(HTTP_LINE "Connecting Socket | ");
 
-	connection->result = connect(connection->socket, &address, sizeof(address));
+	connection->result = connect(connection->socket, (struct sockaddr*)&address, sizeof(address));
 	if(connection->result < 0)
 	{
 		http_printf("Failed! %d\r\n", connection->result);

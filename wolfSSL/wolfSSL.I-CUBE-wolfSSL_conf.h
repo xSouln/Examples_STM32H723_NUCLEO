@@ -37,7 +37,7 @@
 #define WOLF_CONF_WOLFCRYPT_ONLY      0
 
 /*---------- WOLF_CONF_TLS13 -----------*/
-#define WOLF_CONF_TLS13      1
+#define WOLF_CONF_TLS13      0
 
 /*---------- WOLF_CONF_TLS12 -----------*/
 #define WOLF_CONF_TLS12      1
@@ -49,7 +49,7 @@
 #define WOLF_CONF_MATH      1
 
 /*---------- WOLF_CONF_RTOS -----------*/
-#define WOLF_CONF_RTOS      1
+#define WOLF_CONF_RTOS      2
 
 /*---------- WOLF_CONF_RNG -----------*/
 #define WOLF_CONF_RNG      1
@@ -112,7 +112,7 @@
 #define WOLF_CONF_OPENSSL_EXTRA      0
 
 /*---------- WOLF_CONF_TEST -----------*/
-#define WOLF_CONF_TEST      1
+#define WOLF_CONF_TEST      0
 
 /*---------- WOLF_CONF_PQM4 -----------*/
 #define WOLF_CONF_PQM4      0

@@ -41,8 +41,8 @@
 #define APP_SNTP_UPDATE_INTERVAL	(15 * 60 * 1000)	// In milliseconds. How often to refresh SNTP.
 #define APP_SNTP_RETRY_INTERVAL		(1000)				// In milliseconds. How often to retry SNTP request if it fails.
 
-#define BUTTON_PRESSED	0
-#define READ_BUTTON() 0
+#define BUTTON_PRESSED	1
+#define READ_BUTTON() ((B1_GPIO_Port->IDR & B1_Pin) > 0)
 
 typedef enum
 {

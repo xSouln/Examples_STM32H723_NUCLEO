@@ -30,7 +30,12 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+#ifdef FREERTOS_TCP_ENABLE
+void MX_LWIP_Init(void)
+{
 
+}
+#endif
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/

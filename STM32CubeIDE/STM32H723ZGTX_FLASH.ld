@@ -165,7 +165,7 @@ SECTIONS
   /* Modification start */
   .lwip_sec (NOLOAD) :
   {
- 	. = ABSOLUTE(0x30000000);
+  	. = ABSOLUTE(0x30000000);
     *(.RxDecripSection)
     
     . = ABSOLUTE(0x30000100);

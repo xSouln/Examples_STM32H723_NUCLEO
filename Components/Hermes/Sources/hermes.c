@@ -50,6 +50,9 @@
 #include "Signing.h"
 #include "Babel.h"
 #include "LabelPrinter.h"
+#include "netif.h"
+
+#include "lwip.h"
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
@@ -95,9 +98,12 @@ static void service_watchdog(void);
 uint8_t printLevel = LOW_IMPORTANCE;
 void Core_detect(void);
 bool immediate_firmware_update = false;
-uint64_t rfmac = 0x811125408e9cbf75; // global because a pointer to this variable is used by the RF Stack
+uint64_t rfmac = 0x982782e01fdc; // global because a pointer to this variable is used by the RF Stack
 bool rf_channel_override = false;
 
+static const char SERIAL_NUMBER[] = "H201-0859935";
+
+extern void LWIP_UpdateLinkState();
 /*******************************************************************************
  * Code
  ******************************************************************************/
@@ -113,26 +119,63 @@ void HermesComponentInit()
 		}
 	}
 	*/
+	product_configuration.rf_pan_id = SUREFLAP_PAN_ID;
+
+	product_configuration.ethernet_mac[0] = heth.Init.MACAddr[0];
+	product_configuration.ethernet_mac[1] = heth.Init.MACAddr[1];
+	product_configuration.ethernet_mac[2] = heth.Init.MACAddr[2];
+	product_configuration.ethernet_mac[3] = heth.Init.MACAddr[3];
+	product_configuration.ethernet_mac[4] = heth.Init.MACAddr[4];
+	product_configuration.ethernet_mac[5] = heth.Init.MACAddr[5];
+
+	product_configuration.rf_mac = 0x982782e01fdc;
+
+	memcpy(product_configuration.serial_number, SERIAL_NUMBER, sizeof(SERIAL_NUMBER));
+	memcpy(product_configuration.secret_serial, mySecretSerial, sizeof(mySecretSerial));
+
+	product_configuration.sanity_state = PRODUCT_CONFIGURED;
+	product_configuration.product_state = PRODUCT_CONFIGURED;
+
+	GenerateSharedSecret(SHARED_SECRET_CURRENT);	// generate a truly random Shared Secret to be shared with the Server
+	GenerateDerivedKey(DERIVED_KEY_CURRENT);	// Used for signing data transfers between Hub and Server.
+
+	//Delay boot-up by 2 seconds.  The LEDs will be off for this period, giving us a visual indication if the device ever reboots.
+	vTaskDelay(pdMS_TO_TICKS(2000));
+
+	BABEL_set_aes_key(product_configuration.serial_number);
+	BABEL_aes_encrypt_init();
+
+	shouldIPackageFlag = SHOULD_I_PACKAGE;
+	shouldICryptFlag = false;//true for AES Encryption
+
 	led_driver_init();
 	hermes_app_init();
 
 	surenet_init(&rfmac, product_configuration.rf_pan_id, initial_RF_channel);
 
+	HTTPPostTask_init();
 	SNTP_Init();
-	if(xTaskCreate(SNTP_Task, "SNTP Task", SNTP_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS)
+	if(xTaskCreate(SNTP_Task, "SNTP Task", SNTP_TASK_STACK_SIZE, NULL, osPriorityNormal, NULL) != pdPASS)
 	{
 		zprintf(CRITICAL_IMPORTANCE, "SNTP Task creation failed!\r\n");
 	}
 
-	if(xTaskCreate(led_task, "led_task", LED_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS)
+	if(xTaskCreate(led_task, "led_task", LED_TASK_STACK_SIZE, NULL, osPriorityNormal, NULL) != pdPASS)
 	{
 		zprintf(CRITICAL_IMPORTANCE,"LED task creation failed!\r\n");
 	}
 
-	if(xTaskCreate(hermes_app_task, "Hermes Application", HERMES_APPLICATION_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS)
+	if(xTaskCreate(hermes_app_task, "Hermes Application", HERMES_APPLICATION_TASK_STACK_SIZE, NULL, osPriorityNormal, NULL) != pdPASS)
 	{
 		zprintf(CRITICAL_IMPORTANCE, "Hermes Application task creation failed!\r\n");
 	}
+
+	if(xTaskCreate(MQTT_Task, "MQTT", MQTT_TASK_STACK_SIZE, NULL, osPriorityNormal, NULL) != pdPASS )
+	{
+		zprintf(CRITICAL_IMPORTANCE,"MQTT Task creation failed!\r\n");
+	}
+
+	LWIP_UpdateLinkState();
 }
 
 /**************************************************************

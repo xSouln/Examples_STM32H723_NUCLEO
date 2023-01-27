@@ -149,7 +149,7 @@ void set_utc(uint32_t val)
 {
     portENTER_CRITICAL();
     UTC = val;
-	UTC_ms = val * 1000ull;
+	UTC_ms = (uint64_t)val * 1000ull;
     portEXIT_CRITICAL();
 }
 

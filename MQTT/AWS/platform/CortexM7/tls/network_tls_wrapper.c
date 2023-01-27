@@ -27,9 +27,14 @@
 #define SOCKET_RX_BLOCK_TIME	500
 #define SOCKET_TX_BLOCK_TIME	3000
 
-IoT_Error_t iot_tls_init(	Network* pNetwork, char* pRootCALocation, char* pDeviceCertLocation,
-							char* pDevicePrivateKeyLocation, char* pDestinationURL,
-							uint16_t DestinationPort, uint32_t timeout_ms, bool ServerVerificationFlag )
+IoT_Error_t iot_tls_init(Network* pNetwork,
+							char* pRootCALocation,
+							char* pDeviceCertLocation,
+							char* pDevicePrivateKeyLocation,
+							char* pDestinationURL,
+							uint16_t DestinationPort,
+							uint32_t timeout_ms,
+							bool ServerVerificationFlag)
 {
 	// Let's initialise these mothers.
 	pNetwork->tlsConnectParams.DestinationPort = DestinationPort;
@@ -132,12 +137,7 @@ IoT_Error_t iot_tls_init(	Network* pNetwork, char* pRootCALocation, char* pDevic
 	}
 
 	wolfSSL_set_fd(pNetwork->tlsDataParams.ssl_obj, (int)pNetwork->tlsDataParams.socket);
-	/*
-	uint32_t timeout = SOCKET_RX_BLOCK_TIME;
-	lwip_setsockopt(pNetwork->tlsDataParams.socket, 0, SO_RCVTIMEO, &timeout, sizeof(timeout));
-	timeout = SOCKET_TX_BLOCK_TIME;
-	lwip_setsockopt(pNetwork->tlsDataParams.socket, 0, SO_SNDTIMEO, &timeout, sizeof(timeout));
-	*/
+
 	struct timeval timeout = { 0 };
 
 	timeout.tv_sec = SOCKET_RX_BLOCK_TIME;
@@ -159,23 +159,21 @@ IoT_Error_t iot_tls_connect(Network* pNetwork, TLSConnectParams* TLSParams)
 		return NETWORK_ERR_NET_SOCKET_FAILED;
 	}
 
-	hostent_result = gethostbyname(pNetwork->tlsConnectParams.pDestinationURL);
+	ip_addr_t hostent_addr;
 
-	if (!hostent_result)
-	{
-		return NETWORK_ERR_NET_SOCKET_FAILED;
-	}
+	/* query host IP address */
+	err_t err = netconn_gethostbyname(pNetwork->tlsConnectParams.pDestinationURL, &hostent_addr);
 
-	struct sockaddr_in address;
-	address.sin_family = AF_UNSPEC;
-	address.sin_addr.s_addr = ((ip_addr_t*)(hostent_result->h_addr_list[0]))[0].addr;
-	address.sin_port = htons(pNetwork->tlsConnectParams.DestinationPort);
-
-	if(address.sin_addr.s_addr == 0)
+	if (err != ERR_OK || hostent_addr.addr == 0)
 	{
 		wrapper_printf("\r\n\t--- TLS Connect Failed: Unable to resolve host.\r\n");
 		return NETWORK_ERR_NET_UNKNOWN_HOST;
 	}
+
+	struct sockaddr_in address;
+	address.sin_family = AF_UNSPEC;
+	address.sin_addr.s_addr = hostent_addr.addr;
+	address.sin_port = htons(pNetwork->tlsConnectParams.DestinationPort);
 
 	//int32_t result = FreeRTOS_connect(pNetwork->tlsDataParams.socket, &address, sizeof(address));
 	int32_t result = connect(pNetwork->tlsDataParams.socket, (const struct sockaddr*)&address, sizeof(address));
@@ -229,7 +227,7 @@ IoT_Error_t iot_tls_write( Network* pNetwork, unsigned char* buf, size_t count, 
 
 IoT_Error_t iot_tls_read( Network* pNetwork, unsigned char* buf, size_t to_read, Timer* read_timer, size_t* consumed )
 {
-	int ret = wolfSSL_read( pNetwork->tlsDataParams.ssl_obj, buf, to_read );
+	int ret = wolfSSL_read(pNetwork->tlsDataParams.ssl_obj, buf, to_read );
 	int wolf_state = SSL_SUCCESS;
 	if( 0 >= ret )
 	{
@@ -298,48 +296,71 @@ IoT_Error_t iot_tls_is_connected(Network* pNetwork)
 	return NETWORK_PHYSICAL_LAYER_DISCONNECTED;
 }
 
+#define rx_buffer_size 4096
+static uint8_t rx_buffer[rx_buffer_size] __attribute__((section(".lwip_mem"))) __ALIGNED(32) = {0};
 /*** Wolf Callbacks! ***/
 int Wrapper_Receive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
-	int32_t result;
-	/*
-	int32_t result = lwip_recv((socket_t)*(int32_t*)ctx, buf, sz, ssl->rflags);
-	if( 0 < result )
+	//static uint8_t i = 0;
+
+	//int result = recv(ssl->rfd, rx_buffer[i], sz, 0);
+	if (sz > 1024)
 	{
+		sz = 1024;
+	}
+
+	int result = recv(ssl->rfd, rx_buffer, sz, 0);
+
+	if (result > 0)
+	{
+		memcpy(buf, rx_buffer, result);
+
 		return result;
 	}
-	*/
-	switch( result )
+
+	switch(result)
 	{
-		case 0: // Nothing to read right now.
-			return WOLFSSL_CBIO_ERR_WANT_READ;
-		case -pdFREERTOS_ERRNO_ENOTCONN:	// Not connected.
-		case -pdFREERTOS_ERRNO_ENOMEM:	// Memory allocation error.
-		case -pdFREERTOS_ERRNO_EINVAL:	// Socket invalid.
+		case 0:	// Could not transmit.
+			return WOLFSSL_CBIO_ERR_WANT_WRITE;
+		case ERR_VAL:
+		case ERR_ISCONN:
+		case ERR_CONN:
+		case ERR_MEM:
 			return WOLFSSL_CBIO_ERR_CONN_CLOSE;
 		default:
 			return WOLFSSL_CBIO_ERR_GENERAL;
 	}
 }
 
+#define tx_buffer_size 4096
+static uint8_t tx_buffer[tx_buffer_size] __attribute__((section(".lwip_mem"))) __ALIGNED(32) = {0};
 int Wrapper_Send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
-	int32_t sent;
+	int result = 0;
 	/*
-	int32_t sent = FreeRTOS_send((Socket_t)*(int32_t*)ctx, buf, sz, ssl->wflags);
-	if( 0 < sent )
+	static uint8_t i = 0;
+
+	memcpy(tx_buffer[i], buf, sz);
+
+	int result = send(ssl->rfd, tx_buffer[i], sz, 0);
+*/
+
+	memcpy(tx_buffer, buf, sz);
+	result = send(ssl->rfd, tx_buffer, sz, 0);
+
+	if (result > 0)
 	{
-		return sent;
+		return result;
 	}
-	*/
-	switch( sent )
+
+	switch(result)
 	{
 		case 0:	// Could not transmit.
 			return WOLFSSL_CBIO_ERR_WANT_WRITE;
-		case -pdFREERTOS_ERRNO_ENOTCONN:	// Not connected.
-		case -pdFREERTOS_ERRNO_ENOSPC:	// No space left?
-		case -pdFREERTOS_ERRNO_ENOMEM:	// Memory allocation error.
-		case -pdFREERTOS_ERRNO_EINVAL:	// Invalid socket.
+		case ERR_VAL:
+		case ERR_ISCONN:
+		case ERR_CONN:
+		case ERR_MEM:
 			return WOLFSSL_CBIO_ERR_CONN_CLOSE;
 		default:
 			return WOLFSSL_CBIO_ERR_GENERAL;

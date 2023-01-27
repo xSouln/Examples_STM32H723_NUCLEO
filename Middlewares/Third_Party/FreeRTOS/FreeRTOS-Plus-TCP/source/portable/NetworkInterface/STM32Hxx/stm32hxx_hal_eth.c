@@ -150,6 +150,7 @@
  */
 
 /* Includes ------------------------------------------------------------------*/
+#ifdef FREERTOS_TCP_ENABLE
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -3029,5 +3030,5 @@ extern SemaphoreHandle_t xTXDescriptorSemaphore;
 /**
  * @}
  */
-
+#endif
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

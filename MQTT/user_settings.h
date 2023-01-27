@@ -22,16 +22,9 @@ extern "C" {
 //#define WC_RSA_PSS
 //#define HAVE_TLS_EXTENSIONS		1
 
-#define FREERTOS
-#define FREERTOS_TCP
-#define FREESCALE_KSDK_FREERTOS
-
-#define NO_FILESYSTEM
 //#define SINGLE_THREADED
 #define WOLFSSL_USER_IO
 #define HAVE_ERRNO_H
-#define FREESCALE_KSDK_1_3
-#define FREESCALE_COMMON
 
 #define WOLFSSL_SMALL_STACK
 //#define	WOLFSSL_SHA3_SMALL
@@ -97,8 +90,6 @@ extern "C" {
 #define HAVE_TM_TYPE
 #define HAVE_TIME_T_TYPE
 #define XGMTIME(c, t)   hermes_gmtime((c))
-
-#define TRNG0	TRNG // Bodge for slightly different expectations re: peripheral naming.
 
 #ifdef	__cplusplus
 }

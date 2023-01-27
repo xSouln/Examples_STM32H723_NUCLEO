@@ -22,7 +22,7 @@
 * provide a few misc helper functions. 
 *             
 **************************************************************************/
-
+#ifndef FREERTOS_TCP_ENABLE
 #include "hermes.h"
 
 /* Standard includes. */
@@ -82,7 +82,19 @@ BaseType_t xNetworkInterfaceInitialise( void )
     return xReturn;
 }
 
-bool NetworkInterface_IsActive(void)
+void NetworkInterfaceLinkUp(void* arg)
+{
+	zprintf(LOW_IMPORTANCE,"Network up.\r\n");
+	xEventGroupSetBits(xConnectionStatus_EventGroup, CONN_STATUS_NETWORK_UP);
+}
+
+void NetworkInterfaceLinkDown(void* arg)
+{
+	zprintf(LOW_IMPORTANCE,"Network down.\r\n");
+	xEventGroupClearBits(xConnectionStatus_EventGroup, CONN_STATUS_NETWORK_UP);
+}
+
+void NetworkInterface_IsActive(void* arg)
 {
 	return ((CONN_STATUS_NETWORK_UP & xEventGroupGetBits(xConnectionStatus_EventGroup)) > 0);
 }
@@ -114,4 +126,4 @@ uint32_t ulApplicationGetNextSequenceNumber( uint32_t ulSourceAddress,
     result = hermes_rand();
 	return result;
 }
-
+#endif

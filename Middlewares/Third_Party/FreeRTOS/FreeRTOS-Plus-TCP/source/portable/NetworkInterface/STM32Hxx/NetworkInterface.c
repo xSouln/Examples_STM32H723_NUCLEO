@@ -29,7 +29,7 @@
  * http://aws.amazon.com/freertos
  * http://www.FreeRTOS.org
  */
-
+#ifdef FREERTOS_TCP_ENABLE
 #include <string.h>
 
 /* FreeRTOS includes. */
@@ -108,8 +108,8 @@ SemaphoreHandle_t xTXDescriptorSemaphore = NULL;
 static SemaphoreHandle_t xTransmissionMutex;
 
 /* Global Ethernet handle */
-static ETH_HandleTypeDef xEthHandle;
-static ETH_TxPacketConfig xTxConfig;
+ETH_HandleTypeDef xEthHandle;
+ETH_TxPacketConfig xTxConfig;
 
 /*
  * About the section ".ethernet_data" : the DMA wants the descriptors and buffers allocated in the
@@ -127,19 +127,19 @@ static ETH_TxPacketConfig xTxConfig;
  *
  */
 /* Ethernet Rx DMA Descriptors */
-ETH_DMADescTypeDef DMARxDscrTab[ ETH_RX_DESC_CNT ] __attribute__( ( section( ".ethernet_data" ), aligned( 32 ) ) );
+ETH_DMADescTypeDef DMARxDscrTab[ ETH_RX_DESC_CNT ] __attribute__( ( section( ".lwip_mem" ), aligned( 32 ) ) );
 
 /* Ethernet Receive Buffer */
 #if ( ipconfigZERO_COPY_TX_DRIVER == 0 )
-    uint8_t Rx_Buff[ ETH_RX_DESC_CNT ][ ETH_RX_BUF_SIZE ] __attribute__( ( section( ".ethernet_data" ), aligned( 32 ) ) );
+    uint8_t Rx_Buff[ ETH_RX_DESC_CNT ][ ETH_RX_BUF_SIZE ] __attribute__( ( section( ".lwip_mem" ), aligned( 32 ) ) );
 #endif
 
 /* Ethernet Tx DMA Descriptors */
-ETH_DMADescTypeDef DMATxDscrTab[ ETH_TX_DESC_CNT ] __attribute__( ( section( ".ethernet_data" ), aligned( 32 ) ) );
+ETH_DMADescTypeDef DMATxDscrTab[ ETH_TX_DESC_CNT ] __attribute__( ( section( ".lwip_mem" ), aligned( 32 ) ) );
 
 /* Ethernet Transmit Buffer */
 #if ( ipconfigZERO_COPY_TX_DRIVER == 0 )
-    uint8_t Tx_Buff[ ETH_TX_DESC_CNT ][ ETH_TX_BUF_SIZE ] __attribute__( ( section( ".ethernet_data" ), aligned( 32 ) ) );
+    uint8_t Tx_Buff[ ETH_TX_DESC_CNT ][ ETH_TX_BUF_SIZE ] __attribute__( ( section( ".lwip_mem" ), aligned( 32 ) ) );
 #endif
 
 /* This function binds PHY IO functions, then inits and configures */
@@ -739,11 +739,12 @@ static int32_t ETH_PHY_IO_WriteReg( uint32_t ulDevAddr,
 /*******************************************************************************
 *                   Ethernet Handling Functions
 *******************************************************************************/
-
+/*
 void ETH_IRQHandler( void )
 {
     HAL_ETH_IRQHandler( &( xEthHandle ) );
 }
+*/
 /*-----------------------------------------------------------*/
 
 static void prvSetFlagsAndNotify( uint32_t ulFlags )
@@ -948,3 +949,5 @@ static void prvEMACHandlerTask( void * pvParameters )
     }
 }
 /*-----------------------------------------------------------*/
+#endif
+

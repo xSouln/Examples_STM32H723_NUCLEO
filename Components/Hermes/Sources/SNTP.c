@@ -134,9 +134,12 @@ bool SNTP_GetTime(void)
 			dns_gethostbyname(SNTP_SERVER, &addr, private_dns_found_callback, 0);www.google.com
 		}
 		*/
-		dns_gethostbyname("pool.ntp.org", &addr, private_dns_found_callback, 0);//SNTP_SERVER
+		//dns_gethostbyname("pool.ntp.org", &addr, private_dns_found_callback, 0);//SNTP_SERVER
 
-		if(addr.addr != 0)
+		/* query host IP address */
+		err_t err = netconn_gethostbyname(SNTP_SERVER, &addr);
+
+		if(err == ERR_OK && addr.addr != 0)
 		{
 			sntp_printf("Success!\r\n");
 		}
@@ -228,8 +231,9 @@ bool SNTP_GetTime(void)
 	}
 	while( false ); // Just for non-returning breaks.
 
-	// Signal that we're done. Note: doesn't mean the time is good.
-	xEventGroupClearBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_REQUESTED | SNTP_EVENT_UPDATE_UNDERWAY);
+	shutdown(sntpSocket, SHUT_RDWR);
+	closesocket(sntpSocket);
+
 	if(true == success)
 	{
 		// Signal that the time is good.
@@ -241,8 +245,8 @@ bool SNTP_GetTime(void)
 		xEventGroupSetBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_FAILED);
 	}
 
-	shutdown(sntpSocket, SHUT_RDWR);
-	closesocket(sntpSocket);
+	// Signal that we're done. Note: doesn't mean the time is good.
+	xEventGroupClearBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_REQUESTED | SNTP_EVENT_UPDATE_UNDERWAY);
 
 	if(request)
 	{

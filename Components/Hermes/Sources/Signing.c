@@ -286,6 +286,28 @@ bool checkFlashDerivedKey(void)
 	return retval;	
 }
 
+static void GenerateRandomNumber(uint8_t* out, uint16_t size)
+{
+	uint32_t value;
+
+	while (size)
+	{
+		HAL_RNG_GenerateRandomNumber(&hrng, &value);
+
+		uint8_t byte_number = 0;
+		while(size && byte_number < sizeof(value))
+		{
+			*out = value & 0xff;
+
+			value >>= 8;
+
+			byte_number++;
+			out++;
+			size--;
+		}
+	}
+}
+
 /**************************************************************
  * Function Name   : GenerateSharedSecret()
  * Description     : Generates a truly random 128 bit Shared Secret
@@ -296,8 +318,8 @@ bool checkFlashDerivedKey(void)
  **************************************************************/
 uint8_t *GenerateSharedSecret(SHARED_SECRET_SOURCE dest)
 {
-	uint32_t value;
 	uint8_t *buf;
+
 	switch(dest)
 	{
 		case SHARED_SECRET_PENDING:
@@ -307,11 +329,9 @@ uint8_t *GenerateSharedSecret(SHARED_SECRET_SOURCE dest)
 			buf = SharedSecret;
 			break;
 	}
-		
-	//TRNG_GetRandomData(TRNG, buf, SHARED_SECRET_LENGTH);	// this might be slow
-	HAL_RNG_GenerateRandomNumber(&hrng, &value);
-	*buf = (uint8_t)value;
-	
+
+	GenerateRandomNumber(buf, SHARED_SECRET_LENGTH);
+
 	return buf;
 }
 

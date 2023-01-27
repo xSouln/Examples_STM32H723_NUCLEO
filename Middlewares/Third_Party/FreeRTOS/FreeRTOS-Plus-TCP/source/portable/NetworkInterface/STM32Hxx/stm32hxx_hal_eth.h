@@ -16,7 +16,7 @@
  *
  ******************************************************************************
  */
-
+#ifdef FREERTOS_TCP_ENABLE
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef STM32Hxx_HAL_ETH_H
     #define STM32Hxx_HAL_ETH_H
@@ -1872,6 +1872,5 @@
 
 #endif /* STM32Hxx_HAL_ETH_H */
 
-
-
+#endif
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
