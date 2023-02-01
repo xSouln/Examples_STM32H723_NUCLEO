@@ -49,7 +49,7 @@
 #define WOLF_CONF_MATH      1
 
 /*---------- WOLF_CONF_RTOS -----------*/
-#define WOLF_CONF_RTOS      2
+#define WOLF_CONF_RTOS      0//2
 
 /*---------- WOLF_CONF_RNG -----------*/
 #define WOLF_CONF_RNG      1
@@ -64,7 +64,7 @@
 #define WOLF_CONF_DH      1
 
 /*---------- WOLF_CONF_AESGCM -----------*/
-#define WOLF_CONF_AESGCM      1
+#define WOLF_CONF_AESGCM      0
 
 /*---------- WOLF_CONF_AESCBC -----------*/
 #define WOLF_CONF_AESCBC      0
@@ -199,6 +199,43 @@
 #elif defined(STM32H723xx)
 	#define WOLFSSL_STM32H7
 	#define HAL_CONSOLE_UART huart3
+
+	#include "hermes-time.h"
+
+	#define HAVE_ERRNO_H
+	#define WOLFSSL_STATIC_RSA
+	#define WC_RSA_BLINDING
+	#define USE_SLOW_SHA2
+	#define USE_SLOW_SHA256
+	#define WC_RSA_NO_PADDING
+	#define WOLFSSL_TRUST_PEER_CERT
+	#define WOLFSSL_BASE64_ENCODE
+
+	#define NO_WOLFSSL_SERVER
+	#define NO_ERROR_STRINGS
+	#define NO_DH
+	#define NO_RABBIT
+	#define NO_HC128
+	#define NO_AES_128
+	#define NO_AES_192
+	#define NO_FILESYSTEM
+
+	#define WC_NO_CACHE_RESISTANT
+
+	#define HAVE_HKDF
+	#define HAVE_TLS_EXTENSIONS
+	#define HAVE_SNI				1
+	#define HAVE_CHACHA
+	#define HAVE_PBKDF2
+
+	#define USER_TIME
+	#define HAVE_TM_TYPE
+	#define HAVE_TIME_T_TYPE
+
+	#define XGMTIME(c, t) hermes_gmtime((c))
+	#define XTIME(t) get_UTC()
+	//#define USE_WOLFSSL_MEMORY
+	//#define WOLFSSL_LWIP
 #else
     #warning Please define a hardware platform!
     /* This means there is not a pre-defined platform for your board/CPU */
@@ -507,8 +544,7 @@
 #undef NO_SHA256
 #if defined(WOLF_CONF_SHA2_256) && WOLF_CONF_SHA2_256 == 1
     /* not unrolled - ~2k smaller and ~25% slower */
-    //#define USE_SLOW_SHA256
-
+    #define USE_SLOW_SHA256
     //#define WOLFSSL_SHAKE256
 
     /* Sha2-224 */

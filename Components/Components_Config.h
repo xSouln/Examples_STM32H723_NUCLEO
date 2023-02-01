@@ -34,6 +34,13 @@ extern "C" {
 
 	add1.addr = PP_HTONL(LWIP_MAKEU32(213, 184, 224, 254));//213.184.224.254 //82, 209, 243, 241
 	dns_setserver(1, &add1);
+
+	// Modification start
+	.user_ram_itcm :
+	{
+		*(.user_reg_2)
+	} >ITCMRAM
+	// Modification end
  */
 
 //==============================================================================

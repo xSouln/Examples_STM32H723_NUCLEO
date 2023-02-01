@@ -110,15 +110,8 @@ extern void LWIP_UpdateLinkState();
 
 void HermesComponentInit()
 {
-	/*
-	if (xTaskCreate(StartUpTask, "Startup", STARTUP_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &xStartupTaskHandle) != pdPASS)
-	{
-		while(1)
-		{
+	wolfSSL_Init();
 
-		}
-	}
-	*/
 	product_configuration.rf_pan_id = SUREFLAP_PAN_ID;
 
 	product_configuration.ethernet_mac[0] = heth.Init.MACAddr[0];
@@ -132,6 +125,7 @@ void HermesComponentInit()
 
 	memcpy(product_configuration.serial_number, SERIAL_NUMBER, sizeof(SERIAL_NUMBER));
 	memcpy(product_configuration.secret_serial, mySecretSerial, sizeof(mySecretSerial));
+	memset(product_configuration.DerivedKey, 0xff, sizeof(product_configuration.DerivedKey));
 
 	product_configuration.sanity_state = PRODUCT_CONFIGURED;
 	product_configuration.product_state = PRODUCT_CONFIGURED;
@@ -139,9 +133,23 @@ void HermesComponentInit()
 	GenerateSharedSecret(SHARED_SECRET_CURRENT);	// generate a truly random Shared Secret to be shared with the Server
 	GenerateDerivedKey(DERIVED_KEY_CURRENT);	// Used for signing data transfers between Hub and Server.
 
+	hermes_app_init();
+	HTTPPostTask_init();
+	SNTP_Init();
+/*
 	//Delay boot-up by 2 seconds.  The LEDs will be off for this period, giving us a visual indication if the device ever reboots.
 	vTaskDelay(pdMS_TO_TICKS(2000));
 
+	int ret = wolfSSL_Init();
+
+	if(ret != WOLFSSL_SUCCESS)
+	{
+		while(true)
+		{
+			osDelay(1);
+		}
+	}
+*/
 	BABEL_set_aes_key(product_configuration.serial_number);
 	BABEL_aes_encrypt_init();
 
@@ -149,22 +157,21 @@ void HermesComponentInit()
 	shouldICryptFlag = false;//true for AES Encryption
 
 	led_driver_init();
-	hermes_app_init();
+
+	LWIP_UpdateLinkState();
 
 	surenet_init(&rfmac, product_configuration.rf_pan_id, initial_RF_channel);
 
-	HTTPPostTask_init();
-	SNTP_Init();
 	if(xTaskCreate(SNTP_Task, "SNTP Task", SNTP_TASK_STACK_SIZE, NULL, osPriorityNormal, NULL) != pdPASS)
 	{
 		zprintf(CRITICAL_IMPORTANCE, "SNTP Task creation failed!\r\n");
 	}
-
+/*
 	if(xTaskCreate(led_task, "led_task", LED_TASK_STACK_SIZE, NULL, osPriorityNormal, NULL) != pdPASS)
 	{
 		zprintf(CRITICAL_IMPORTANCE,"LED task creation failed!\r\n");
 	}
-
+*/
 	if(xTaskCreate(hermes_app_task, "Hermes Application", HERMES_APPLICATION_TASK_STACK_SIZE, NULL, osPriorityNormal, NULL) != pdPASS)
 	{
 		zprintf(CRITICAL_IMPORTANCE, "Hermes Application task creation failed!\r\n");
@@ -175,7 +182,6 @@ void HermesComponentInit()
 		zprintf(CRITICAL_IMPORTANCE,"MQTT Task creation failed!\r\n");
 	}
 
-	LWIP_UpdateLinkState();
 }
 
 /**************************************************************

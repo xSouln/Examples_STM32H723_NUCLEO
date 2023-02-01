@@ -22,10 +22,12 @@
 #include "lwip.h"
 #include "sockets.h"
 #include "netdb.h"
+#include "api.h"
+#include "dns.h"
 
 #define AWS_YIELD_EXTENSION		50
-#define SOCKET_RX_BLOCK_TIME	500
-#define SOCKET_TX_BLOCK_TIME	3000
+#define SOCKET_RX_BLOCK_TIME	5000
+#define SOCKET_TX_BLOCK_TIME	5000
 
 IoT_Error_t iot_tls_init(Network* pNetwork,
 							char* pRootCALocation,
@@ -76,28 +78,36 @@ IoT_Error_t iot_tls_init(Network* pNetwork,
 		wolfSSL_CTX_SetIORecv(pNetwork->tlsDataParams.ssl_ctx, Wrapper_Receive);
 		wolfSSL_CTX_SetIOSend(pNetwork->tlsDataParams.ssl_ctx, Wrapper_Send);
 
+		pNetwork->tlsDataParams.ssl_obj = wolfSSL_new(pNetwork->tlsDataParams.ssl_ctx);
+		if(!pNetwork->tlsDataParams.ssl_obj)
+		{
+			return NETWORK_SSL_INIT_ERROR;
+		}
+
 		wolfSSL_CTX_set_verify(pNetwork->tlsDataParams.ssl_ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
 		// CA Certificate:
 		WOLFSSL_MSG("\tLoad Root CA");
+
 		result = wolfSSL_CTX_load_verify_buffer(pNetwork->tlsDataParams.ssl_ctx,
-				(unsigned char*)pRootCALocation,
-				strlen(pRootCALocation), SSL_FILETYPE_PEM );
+												(unsigned char*)pRootCALocation,
+												strlen(pRootCALocation),
+												SSL_FILETYPE_PEM);
 
 		if(result != SSL_SUCCESS)
 		{
 			return NETWORK_SSL_CERT_ERROR;
 		}
 
-		if( (NULL == pNetwork->tlsDataParams.credentials->decoded_cert) ||
-		    (NULL == pNetwork->tlsDataParams.credentials->decoded_key) )
+		if(!pNetwork->tlsDataParams.credentials->decoded_cert
+		|| !pNetwork->tlsDataParams.credentials->decoded_key)
 		{
 			return NETWORK_SSL_CERT_ERROR;
 		}
 
-		result = wolfSSL_CTX_use_certificate_buffer( pNetwork->tlsDataParams.ssl_ctx,
-				(const unsigned char*)pNetwork->tlsDataParams.credentials->decoded_cert,
-				pNetwork->tlsDataParams.credentials->decoded_cert_size,
-				SSL_FILETYPE_ASN1);
+		result = wolfSSL_CTX_use_certificate_buffer(pNetwork->tlsDataParams.ssl_ctx,
+													(const unsigned char*)pNetwork->tlsDataParams.credentials->decoded_cert,
+													pNetwork->tlsDataParams.credentials->decoded_cert_size,
+													SSL_FILETYPE_ASN1);
 
 		if(result != SSL_SUCCESS)
 		{
@@ -105,22 +115,22 @@ IoT_Error_t iot_tls_init(Network* pNetwork,
 		}
 
 		result = wolfSSL_CTX_use_PrivateKey_buffer(pNetwork->tlsDataParams.ssl_ctx,
-				(const unsigned char*)pNetwork->tlsDataParams.credentials->decoded_key,
-				pNetwork->tlsDataParams.credentials->decoded_key_size,
-				SSL_FILETYPE_ASN1 );
+													(const unsigned char*)pNetwork->tlsDataParams.credentials->decoded_key,
+													pNetwork->tlsDataParams.credentials->decoded_key_size,
+													SSL_FILETYPE_ASN1);
 
 		if(result != SSL_SUCCESS)
 		{
 			return NETWORK_SSL_CERT_ERROR;
 		}
 	}
-
+/*
 	pNetwork->tlsDataParams.ssl_obj = wolfSSL_new(pNetwork->tlsDataParams.ssl_ctx);
 	if(pNetwork->tlsDataParams.ssl_obj == NULL)
 	{
 		return NETWORK_SSL_INIT_ERROR;
 	}
-
+*/
 	result = wolfSSL_check_domain_name(pNetwork->tlsDataParams.ssl_obj, pDestinationURL);
 	if(result != SSL_SUCCESS)
 	{
@@ -136,8 +146,6 @@ IoT_Error_t iot_tls_init(Network* pNetwork,
 		return TCP_SETUP_ERROR;
 	}
 
-	wolfSSL_set_fd(pNetwork->tlsDataParams.ssl_obj, (int)pNetwork->tlsDataParams.socket);
-
 	struct timeval timeout = { 0 };
 
 	timeout.tv_sec = SOCKET_RX_BLOCK_TIME;
@@ -146,22 +154,21 @@ IoT_Error_t iot_tls_init(Network* pNetwork,
 	timeout.tv_sec = SOCKET_TX_BLOCK_TIME;
 	setsockopt(pNetwork->tlsDataParams.socket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 
+	wolfSSL_set_fd(pNetwork->tlsDataParams.ssl_obj, (int)pNetwork->tlsDataParams.socket);
+
 	return SUCCESS;
 }
 
 IoT_Error_t iot_tls_connect(Network* pNetwork, TLSConnectParams* TLSParams)
 {
-	struct hostent* hostent_result;
-
 	if(pNetwork->tlsDataParams.socket < 0)
 	{
 		wrapper_printf("\r\n\t--- TLS Connect Failed: No Socket.\r\n");
 		return NETWORK_ERR_NET_SOCKET_FAILED;
 	}
 
-	ip_addr_t hostent_addr;
-
 	/* query host IP address */
+	ip_addr_t hostent_addr;
 	err_t err = netconn_gethostbyname(pNetwork->tlsConnectParams.pDestinationURL, &hostent_addr);
 
 	if (err != ERR_OK || hostent_addr.addr == 0)
@@ -171,13 +178,13 @@ IoT_Error_t iot_tls_connect(Network* pNetwork, TLSConnectParams* TLSParams)
 	}
 
 	struct sockaddr_in address;
-	address.sin_family = AF_UNSPEC;
+	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = hostent_addr.addr;
 	address.sin_port = htons(pNetwork->tlsConnectParams.DestinationPort);
 
 	//int32_t result = FreeRTOS_connect(pNetwork->tlsDataParams.socket, &address, sizeof(address));
-	int32_t result = connect(pNetwork->tlsDataParams.socket, (const struct sockaddr*)&address, sizeof(address));
-	if( pdFREERTOS_ERRNO_NONE != result )
+	int32_t result = connect(pNetwork->tlsDataParams.socket, (struct sockaddr*)&address, sizeof(address));
+	if(result < 0)
 	{
 		wrapper_printf("\r\n\t--- Socket Connect Failed: %d\r\n", result);
 		return TCP_CONNECTION_ERROR;
@@ -186,20 +193,23 @@ IoT_Error_t iot_tls_connect(Network* pNetwork, TLSConnectParams* TLSParams)
 	int ret = wolfSSL_connect(pNetwork->tlsDataParams.ssl_obj);
 	int wolf_state = SSL_SUCCESS;
 
-	if( 0 >= ret )
+	if(ret != WOLFSSL_SUCCESS)
 	{
 		wolf_state = wolfSSL_get_error(pNetwork->tlsDataParams.ssl_obj, ret);
 	}
 
-	switch( wolf_state )
+	switch(wolf_state)
 	{
 		case WOLFSSL_ERROR_WANT_READ:
 			return NETWORK_SSL_NOTHING_TO_READ;
+
 		case WOLFSSL_ERROR_WANT_WRITE:
 			return NETWORK_SSL_WRITE_ERROR;
+
 		case WOLFSSL_SUCCESS:
 			wrapper_printf("SSL Connect Succeeded.\r\n");
 			return SUCCESS;
+
 		default:
 			wrapper_printf("Unknown SSL Error: %d\r\n", wolf_state);
 			wolfSSL_UnloadCertsKeys(pNetwork->tlsDataParams.ssl_obj);
@@ -207,16 +217,17 @@ IoT_Error_t iot_tls_connect(Network* pNetwork, TLSConnectParams* TLSParams)
 	}
 }
 
-IoT_Error_t iot_tls_write( Network* pNetwork, unsigned char* buf, size_t count, Timer* write_timer, size_t* written )
+IoT_Error_t iot_tls_write(Network* pNetwork, unsigned char* buf, size_t count, Timer* write_timer, size_t* written)
 {
 	int ret = wolfSSL_write(pNetwork->tlsDataParams.ssl_obj, buf, count);
 	int wolf_state = SSL_SUCCESS;
-	if( 0 >= ret )
+
+	if(ret <= 0)
 	{
-		wolf_state = wolfSSL_get_error( pNetwork->tlsDataParams.ssl_obj, ret );
+		wolf_state = wolfSSL_get_error(pNetwork->tlsDataParams.ssl_obj, ret);
 	}
 
-	if( SSL_SUCCESS == wolf_state )
+	if(wolf_state == SSL_SUCCESS)
 	{
 		*written = ret;
 		return SUCCESS;
@@ -225,16 +236,17 @@ IoT_Error_t iot_tls_write( Network* pNetwork, unsigned char* buf, size_t count, 
 	return NETWORK_SSL_WRITE_ERROR;
 }
 
-IoT_Error_t iot_tls_read( Network* pNetwork, unsigned char* buf, size_t to_read, Timer* read_timer, size_t* consumed )
+IoT_Error_t iot_tls_read(Network* pNetwork, unsigned char* buf, size_t to_read, Timer* read_timer, size_t* consumed)
 {
 	int ret = wolfSSL_read(pNetwork->tlsDataParams.ssl_obj, buf, to_read );
 	int wolf_state = SSL_SUCCESS;
-	if( 0 >= ret )
+
+	if(ret <= 0)
 	{
-		wolf_state = wolfSSL_get_error( pNetwork->tlsDataParams.ssl_obj, ret );
+		wolf_state = wolfSSL_get_error(pNetwork->tlsDataParams.ssl_obj, ret);
 	}
 
-	switch( wolf_state )
+	switch(wolf_state)
 	{
 		case SSL_SUCCESS:
 			*consumed = ret;
@@ -244,6 +256,7 @@ IoT_Error_t iot_tls_read( Network* pNetwork, unsigned char* buf, size_t to_read,
 		case SSL_ERROR_WANT_READ:
 			return NETWORK_SSL_NOTHING_TO_READ;
 	}
+
 	return NETWORK_SSL_READ_ERROR;
 }
 
@@ -253,18 +266,27 @@ IoT_Error_t iot_tls_disconnect( Network* pNetwork )
 	uint32_t attempts = 0;
 
 	pNetwork->tlsDataParams.connected = false;
-	if( NULL == pNetwork->tlsDataParams.ssl_obj ){ return SUCCESS; }
+	if(!pNetwork->tlsDataParams.ssl_obj)
+	{
+		return SUCCESS;
+	}
 	do
 	{
 		attempts++;
-		ret = wolfSSL_shutdown( pNetwork->tlsDataParams.ssl_obj ); // Note this may return WOLFSSL_SHUTDOWN_NOT_DONE for ever!
-		if( WOLFSSL_SHUTDOWN_NOT_DONE == ret)
+		// Note this may return WOLFSSL_SHUTDOWN_NOT_DONE for ever!
+		ret = wolfSSL_shutdown(pNetwork->tlsDataParams.ssl_obj);
+		if(ret == WOLFSSL_SHUTDOWN_NOT_DONE)
 		{
-			vTaskDelay(100);	// release to scheduler for 100ms
+			// release to scheduler for 100ms
+			vTaskDelay(100);
 		}
-	} while( (SSL_SUCCESS != ret ) && (WOLFSSL_FATAL_ERROR != ret) && (attempts < 10) );
+	}
+	while((ret != SSL_SUCCESS) && (ret != WOLFSSL_FATAL_ERROR) && (attempts < 10));
 
-	if( WOLFSSL_SHUTDOWN_NOT_DONE == ret ) {zprintf(LOW_IMPORTANCE,"wolfSSL_shutdown() never succeeded\r\n");}
+	if(ret == WOLFSSL_SHUTDOWN_NOT_DONE)
+	{
+		zprintf(LOW_IMPORTANCE,"wolfSSL_shutdown() never succeeded\r\n");
+	}
 
 	shutdown(pNetwork->tlsDataParams.socket, SHUT_RDWR);
 
@@ -278,10 +300,12 @@ IoT_Error_t iot_tls_disconnect( Network* pNetwork )
 
 IoT_Error_t iot_tls_destroy( Network* pNetwork )
 {
-	wolfSSL_free( pNetwork->tlsDataParams.ssl_obj );
+	wolfSSL_free(pNetwork->tlsDataParams.ssl_obj);
 	wolfSSL_Cleanup();
+	wolfSSL_CTX_free(pNetwork->tlsDataParams.ssl_ctx);
 
 	pNetwork->tlsDataParams.ssl_obj = NULL;
+	pNetwork->tlsDataParams.ssl_ctx = NULL;
 	return SUCCESS;
 }
 
@@ -290,30 +314,36 @@ IoT_Error_t iot_tls_is_connected(Network* pNetwork)
 	/*
 	if( pdTRUE == FreeRTOS_issocketconnected(pNetwork->tlsDataParams.socket) )
 	{
-		return NETWORK_PHYSICAL_LAYER_CONNECTED;
+		return NETWORK_PHYSICAL_LAYER_CONNECTED;NETWORK_PHYSICAL_LAYER_DISCONNECTED
 	}
 	*/
-	return NETWORK_PHYSICAL_LAYER_DISCONNECTED;
+	return NETWORK_PHYSICAL_LAYER_CONNECTED;
 }
 
-#define rx_buffer_size 4096
-static uint8_t rx_buffer[rx_buffer_size] __attribute__((section(".lwip_mem"))) __ALIGNED(32) = {0};
+#define aws_rx_buffers_count_mask 0x1f
+#define aws_rx_buffers_count (aws_rx_buffers_count_mask + 1)
+#define aws_rx_buffer_size ETH_RX_BUFFER_SIZE
+static uint8_t aws_rx_buffer[aws_rx_buffers_count][aws_rx_buffer_size];// __attribute__((section("._user_ram2_section")));
 /*** Wolf Callbacks! ***/
 int Wrapper_Receive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
-	//static uint8_t i = 0;
+	static uint8_t i = 0;
 
-	//int result = recv(ssl->rfd, rx_buffer[i], sz, 0);
-	if (sz > 1024)
+	if (sz > aws_rx_buffer_size)
 	{
-		sz = 1024;
+		sz = aws_rx_buffer_size;
 	}
 
-	int result = recv(ssl->rfd, rx_buffer, sz, 0);
+	memset(aws_rx_buffer[i], 0, aws_rx_buffer_size);
+	memcpy(aws_rx_buffer[i], buf, sz);
+	int result = recv(ssl->rfd, aws_rx_buffer[i], sz, 0);
 
 	if (result > 0)
 	{
-		memcpy(buf, rx_buffer, result);
+		memcpy(buf, aws_rx_buffer[i], result);
+
+		i++;
+		i &= aws_rx_buffers_count_mask;
 
 		return result;
 	}
@@ -332,10 +362,13 @@ int Wrapper_Receive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 	}
 }
 
-#define tx_buffer_size 4096
-static uint8_t tx_buffer[tx_buffer_size] __attribute__((section(".lwip_mem"))) __ALIGNED(32) = {0};
+#define aws_tx_buffers_count_mask 0x0f
+#define aws_tx_buffers_count (aws_tx_buffers_count_mask + 1)
+#define aws_tx_buffer_size 1024
+static uint8_t aws_tx_buffer[aws_tx_buffers_count][aws_tx_buffer_size];// __attribute__((section("._user_ram2_section")));
 int Wrapper_Send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
+	static int i = 0;
 	int result = 0;
 	/*
 	static uint8_t i = 0;
@@ -344,12 +377,19 @@ int Wrapper_Send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
 	int result = send(ssl->rfd, tx_buffer[i], sz, 0);
 */
-
-	memcpy(tx_buffer, buf, sz);
-	result = send(ssl->rfd, tx_buffer, sz, 0);
+	if (sz > aws_tx_buffer_size)
+	{
+		sz = aws_tx_buffer_size;
+	}
+	memset(aws_tx_buffer[i], 0, aws_tx_buffer_size);
+	memcpy(aws_tx_buffer[i], buf, sz);
+	result = send(ssl->rfd, aws_tx_buffer[i], sz, 0);
 
 	if (result > 0)
 	{
+		i++;
+		i &= aws_tx_buffers_count_mask;
+
 		return result;
 	}
 

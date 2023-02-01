@@ -63,7 +63,7 @@ typedef struct
 typedef struct
 {
 	uint32_t	size;
-	uint8_t		data[1024 - sizeof(uint32_t)];
+	uint8_t		data[CREDS_ABSOLUTE_MAX_LENGTH - sizeof(uint32_t)];
 } STORED_CREDENTIAL;
 
 bool Credentials_Parse(char* buffer, SUREFLAP_CREDENTIALS* credentials);

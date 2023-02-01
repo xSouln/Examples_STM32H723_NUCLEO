@@ -36,7 +36,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-uint8_t ucHeap[configTOTAL_HEAP_SIZE] __attribute__((section("._user_heap_stack"))) = {0};
+uint8_t ucHeap[configTOTAL_HEAP_SIZE] __attribute__((section("._user_rtos_ram"))) = {0};
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -106,7 +106,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART3_UART_Init();
   MX_USB_OTG_HS_USB_Init();
-  MX_DMA_Init();
+  //MX_DMA_Init();
   MX_SPI3_Init();
   MX_TIM4_Init();
   MX_TIM5_Init();
@@ -216,22 +216,29 @@ void MPU_Config(void)
   MPU_InitStruct.BaseAddress = 0x30000000;
   MPU_InitStruct.Size = MPU_REGION_SIZE_32KB;
   MPU_InitStruct.SubRegionDisable = 0x0;
-  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
   MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
   MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
-  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
   /** Initializes and configures the Region and the memory to be protected
   */
   MPU_InitStruct.Number = MPU_REGION_NUMBER1;
-  MPU_InitStruct.BaseAddress = 0x24030000;
+  MPU_InitStruct.BaseAddress = 0x24000000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_512KB;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+/*
+  MPU_InitStruct.Number = MPU_REGION_NUMBER2;
+  MPU_InitStruct.BaseAddress = 0x2403E800;
   MPU_InitStruct.Size = MPU_REGION_SIZE_128KB;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
+  */
   /* Enables the MPU */
   HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 
@@ -248,13 +255,13 @@ void MPU_Config(void)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   /* USER CODE BEGIN Callback 0 */
-
+	extern void vApplicationTickHook(void);
   /* USER CODE END Callback 0 */
   if (htim->Instance == TIM6) {
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
-
+  vApplicationTickHook();
   /* USER CODE END Callback 1 */
 }
 

@@ -52,6 +52,8 @@
 #include "ieee_const.h"
 #include "mac_internal.h"
 
+#include "cmsis_os.h"
+
 #define PET_DOOR_DELAY		true	// This introduces a 50ms delay for Pet Doors between 
 									// PACKET_DEVICE_AWAKE and the sending of PACKET_END_SESSION
 
@@ -447,7 +449,7 @@ BaseType_t sn_init(uint64_t *mac, uint16_t panid, uint8_t channel)
 	}
 
         // now start the SureNet task
-    if (xTaskCreate(sn_task, "SureNet", SURENET_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &surenet_task_handle) != pdPASS)
+    if (xTaskCreate(sn_task, "SureNet", SURENET_TASK_STACK_SIZE, NULL, osPriorityNormal, &surenet_task_handle) != pdPASS)
     {
         zprintf(CRITICAL_IMPORTANCE, "SureNet task creation failed!.\r\n");
         return pdFAIL;
@@ -494,7 +496,8 @@ void sn_task(void *pvParameters)
 	
     while(1)
     {
-        snd_stack_task();  // run lower levels of stack. Note this is also called as part of sn_transmit_packet()
+    	// run lower levels of stack. Note this is also called as part of sn_transmit_packet()
+        snd_stack_task();
 
         // Check on any mailboxes for data to despatch into SureNet
         if( (uxQueueMessagesWaiting(xSetPairingModeMailbox) > 0) &&
@@ -640,7 +643,8 @@ void sn_task(void *pvParameters)
         timeout_handler();  // check the time we last chatted to a device and mark it offline if it was a while ago
     	if( CAN_SLEEP == can_i_sleep)
 		{	// there are no ongoing conversations with any devices, so we can afford a brief nap!
-			vTaskDelay(pdMS_TO_TICKS( 1 ));
+			//vTaskDelay(pdMS_TO_TICKS( 1 ));
+    		osDelay(1);
 		}
 	}
 }

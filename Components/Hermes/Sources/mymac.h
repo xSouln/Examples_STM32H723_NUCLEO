@@ -2,7 +2,7 @@
 *
 * SUREFLAP CONFIDENTIALITY & COPYRIGHT NOTICE
 *
-* Copyright © 2013-2021 Sureflap Limited.
+* Copyright ï¿½ 2013-2021 Sureflap Limited.
 * All Rights Reserved.
 *
 * All information contained herein is, and remains the property of Sureflap 
@@ -30,7 +30,8 @@
 #define		myRFMAC 		0x70b3d5f9c0000801
 #define		myEthMAC 		{0x00,0x11,0x22,0xCC,0x19,0x73}
 #define 	mySerial		"H017-9999998\0"
-#define		mySecretSerial	"15B1F087B2A1EC3E56D759B07538B3A9\0"
+#define		mySecretSerial	"FD5CE7184B30BEBA890B6A83D7184760\0"
+//#define		mySecretSerial	"15B1F087B2A1EC3E56D759B07538B3A9\0"
 
 #endif
 

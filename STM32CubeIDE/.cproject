@@ -115,9 +115,6 @@
 									<listOptionValue builtIn="false" value="../../MQTT/AWS"/>
 									<listOptionValue builtIn="false" value="../../MQTT/AWS/include"/>
 									<listOptionValue builtIn="false" value="../../MQTT/AWS/platform/CortexM7"/>
-									<listOptionValue builtIn="false" value="../../wolfSSL"/>
-									<listOptionValue builtIn="false" value="../../Middlewares/Third_Party/wolfSSL_wolfSSL_wolfSSL/wolfssl/"/>
-									<listOptionValue builtIn="false" value="../../WolfSSL"/>
 									<listOptionValue builtIn="false" value="../../Hermes/Surenet/SureNetDriver/include"/>
 									<listOptionValue builtIn="false" value="../../Hermes/Surenet/SureNetDriver/mac/inc"/>
 									<listOptionValue builtIn="false" value="../../Hermes/Surenet/SureNetDriver/pal"/>
@@ -128,6 +125,8 @@
 									<listOptionValue builtIn="false" value="../../Hermes/Surenet/SureNetDriver/tal/inc"/>
 									<listOptionValue builtIn="false" value="../../Hermes/Surenet/SureNetDriver/tal/at86rf233/inc"/>
 									<listOptionValue builtIn="false" value="&quot;../..\Middlewares\Third_Party\FreeRTOS\FreeRTOS-Plus-CLI&quot;"/>
+									<listOptionValue builtIn="false" value="../../Middlewares/Third_Party/wolfSSL_wolfSSL_wolfSSL/wolfssl/"/>
+									<listOptionValue builtIn="false" value="../../wolfSSL"/>
 								</option>
 								<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.languagestandard.317766743" name="Language standard" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.languagestandard" useByScannerDiscovery="true" value="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.languagestandard.value.gnu18" valueType="enumerated"/>
 								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c.541946347" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c"/>

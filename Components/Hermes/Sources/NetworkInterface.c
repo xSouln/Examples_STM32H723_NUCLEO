@@ -94,7 +94,7 @@ void NetworkInterfaceLinkDown(void* arg)
 	xEventGroupClearBits(xConnectionStatus_EventGroup, CONN_STATUS_NETWORK_UP);
 }
 
-void NetworkInterface_IsActive(void* arg)
+bool NetworkInterface_IsActive(void* arg)
 {
 	return ((CONN_STATUS_NETWORK_UP & xEventGroupGetBits(xConnectionStatus_EventGroup)) > 0);
 }

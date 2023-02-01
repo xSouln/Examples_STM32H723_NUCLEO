@@ -14,6 +14,7 @@ extern "C" {
 #include "main.h"
 #include "Common/xTypes.h"
 #include "Registers/registers.h"
+#include "Common/xConverter.h"
 //==============================================================================
 //defines:
 

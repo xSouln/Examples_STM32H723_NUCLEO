@@ -61,6 +61,7 @@ typedef struct
     uint32_t timestamp;
     uint64_t mac_address;
     T_MESSAGE message;
+
 } DEVICE_BUFFER;
 
 // Local variables

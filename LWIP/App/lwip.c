@@ -131,7 +131,12 @@ void MX_LWIP_Init(void)
   ip_addr_t add1;
   osDelay(3000);
 
-  add1.addr = PP_HTONL(LWIP_MAKEU32(192, 168, 0, 1));//LWIP_MAKEU32(213, 184, 225, 37)//213.184.225.37 //82, 209, 240, 241
+  add1.addr = PP_HTONL(LWIP_MAKEU32(
+		  GATEWAY_ADDRESS[0],
+		  GATEWAY_ADDRESS[1],
+		  GATEWAY_ADDRESS[2],
+		  GATEWAY_ADDRESS[3]));//LWIP_MAKEU32(213, 184, 225, 37)//213.184.225.37 //82, 209, 240, 241
+
   dns_setserver(0, &add1);
 
   //add1.addr = PP_HTONL(LWIP_MAKEU32(213, 184, 224, 254));//213.184.224.254 //82, 209, 243, 241

@@ -86,13 +86,15 @@ IoT_Error_t AWS_Init(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials)
 	return ret;
 }
 
-IoT_Error_t AWS_Connect(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials,
-						const char* will_message, bool clean_connect)
+IoT_Error_t AWS_Connect(AWS_IoT_Client* client,
+						SUREFLAP_CREDENTIALS* credentials,
+						const char* will_message,
+						bool clean_connect)
 {
 	IoT_Client_Connect_Params connect_params = iotClientConnectParamsDefault;
 
 	IoT_Error_t ret = AWS_Init(client, credentials);
-	if( AWS_SUCCESS != ret )
+	if(ret != AWS_SUCCESS)
 	{
 		aws_printf("\tError (%d) initialising.\r\n", ret);
 		return ret;
@@ -103,7 +105,8 @@ IoT_Error_t AWS_Connect(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credential
 	connect_params.clientIDLen = strlen(credentials->client_id);
 	connect_params.keepAliveIntervalInSec = AWS_KEEP_ALIVE_TIMEOUT;
 	connect_params.isCleanSession = clean_connect;
-	if( NULL != will_message )
+
+	if(will_message)
 	{
 		connect_params.isWillMsgPresent = true;
 		connect_params.will.pTopicName = aws_messages_topic;
@@ -112,10 +115,12 @@ IoT_Error_t AWS_Connect(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credential
 		connect_params.will.msgLen = strlen(will_message);
 		connect_params.will.isRetained = false;
 		connect_params.will.qos = QOS1;
-	} else
+	}
+	else
 	{
 		connect_params.isWillMsgPresent = false;
 	}
+
 	// Username and Password not used in AWS IoT, but still included in Connection Params.
 	connect_params.pUsername = credentials->username;
 	connect_params.usernameLen = strlen(credentials->username);
@@ -131,7 +136,8 @@ IoT_Error_t AWS_Connect(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credential
 	if( AWS_SUCCESS != ret )
 	{
 		IOT_ERROR("Error (%d) connecting %s.\n\r", ret, client_id);
-	} else
+	}
+	else
 	{
 		client->networkStack.tlsDataParams.connected = true;
 	}

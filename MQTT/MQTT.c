@@ -60,8 +60,8 @@ extern QueueHandle_t		xBufferMessageMailbox;
 extern QueueHandle_t 		xRestartNetworkMailbox;
 extern EventGroupHandle_t	xConnectionStatus_EventGroup;
 
-volatile const STORED_CREDENTIAL	MQTT_Stored_Certificate;
-volatile const STORED_CREDENTIAL	MQTT_Stored_Private_Key;
+STORED_CREDENTIAL MQTT_Stored_Certificate __attribute__((section("._user_ram3_ram")));
+STORED_CREDENTIAL MQTT_Stored_Private_Key __attribute__((section("._user_ram3_ram")));
 
 static void MQTT_Hash_It_Up(SUREFLAP_CREDENTIALS* creds);
 
@@ -127,11 +127,12 @@ void MQTT_Task(void *pvParameters)
 					mqtt_connection_state = MQTT_STATE_GET_TIME;
 				}
 				break;
+
 			case MQTT_STATE_GET_TIME:
 				ConnStatus = xEventGroupWaitBits(xConnectionStatus_EventGroup, CONN_STATUS_NETWORK_UP, false, false, pdMS_TO_TICKS( 1000 ));
 				if( 0 != (CONN_STATUS_NETWORK_UP & ConnStatus) )
 				{	// Network's up, so let's get cooking.
-					if( true == SNTP_AwaitUpdate(false, pdMS_TO_TICKS( 1000 )) )
+					if(SNTP_AwaitUpdate(false, pdMS_TO_TICKS(1000)))
 					{
 						mqtt_connection_state = MQTT_STATE_GET_CREDENTIALS;
 						//process_system_event(STATUS_GETTING_CREDENTIALS);//Alternate Red
@@ -146,8 +147,9 @@ void MQTT_Task(void *pvParameters)
 					}
 				}
 				break;
+
 			case MQTT_STATE_GET_CREDENTIALS:
-				if( true == MQTT_Get_Credentials(&aws_credentials) )
+				if(MQTT_Get_Credentials(&aws_credentials))
 				{
 					process_system_event(STATUS_CONNECTING_TO_CLOUD);//Alternate green
 					connect_delay_timestamp = get_microseconds_tick();
@@ -164,56 +166,65 @@ void MQTT_Task(void *pvParameters)
 					mqtt_printf("\tConnecting\r\n");
 				}
 				break;
-			case MQTT_STATE_DELAY:	// This state is just a delay to allow the alternate green LED pattern
-									// to show for a minimum period (otherwise it may be practically
-									// instantaneous which is at odds with the manuals and App
-				if( (get_microseconds_tick()-connect_delay_timestamp) > (MIN_GREEN_FLASH_DURATION * usTICK_SECONDS))
+
+			case MQTT_STATE_DELAY:
+				// This state is just a delay to allow the alternate green LED pattern
+				// to show for a minimum period (otherwise it may be practically
+				// instantaneous which is at odds with the manuals and App
+				if((get_microseconds_tick()-connect_delay_timestamp) > (MIN_GREEN_FLASH_DURATION * usTICK_SECONDS))
 				{
 					connection_attempts_timestamp = get_microseconds_tick();
 					mqtt_connection_state = MQTT_STATE_CONNECT;
 				}
 				break;
+
 			case MQTT_STATE_CONNECT:
-				if( true == MQTT_Connect(&aws_client, &aws_credentials, clean_connect) )
+				if(MQTT_Connect(&aws_client, &aws_credentials, clean_connect))
 				{
 					mqtt_connection_state = MQTT_STATE_SUBSCRIBE;
 				}
-				if( (get_microseconds_tick()-connection_attempts_timestamp) > CONNECT_ATTEMPTS_TIMEOUT)
+				if((get_microseconds_tick() - connection_attempts_timestamp) > CONNECT_ATTEMPTS_TIMEOUT)
 				{
 					xQueueSend(xRestartNetworkMailbox, &restart_network, 0);
 					zprintf(LOW_IMPORTANCE,"MQTT Connect timeout - triggering network restart...\r\n");
 					mqtt_connection_state = MQTT_STATE_INITIAL;	// restart everything, including getting new credentials
 				}
 				break;
+
 			case MQTT_STATE_SUBSCRIBE:
 				mqtt_printf("\tSubscribe\r\n");
-				if( true == MQTT_Subscribe(&aws_client, &aws_credentials) )
-				{	// Chris has seen it get stuck in this state...
+				if(MQTT_Subscribe(&aws_client, &aws_credentials))
+				{
+					// Chris has seen it get stuck in this state...
 					mqtt_connection_state = MQTT_STATE_CONNECTED;
 					process_system_event(STATUS_CONNECTED_TO_CLOUD);
 					mqtt_printf("\tConnected\r\n");
 					xEventGroupSetBits(xConnectionStatus_EventGroup, CONN_STATUS_MQTT_UP);
 				}
 				break;
+
 			case MQTT_STATE_CONNECTED:
-				if( false == MQTT_Poll(&aws_client, &aws_credentials) )
+				if(!MQTT_Poll(&aws_client, &aws_credentials))
 				{
 					mqtt_connection_state = MQTT_STATE_DISCONNECT;
 				}
 				break;
+
 			case MQTT_STATE_DISCONNECT:
 				mqtt_printf("\tDisconnecting\r\n");
 				if( true == MQTT_Disconnect(&aws_client) )
 				{
-	//				process_system_event(STATUS_GETTING_CREDENTIALS); // Alternate Red
+					// process_system_event(STATUS_GETTING_CREDENTIALS); // Alternate Red
 					xEventGroupClearBits(xConnectionStatus_EventGroup, CONN_STATUS_MQTT_UP);
-	//				connection_attempts_timestamp = get_microseconds_tick();
+					// connection_attempts_timestamp = get_microseconds_tick();
 					mqtt_connection_state = MQTT_STATE_INITIAL;
 				}
 				break;
+
 			case MQTT_STATE_STOP:
 				// do nothing - a f/w update is on it's way
 				break;
+
 			case MQTT_STATE_BACKSTOP:
 			default:
 				mqtt_connection_state = MQTT_STATE_GET_CREDENTIALS;
@@ -251,43 +262,43 @@ uint32_t MQTT_Unpack_Credentials(SUREFLAP_CREDENTIALS* credentials)
 {
 	credentials->decode_result = 0;
 
-	if( strlen(credentials->certificate) > 0 )
+	if(strlen(credentials->certificate) > 0)
 	{
-		extern PRODUCT_CONFIGURATION	product_configuration;
-		WC_PKCS12*			pkcs = wc_PKCS12_new();
+		WC_PKCS12* pkcs = wc_PKCS12_new();
 
 		credentials->unpacked_cert_length = strlen(credentials->certificate);
-		Base64_Decode((byte*)credentials->certificate, credentials->unpacked_cert_length, (byte*)credentials->certificate, (word32*)&credentials->unpacked_cert_length);
+		Base64_Decode((byte*)credentials->certificate,
+					credentials->unpacked_cert_length,
+					(byte*)credentials->certificate,
+					(word32*)&credentials->unpacked_cert_length);
 
 		credentials->decode_result = wc_d2i_PKCS12((const byte*)credentials->certificate, credentials->unpacked_cert_length, pkcs);
-		if( 0 == credentials->decode_result ) credentials->decode_result = wc_PKCS12_parse(pkcs, (char const*)GetDerivedKey_text(), (byte**)&credentials->decoded_key, (word32*)&credentials->decoded_key_size, (byte**)&credentials->decoded_cert, (word32*)&credentials->decoded_cert_size, NULL);
+		if(!credentials->decode_result)
+		{
+			credentials->decode_result = wc_PKCS12_parse(pkcs,
+					(char const*)GetDerivedKey_text(),
+					(byte**)&credentials->decoded_key,
+					(word32*)&credentials->decoded_key_size,
+					(byte**)&credentials->decoded_cert,
+					(word32*)&credentials->decoded_cert_size,
+					NULL);
+		}
 
 		wc_PKCS12_free(pkcs);
 		vPortFree(credentials->certificate);
 		credentials->certificate = NULL;
 
-		if( 0 == credentials->decode_result )
+		if(credentials->decode_result == 0)
 		{
-			/*
-			if( true != hermesFlashRequestCredentialWrite(credentials->decoded_cert, (void*)&MQTT_Stored_Certificate, credentials->decoded_cert_size) )
-			{
-				credentials->decode_result |= 1;
-			}
+			MQTT_Stored_Certificate.size = credentials->decoded_cert_size;
+			memcpy(MQTT_Stored_Certificate.data, credentials->decoded_cert, credentials->decoded_cert_size);
 
-			if( true != hermesFlashRequestCredentialWrite(credentials->decoded_key, (void*)&MQTT_Stored_Private_Key, credentials->decoded_key_size) )
-			{
-				credentials->decode_result |= 2;
-			}
-*/
-			if( 0 == credentials->decode_result )
-			{
-				vPortFree(credentials->decoded_cert);
-				vPortFree(credentials->decoded_key);
-			}
+			MQTT_Stored_Private_Key.size = credentials->decoded_key_size;
+			memcpy(MQTT_Stored_Private_Key.data, credentials->decoded_key, credentials->decoded_key_size);
 		}
 	}
 
-	if( 0 == credentials->decode_result )
+	if(credentials->decode_result == 0)
 	{
 		MQTT_Hash_It_Up(credentials);
 	}
@@ -377,13 +388,23 @@ typedef enum
 	CRED_REQ_USE_RAM_KEY,
 } CRED_REQ_KEY_TYPE;
 
-static uint8_t response_buffer[CREDENTIAL_BUFFER_SIZE];
+static char response_buffer[CREDENTIAL_BUFFER_SIZE];
 
 static bool MQTT_Send_Credential_Request(SUREFLAP_CREDENTIALS* creds)
 {
-	char		fullContent[]	= "serial_number=####-#######&mac_address=################&product_id=1&firmware_version=######.######&bv=################################&tv=##############\0"; //&cred_hash=########\0";
-	char*		postContent		= "serial_number=%s&mac_address=0000%02X%02X%02X%02X%02X%02X&product_id=1&firmware_version=%06d.%06d&bv=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x&tv=%014u\0"; //&cred_hash=%08X\0";
+	static char fullContent[] = "serial_number=####-#######"
+								"&mac_address=################"
+								"&product_id=1"
+								"&firmware_version=######.######"
+								"&bv=################################"
+								"&tv=##############\0"; //&cred_hash=########\0";
 
+	static char* postContent = "serial_number=%s"
+								"&mac_address=0000%02X%02X%02X%02X%02X%02X&product_id=1"
+								"&firmware_version=%06d.%06d"
+								"&bv=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
+								"&tv=0%s\0";
+								//"&tv=%014lu\0"; //&cred_hash=%08X\0";
 
 	bool		http_req_result	= false;
 	bool		parse_result 	= false;
@@ -395,7 +416,7 @@ static bool MQTT_Send_Credential_Request(SUREFLAP_CREDENTIALS* creds)
 	int32_t		encrypted_data;		// indicates if x-enc was present in HTTP response header. We don't care here.
 	static CRED_REQ_KEY_TYPE cred_req_key_type = CRED_REQ_USE_FLASH_KEY;
 
-	if( (true == checkFlashDerivedKey()) && (CRED_REQ_USE_FLASH_KEY == cred_req_key_type) )	// check if the Derived Key stored in Flash is valid
+	if(checkFlashDerivedKey() && (CRED_REQ_USE_FLASH_KEY == cred_req_key_type))	// check if the Derived Key stored in Flash is valid
 	{
 		zprintf(LOW_IMPORTANCE,"Using Derived Key from Flash\r\n");
 		key = DERIVED_KEY_FLASH;	// use the Derived Key from before the power cycle / restart
@@ -412,37 +433,63 @@ static bool MQTT_Send_Credential_Request(SUREFLAP_CREDENTIALS* creds)
 
 	get_UTC_ms(&time_since_epoch_ms);
 
-	time_since_epoch_ms /= 1000;
-	time_since_epoch_ms += 3600 * 3;
+	char str_time[15] = { 0 };
 
-	uint32_t length = snprintf(	fullContent, sizeof(fullContent), postContent, product_configuration.serial_number, \
-								product_configuration.ethernet_mac[0], product_configuration.ethernet_mac[1], \
-								product_configuration.ethernet_mac[2], product_configuration.ethernet_mac[3], \
-								product_configuration.ethernet_mac[4], product_configuration.ethernet_mac[5], \
-								SVN_REVISION, BUILD_MARK, \
-								SharedSecret[0],SharedSecret[1],SharedSecret[2],SharedSecret[3], \
-								SharedSecret[4],SharedSecret[5],SharedSecret[6],SharedSecret[7], \
-								SharedSecret[8],SharedSecret[9],SharedSecret[10],SharedSecret[11], \
-								SharedSecret[12],SharedSecret[13],SharedSecret[14],SharedSecret[15], \
-								time_since_epoch_ms);
-	if( length > sizeof(fullContent) ){ return false; }
+	xConverterUInt64ToStr(str_time, time_since_epoch_ms);
+
+	uint32_t length = snprintf(fullContent, sizeof(fullContent),
+			postContent,
+			product_configuration.serial_number,
+
+			product_configuration.ethernet_mac[0], product_configuration.ethernet_mac[1],
+			product_configuration.ethernet_mac[2], product_configuration.ethernet_mac[3],
+			product_configuration.ethernet_mac[4], product_configuration.ethernet_mac[5],
+
+			SVN_REVISION, BUILD_MARK,
+
+			SharedSecret[0],SharedSecret[1],SharedSecret[2],SharedSecret[3],
+			SharedSecret[4],SharedSecret[5],SharedSecret[6],SharedSecret[7],
+			SharedSecret[8],SharedSecret[9],SharedSecret[10],SharedSecret[11],
+			SharedSecret[12],SharedSecret[13],SharedSecret[14],SharedSecret[15],
+
+			str_time);
+
+	if(length > sizeof(fullContent))
+	{
+		return false;
+	}
 
 	//char* response_buffer = pvPortMalloc(CREDENTIAL_BUFFER_SIZE);
 	//char response_buffer[CREDENTIAL_BUFFER_SIZE];// = malloc(CREDENTIAL_BUFFER_SIZE);//;mem_malloc(CREDENTIAL_BUFFER_SIZE);
-	if( NULL != response_buffer)
+	//if(response_buffer)
 	{
 		memset(response_buffer, 0, CREDENTIAL_BUFFER_SIZE);	// cannot guarantee that creds are null terminated.
 		// Note we always use the current key for checking the signature of the response because
 		// we always send the bv= argument with a credential request, hence updating the key
 		// on the Server.
-		http_req_result = HTTP_POST_Request(HUB_API_SERVER, "/api/credentials", fullContent, response_buffer, CREDENTIAL_BUFFER_SIZE, true, key, DERIVED_KEY_CURRENT, &encrypted_data, NULL);
+		http_req_result = HTTP_POST_Request(HUB_API_SERVER,
+											"/api/credentials",
+											fullContent,
+											response_buffer,
+											CREDENTIAL_BUFFER_SIZE,
+											true,
+											key,
+											DERIVED_KEY_CURRENT,
+											&encrypted_data,
+											NULL);
+
 		// Note that an 'empty' response from the server is v02:0::::1::: and this causes MQTT_Interpret_Credentials() to return false
-		if( true == http_req_result ) parse_result = MQTT_Interpret_Credentials(creds, response_buffer);
+		if(http_req_result)
+		{
+			parse_result = MQTT_Interpret_Credentials(creds, response_buffer);
+		}
 		//vPortFree(response_buffer);
 		//mem_free(response_buffer);
 	}
-	if( (true == http_req_result) && (true == parse_result))
-	{ // To get this far, we have used the Derived Key to check the signature on the credentials
+
+	if(http_req_result && parse_result)
+	{
+		// To get this far, we have used the Derived Key to check the signature on the credentials
 		// from the Server, and also used it to decrypt them. So it must be OK.
 		zprintf(LOW_IMPORTANCE,"Storing Derived Key in Flash\r\n");
 		StoreDerivedKey();
@@ -463,16 +510,25 @@ static bool MQTT_Send_Credential_Request(SUREFLAP_CREDENTIALS* creds)
 
 static bool MQTT_Get_Credentials(SUREFLAP_CREDENTIALS* creds)
 {
-	static const BACKOFF_SPECS	cred_backoff_specs	= { MQTT_CRED_RETRY_BASE,
-														MQTT_CRED_RETRY_MULT,
-														MQTT_CRED_RETRY_JITTER,
-														MQTT_CRED_RETRY_MAX };
-	static BACKOFF	cred_backoff = {0, MQTT_CRED_RETRY_BASE, 0, &cred_backoff_specs};
+	static const BACKOFF_SPECS	cred_backoff_specs =
+	{
+		MQTT_CRED_RETRY_BASE,
+		MQTT_CRED_RETRY_MULT,
+		MQTT_CRED_RETRY_JITTER,
+		MQTT_CRED_RETRY_MAX
+	};
+
+	static BACKOFF	cred_backoff =
+	{
+		0, MQTT_CRED_RETRY_BASE,
+		0, &cred_backoff_specs
+	};
 
 	BACKOFF_RESULT	backoff_result = Backoff_GetStatus(&cred_backoff);
-	switch( backoff_result )
+	switch(backoff_result)
 	{
 		case BACKOFF_READY:
+
 		case BACKOFF_FINAL_ATTEMPT:
 			mqtt_printf("\tAttempting Credential Request... ");
 			break;
@@ -482,6 +538,7 @@ static bool MQTT_Get_Credentials(SUREFLAP_CREDENTIALS* creds)
 			return false;
 
 		case BACKOFF_FAILED:
+
 		default:
 			vTaskDelay(pdMS_TO_TICKS( 10000 ));
 			Backoff_Reset(&cred_backoff);
@@ -490,28 +547,33 @@ static bool MQTT_Get_Credentials(SUREFLAP_CREDENTIALS* creds)
 
 	bool result	= MQTT_Send_Credential_Request(creds);
 
-	if( true == result )
+	if(result)
 	{
 		MQTT_Unpack_Credentials(creds);
 	}
 
 	Backoff_Progress(&cred_backoff);
+
 	return result;
 }
 
 static bool MQTT_Connect(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials, bool clean_connect)
 {
-	static const BACKOFF_SPECS	connect_backoff_specs	= {	MQTT_CONNECT_RETRY_BASE,
-															MQTT_CONNECT_RETRY_MULT,
-															MQTT_CONNECT_RETRY_JITTER,
-															MQTT_CONNECT_RETRY_MAX };
+	static const BACKOFF_SPECS	connect_backoff_specs =
+	{
+		MQTT_CONNECT_RETRY_BASE,
+		MQTT_CONNECT_RETRY_MULT,
+		MQTT_CONNECT_RETRY_JITTER,
+		MQTT_CONNECT_RETRY_MAX
+	};
+
 	static BACKOFF	connect_backoff	= {0, MQTT_CONNECT_RETRY_BASE, 0, &connect_backoff_specs};
 	static char		last_will[]		= "Hub offline (Last Will): 00 00 00 00\0";
 	static char		online_msg[]	= "Hub online: 00 00 00 00\0";
 	HERMES_TIME_GMT	gmt_time 		= {0, 0, 0, 0};
 
 	BACKOFF_RESULT	backoff_result = Backoff_GetStatus(&connect_backoff);
-	switch( backoff_result )
+	switch(backoff_result)
 	{
 		case BACKOFF_READY:
 		case BACKOFF_FINAL_ATTEMPT:
@@ -531,12 +593,12 @@ static bool MQTT_Connect(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentia
 
 	get_gmt(get_UTC(), &gmt_time);
 
-	sprintf( strchr(last_will, ':'), ": %02x %02x %02x %02x\0", gmt_time.day, gmt_time.hour, gmt_time.minute, gmt_time.second);
-	sprintf( strchr(online_msg, ':'), ": %02x %02x %02x %02x\0", gmt_time.day, gmt_time.hour, gmt_time.minute, gmt_time.second);
+	sprintf(strchr(last_will, ':'), ": %02x %02x %02x %02x\0", gmt_time.day, gmt_time.hour, gmt_time.minute, gmt_time.second);
+	sprintf(strchr(online_msg, ':'), ": %02x %02x %02x %02x\0", gmt_time.day, gmt_time.hour, gmt_time.minute, gmt_time.second);
 
 	IoT_Error_t result = AWS_Connect(client, credentials, last_will, clean_connect);
 
-	if( AWS_SUCCESS == result )
+	if(result == AWS_SUCCESS)
 	{
 		Backoff_Reset(&connect_backoff);
 		SERVER_MESSAGE	online_buffered_message = {(uint8_t*)online_msg, 0};

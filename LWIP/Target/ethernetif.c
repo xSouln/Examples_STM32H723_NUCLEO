@@ -43,7 +43,7 @@
 #define TIME_WAITING_FOR_INPUT ( portMAX_DELAY )
 /* USER CODE BEGIN OS_THREAD_STACK_SIZE_WITH_RTOS */
 /* Stack size of the interface thread */
-#define INTERFACE_THREAD_STACK_SIZE ( 350 )
+#define INTERFACE_THREAD_STACK_SIZE ( 512 )
 /* USER CODE END OS_THREAD_STACK_SIZE_WITH_RTOS */
 /* Network interface name */
 #define IFNAME0 's'
@@ -118,8 +118,8 @@ typedef struct
 } RxBuff_t;
 
 /* Memory Pool Declaration */
-#define ETH_RX_BUFFER_CNT             12U
-LWIP_MEMPOOL_DECLARE_USER(RX_POOL, ETH_RX_BUFFER_CNT, sizeof(RxBuff_t), "Zero-copy RX PBUF pool");
+#define ETH_RX_BUFFER_CNT             40U
+LWIP_MEMPOOL_DECLARE(RX_POOL, ETH_RX_BUFFER_CNT, sizeof(RxBuff_t), "Zero-copy RX PBUF pool");
 
 /* Variable Definitions */
 static uint8_t RxAllocStatus;
@@ -138,15 +138,17 @@ __attribute__((at(0x30000200))) ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT
 
 #elif defined ( __GNUC__ ) /* GNU Compiler */
 
-ETH_DMADescTypeDef DMARxDscrTab[ETH_RX_DESC_CNT] __attribute__((section(".RxDecripSection"))); /* Ethernet Rx DMA Descriptors */
-ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT] __attribute__((section(".TxDecripSection")));   /* Ethernet Tx DMA Descriptors */
+ETH_DMADescTypeDef DMARxDscrTab[ETH_RX_DESC_CNT];// __attribute__((section(".RxDecripSection"))); /* Ethernet Rx DMA Descriptors */
+ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT];// __attribute__((section(".TxDecripSection")));   /* Ethernet Tx DMA Descriptors */
 
 #endif
 
 /* USER CODE BEGIN 2 */
 HAL_StatusTypeDef transmit_action_result;
-uint8_t lwip_mem[MEM_SIZE] __attribute__((section(".lwip_mem"))) __ALIGNED(32) = {0};
-uint8_t MACAddr[6];
+uint8_t lwip_mem[MEM_SIZE] __attribute__((section("._user_ram2_section")));
+uint8_t mMACAddr[6];
+
+uint32_t eth_dma_errors;
 /* USER CODE END 2 */
 
 osSemaphoreId RxPktSemaphore = NULL;   /* Semaphore to signal incoming packets */
@@ -202,6 +204,8 @@ void HAL_ETH_TxCpltCallback(ETH_HandleTypeDef *handlerEth)
   */
 void HAL_ETH_ErrorCallback(ETH_HandleTypeDef *handlerEth)
 {
+	eth_dma_errors++;
+
   if((HAL_ETH_GetDMAError(handlerEth) & ETH_DMACSR_RBU) == ETH_DMACSR_RBU)
   {
      osSemaphoreRelease(RxPktSemaphore);
@@ -233,8 +237,8 @@ static void low_level_init(struct netif *netif)
   ETH_MACConfigTypeDef MACConf = {0};
   /* Start ETH HAL Init */
 
-
   heth.Instance = ETH;
+  uint8_t MACAddr[6];
   MACAddr[0] = 0x98;
   MACAddr[1] = 0x27;
   MACAddr[2] = 0x82;
@@ -255,7 +259,15 @@ static void low_level_init(struct netif *netif)
   MACAddr[3] = (sn0 >> 16) & 0xFF;
   MACAddr[4] = (sn0 >> 8) & 0xFF;
   MACAddr[5] = sn0 & 0xFF;
-   */
+  */
+	mMACAddr[0] = 0x98;
+	mMACAddr[1] = 0x27;
+	mMACAddr[2] = 0x82;
+	mMACAddr[3] = 0xE0;
+	mMACAddr[4] = 0x1F;
+	mMACAddr[5] = 0xDC;
+	heth.Init.MACAddr = mMACAddr;
+
   lwip_mem[0] = 0;
   /* USER CODE END MACADDRESS */
 

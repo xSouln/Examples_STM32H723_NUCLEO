@@ -31,7 +31,7 @@
 #define	SIGNATURE_LENGTH		32	// 256bits, because of SHA256
 #define SIGNATURE_LENGTH_ASCII	64	// signature in text form
 #define PBKDF2_ITERATIONS		1000	
-#define	MAX_TIME_DISCREPANCY_MS	15000	// Maximum amount of time between now and a server message
+#define	MAX_TIME_DISCREPANCY_MS	300000	// Maximum amount of time between now and a server message
 										// being sent before it's rejected (stops replay attacks)
 typedef enum
 {

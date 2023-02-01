@@ -66,9 +66,11 @@ bool CalculateSignature(uint8_t *sig, DERIVED_KEY_SOURCE src, uint8_t *buf, uint
 		case DERIVED_KEY_CURRENT:
 			pKey = DerivedKey;	// live RAM key
 			break;
+
 		case DERIVED_KEY_PENDING:
 			pKey = PendingDerivedKey;	// Pending RAM key
 			break;
+
 		case DERIVED_KEY_FLASH:
 			pKey = product_configuration.DerivedKey; // key from Flash
 			break;
@@ -78,24 +80,28 @@ bool CalculateSignature(uint8_t *sig, DERIVED_KEY_SOURCE src, uint8_t *buf, uint
 
 	if( NULL == pKey)
 	{
-		if( DERIVED_KEY_NONE == src) { return true; }	// this is OK, no signature required
+		if( DERIVED_KEY_NONE == src)
+		{
+			// this is OK, no signature required
+			return true;
+		}
 		zprintf(CRITICAL_IMPORTANCE,"Unknown key source\r\n");
 		return false;
 	}
 	
-	if( 0 != wc_HmacSetKey( &hmac, SHA256, pKey, DERIVED_KEY_LENGTH))
+	if(wc_HmacSetKey(&hmac, WC_SHA256, pKey, DERIVED_KEY_LENGTH) != 0)
 	{
 		zprintf(CRITICAL_IMPORTANCE,"Failed to initialise HMAC\r\n");
 		return false;
 	}			
 	
-	if( 0 != wc_HmacUpdate( &hmac, buf, buflen))
+	if(wc_HmacUpdate(&hmac, buf, buflen) != 0)
 	{
 		zprintf(CRITICAL_IMPORTANCE,"Failed to update HMAC\r\n");
 		return false;
 	}			
 
-	if( 0 != wc_HmacFinal( &hmac, sigbin))
+	if(wc_HmacFinal(&hmac, sigbin) != 0)
 	{
 		zprintf(CRITICAL_IMPORTANCE,"Failed to compute signature\r\n");
 		return false;
@@ -109,7 +115,7 @@ bool CalculateSignature(uint8_t *sig, DERIVED_KEY_SOURCE src, uint8_t *buf, uint
 	*sig='\0';	// terminate it.
 
 	// Dump everything about this signature
-	if( true == flag)
+	if(flag)
 	{
 		zprintf(CRITICAL_IMPORTANCE,"Key                       : ");
 		for( i=0; i<DERIVED_KEY_LENGTH; i++)
@@ -179,6 +185,7 @@ uint8_t *GenerateDerivedKey(DERIVED_KEY_SOURCE dest)
 	uint8_t		*key;
 	uint8_t		*secret;
 	char 		*text;
+
 	switch (dest)
 	{
 		case DERIVED_KEY_CURRENT:	// use the current Derived Key
@@ -186,11 +193,13 @@ uint8_t *GenerateDerivedKey(DERIVED_KEY_SOURCE dest)
 			secret = SharedSecret;
 			text = DerivedKey_text;
 			break;
+
 		case DERIVED_KEY_PENDING:	// Use the pending Derived Key
 			key = PendingDerivedKey;
 			secret = PendingSharedSecret;
 			text = PendingDerivedKey_text;
 			break;
+
 		default:
 			zprintf(CRITICAL_IMPORTANCE,"Error - trying to make a key for unknown destination\r\n");
 			return NULL;	// bad news
@@ -200,6 +209,7 @@ uint8_t *GenerateDerivedKey(DERIVED_KEY_SOURCE dest)
 	password_size = sizeof(product_configuration.secret_serial)-1 + \
 					sizeof(product_configuration.serial_number)-1 + \
 					((sizeof(product_configuration.ethernet_mac)+2)*2) + 1; // should be 61
+
 	password = pvPortMalloc(password_size);	
 	
 	if( NULL == password)
@@ -220,8 +230,14 @@ uint8_t *GenerateDerivedKey(DERIVED_KEY_SOURCE dest)
 		
 //	zprintf(CRITICAL_IMPORTANCE,"Password = %s\r\n",password);
 	
-	ret = wc_PBKDF2(key, password, password_size-1, secret,
-           SHARED_SECRET_LENGTH, PBKDF2_ITERATIONS, DERIVED_KEY_LENGTH, WC_SHA256);
+	ret = wc_PBKDF2(key,
+			password,
+			password_size-1,
+			secret,
+			SHARED_SECRET_LENGTH,
+			PBKDF2_ITERATIONS,
+			DERIVED_KEY_LENGTH,
+			WC_SHA256);
 	
 	vPortFree(password);
 	
@@ -281,7 +297,10 @@ bool checkFlashDerivedKey(void)
 	
 	for( i=0; i<DERIVED_KEY_LENGTH; i++)
 	{
-		if( 0xff != product_configuration.DerivedKey[i]) {retval = true;}
+		if( 0xff != product_configuration.DerivedKey[i])
+		{
+			retval = true;
+		}
 	}
 	return retval;	
 }

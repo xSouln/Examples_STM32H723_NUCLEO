@@ -34,6 +34,8 @@
 #include "time.h"
 #include "tim.h"
 
+static uint32_t utc_time_stamp = 0;
+
 // no longer used now we have SNTP to set the time.
 void set_utc_to_compile_time(void)
 {
@@ -113,7 +115,7 @@ void vApplicationTickHook(void)
     static uint32_t div = 0;
     div++;
 	UTC_ms++;
-    if( div >= configTICK_RATE_HZ )
+    if(div >= configTICK_RATE_HZ)
     {
         div = 0;
         UTC++;
@@ -124,6 +126,7 @@ void vApplicationTickHook(void)
 void get_UTC_ms(uint64_t *p)
 {
     portENTER_CRITICAL();
+    //uint32_t correction = TIM2->CNT - utc_time_stamp;
     *p = UTC_ms;
     portEXIT_CRITICAL();	
 }
@@ -132,6 +135,8 @@ void get_UTC_ms(uint64_t *p)
 // 32bit value, we don't need to worry about any inconsistencies.
 uint32_t get_UTC(void)
 {
+	//uint32_t correction = TIM2->CNT - utc_time_stamp;
+	//correction /= 1000;
     return UTC;
 }
 
@@ -148,6 +153,7 @@ uint32_t get_UpTime(void)
 void set_utc(uint32_t val)
 {
     portENTER_CRITICAL();
+    utc_time_stamp = TIM2->CNT;
     UTC = val;
 	UTC_ms = (uint64_t)val * 1000ull;
     portEXIT_CRITICAL();

@@ -92,8 +92,8 @@ typedef struct
 
 void HTTPPostTask(void *pvParameters);
 void HTTPPostTask_init(void);
-bool HTTP_POST_Request(char* URL, char* resource, char* contents, char* response_buffer, \
-	uint32_t response_size, bool wait, DERIVED_KEY_SOURCE tx_key, DERIVED_KEY_SOURCE rx_key, \
+bool HTTP_POST_Request(char* URL, char* resource, char* contents, char* response_buffer,
+	uint32_t response_size, bool wait, DERIVED_KEY_SOURCE tx_key, DERIVED_KEY_SOURCE rx_key,
 	int32_t *encrypted_data, uint32_t *bytes_read);
 
 #endif

@@ -14,7 +14,7 @@ extern "C" {
 
 #include <errno.h>
 #include "hermes-time.h"
-#define XTIME(t)	get_UTC()
+
 //#define WOLF_PRINTS
 //#define WOLFSSL_DEBUG_PKCS12
 
@@ -22,7 +22,10 @@ extern "C" {
 //#define WC_RSA_PSS
 //#define HAVE_TLS_EXTENSIONS		1
 
+#define FREERTOS
+
 //#define SINGLE_THREADED
+#define WOLFSSL_STM32H7
 #define WOLFSSL_USER_IO
 #define HAVE_ERRNO_H
 
@@ -90,6 +93,7 @@ extern "C" {
 #define HAVE_TM_TYPE
 #define HAVE_TIME_T_TYPE
 #define XGMTIME(c, t)   hermes_gmtime((c))
+#define XTIME(t)	get_UTC()
 
 #ifdef	__cplusplus
 }
