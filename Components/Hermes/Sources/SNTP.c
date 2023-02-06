@@ -234,7 +234,10 @@ bool SNTP_GetTime(void)
 	shutdown(sntpSocket, SHUT_RDWR);
 	closesocket(sntpSocket);
 
-	if(true == success)
+	// Signal that we're done. Note: doesn't mean the time is good.
+	xEventGroupClearBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_REQUESTED | SNTP_EVENT_UPDATE_UNDERWAY);
+
+	if(success)
 	{
 		// Signal that the time is good.
 		xEventGroupSetBits(xSNTP_EventGroup, SNTP_EVENT_TIME_VALID);
@@ -245,9 +248,6 @@ bool SNTP_GetTime(void)
 		xEventGroupSetBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_FAILED);
 	}
 
-	// Signal that we're done. Note: doesn't mean the time is good.
-	xEventGroupClearBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_REQUESTED | SNTP_EVENT_UPDATE_UNDERWAY);
-
 	if(request)
 	{
 		mem_free(request);
@@ -255,5 +255,6 @@ bool SNTP_GetTime(void)
 
 	sntp_printf("\t@@@@@@@ SNTP Complete @@@@@@@\r\n");
 	sntp_flush();
+
 	return success;
 }

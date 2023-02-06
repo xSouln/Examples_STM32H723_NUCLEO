@@ -34,8 +34,6 @@
 #include "time.h"
 #include "tim.h"
 
-static uint32_t utc_time_stamp = 0;
-
 // no longer used now we have SNTP to set the time.
 void set_utc_to_compile_time(void)
 {
@@ -83,8 +81,10 @@ void set_utc_to_compile_time(void)
 }
 
 volatile uint64_t UTC_ms = 0;
-volatile uint32_t UTC=0; // Counts once per second. When server is connected, will be set to seconds since Unix Epoch
-volatile uint32_t UpTime=0;  // Counts once per second. Epoch is when the unit was last reset.
+// Counts once per second. When server is connected, will be set to seconds since Unix Epoch
+volatile uint32_t UTC = 0;
+// Counts once per second. Epoch is when the unit was last reset.
+volatile uint32_t UpTime = 0;
 
 // Since GPT1 is counting at 1MHz, a delay measured in microseconds is very easy!
 // Note actually counting at 62.5MHz/63 = 992KHz.
@@ -100,7 +100,8 @@ void delay_us(uint32_t delay)
 
 void delay_ms(uint32_t delay)
 {
-    delay_us(delay * 1000);	// calibrated for 992KHz timer
+	// calibrated for 992KHz timer
+    delay_us(delay * 1008);
 }
 
 uint32_t get_microseconds_tick(void)
@@ -126,7 +127,6 @@ void vApplicationTickHook(void)
 void get_UTC_ms(uint64_t *p)
 {
     portENTER_CRITICAL();
-    //uint32_t correction = TIM2->CNT - utc_time_stamp;
     *p = UTC_ms;
     portEXIT_CRITICAL();	
 }
@@ -135,8 +135,18 @@ void get_UTC_ms(uint64_t *p)
 // 32bit value, we don't need to worry about any inconsistencies.
 uint32_t get_UTC(void)
 {
-	//uint32_t correction = TIM2->CNT - utc_time_stamp;
-	//correction /= 1000;
+    return UTC;
+}
+
+time_t wc_time(time_t* t)
+{
+	return UTC;
+}
+
+// This could occur in any context, but since it's a
+// 32bit value, we don't need to worry about any inconsistencies.
+uint32_t get_UTC_forWolfSSL(void)
+{
     return UTC;
 }
 
@@ -153,9 +163,8 @@ uint32_t get_UpTime(void)
 void set_utc(uint32_t val)
 {
     portENTER_CRITICAL();
-    utc_time_stamp = TIM2->CNT;
     UTC = val;
-	UTC_ms = (uint64_t)val * 1000ull;
+	UTC_ms = (uint64_t)val * 1000;
     portEXIT_CRITICAL();
 }
 
@@ -168,21 +177,34 @@ void set_utc(uint32_t val)
  **************************************************************/
 bool get_gmt(uint32_t utc_secs, HERMES_TIME_GMT* out)
 {
-  struct tm x;
-  time_t cstamp = utc_secs;       /* 1 */
+	struct tm x;
+	time_t cstamp = utc_secs;
+	x = *hermes_gmtime(&cstamp);
 
-	x = *hermes_gmtime(&cstamp);        /* 2 */
+	out->day = x.tm_mday;
+	out->hour = x.tm_hour;
+	out->minute = x.tm_min;
+	out->second = x.tm_sec;
 
-  out->day = x.tm_mday;
-  out->hour = x.tm_hour;
-  out->minute = x.tm_min;
-  out->second = x.tm_sec;
+	if(x.tm_year>15)
+	{
+		//sanity check in case time not synchronised yet
+		return true;
+	}
 
-  if(x.tm_year>15) return true;  //sanity check in case time not synchronised yet
-  return false;
+	return false;
 }
 
 struct tm *hermes_gmtime(time_t *tod)
+{
+	struct tm *retval;
+	portENTER_CRITICAL();
+	retval = gmtime(tod);
+	portEXIT_CRITICAL();
+	return retval;
+}
+
+struct tm *hermes_gmtime_2(time_t *tod)
 {
 	struct tm *retval;
 	portENTER_CRITICAL();

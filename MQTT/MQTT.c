@@ -17,10 +17,7 @@
 * Filename: MQTT.c
 * Author:   Tom Monkhouse
 * Purpose:
-*
-*
 **************************************************************************/
-
 #include "hermes.h"
 
 /* Standard includes. */
@@ -52,7 +49,7 @@
 
 #include "lwip.h"
 #include "rng.h"
-
+//==============================================================================
 #ifndef MQTT_SERVER_SIMULATED
 
 extern QueueHandle_t		xOutgoingMQTTMessageMailbox;
@@ -62,28 +59,38 @@ extern EventGroupHandle_t	xConnectionStatus_EventGroup;
 
 STORED_CREDENTIAL MQTT_Stored_Certificate __attribute__((section("._user_ram3_ram")));
 STORED_CREDENTIAL MQTT_Stored_Private_Key __attribute__((section("._user_ram3_ram")));
-
+//==============================================================================
 static void MQTT_Hash_It_Up(SUREFLAP_CREDENTIALS* creds);
-
+//==============================================================================
+static bool MQTT_Init(AWS_IoT_Client* client)
+{
+	memset(client, 0, sizeof(AWS_IoT_Client));
+	return true;
+}
+//------------------------------------------------------------------------------
 void MQTT_Alarm(MQTT_ALARM alarm_code, MQTT_MESSAGE* alarming_message)
-{	// THIS OUGHT TO FILL A MAILBOX FOR THE MQTT STUFF
+{
+	// THIS OUGHT TO FILL A MAILBOX FOR THE MQTT STUFF
 	switch( alarm_code )
 	{
 		case MQTT_MESSAGE_FAILED_A_FEW_TIMES:
 		    mqtt_printf("MQTT_MESSAGE_FAILED_A_FEW_TIMES to topic %s\r\n", alarming_message->subtopic);
     		break;
+
 		case MQTT_MESSAGE_FAILED_TOO_MANY_TIMES:
 		    mqtt_printf("MQTT_MESSAGE_FAILED_TOO_MANY_TIMES to topic %s\r\n", alarming_message->subtopic);
 			break;
+
 		default:
 			mqtt_printf("No idea what this error code means: %d\r\n", alarm_code);
 			break;
 	}
 }
-
-static bool no_creds = false;	// If the Server responds to a credential request with
-									// the x-update:1 field, then there will be no
-									// credentials.
+//------------------------------------------------------------------------------
+// If the Server responds to a credential request with
+// the x-update:1 field, then there will be no
+// credentials.
+static bool no_creds = false;
 void MQTT_notify_no_creds(void)
 {
 	no_creds = true;
@@ -92,37 +99,38 @@ void MQTT_notify_no_creds(void)
 static AWS_IoT_Client 			aws_client;
 SUREFLAP_CREDENTIALS			aws_credentials;
 static MQTT_CONNECTION_STATE	mqtt_connection_state = MQTT_STATE_INITIAL;
-
+//------------------------------------------------------------------------------
 MQTT_CONNECTION_STATE get_mqtt_connection_state(void)
 {
 	return mqtt_connection_state;
 }
-
+//------------------------------------------------------------------------------
 void MQTT_Task(void *pvParameters)
 {
-	bool					clean_connect = false;
-	EventBits_t 			ConnStatus;
-	uint32_t				connect_delay_timestamp;
-	uint32_t				connection_attempts_timestamp;
-	bool					restart_network = true;
-	static bool				first_time = true;
+	bool clean_connect = false;
+	EventBits_t ConnStatus;
+	uint32_t connect_delay_timestamp = 0;
+	uint32_t connection_attempts_timestamp = get_microseconds_tick();
+	bool restart_network = true;
+	static bool first_time = true;
 
-	while( true )
+	while(true)
 	{
 		// If we have received an x-update:1 during our credential request,
 		// then we stop the state machine and supress the MQTT watchdog
-		if( true == no_creds)
+		if(no_creds)
 		{
 			mqtt_connection_state = MQTT_STATE_STOP;
 		}
 
-		switch( mqtt_connection_state )
+		switch(mqtt_connection_state)
 		{
 			case MQTT_STATE_INITIAL:
-				process_system_event(STATUS_GETTING_CREDENTIALS); //Alternate Red
+				//Alternate Red
+				process_system_event(STATUS_GETTING_CREDENTIALS);
 				mqtt_printf("\tInit\r\n");
 				xEventGroupSetBits(xConnectionStatus_EventGroup, CONN_STATUS_STARTING);
-				if( true == MQTT_Init(&aws_client) )
+				if(MQTT_Init(&aws_client))
 				{
 					mqtt_connection_state = MQTT_STATE_GET_TIME;
 				}
@@ -130,20 +138,21 @@ void MQTT_Task(void *pvParameters)
 
 			case MQTT_STATE_GET_TIME:
 				ConnStatus = xEventGroupWaitBits(xConnectionStatus_EventGroup, CONN_STATUS_NETWORK_UP, false, false, pdMS_TO_TICKS( 1000 ));
-				if( 0 != (CONN_STATUS_NETWORK_UP & ConnStatus) )
-				{	// Network's up, so let's get cooking.
+				if(CONN_STATUS_NETWORK_UP & ConnStatus)
+				{
+					// Network's up, so let's get cooking.
 					if(SNTP_AwaitUpdate(false, pdMS_TO_TICKS(1000)))
 					{
 						mqtt_connection_state = MQTT_STATE_GET_CREDENTIALS;
 						//process_system_event(STATUS_GETTING_CREDENTIALS);//Alternate Red
-
 					}
 					else
 					{
 						// Failed to get the time, which we need for TLS, so come back later.
 						uint32_t rand;
 						HAL_RNG_GenerateRandomNumber(&hrng, &rand);
-						vTaskDelay(pdMS_TO_TICKS(3000 + (rand & 0xfff)));	// randomise it a bit to hopefully avoid NTP kiss of death
+						// randomise it a bit to hopefully avoid NTP kiss of death
+						vTaskDelay(pdMS_TO_TICKS(3000 + (rand & 0xfff)));
 					}
 				}
 				break;
@@ -153,9 +162,10 @@ void MQTT_Task(void *pvParameters)
 				{
 					process_system_event(STATUS_CONNECTING_TO_CLOUD);//Alternate green
 					connect_delay_timestamp = get_microseconds_tick();
-					if( true == first_time)
+					if(first_time)
 					{
-						first_time = false; // alternate green for fake reasons only on first connect
+						// alternate green for fake reasons only on first connect
+						first_time = false;
 						mqtt_connection_state = MQTT_STATE_DELAY;
 					}
 					else
@@ -171,7 +181,7 @@ void MQTT_Task(void *pvParameters)
 				// This state is just a delay to allow the alternate green LED pattern
 				// to show for a minimum period (otherwise it may be practically
 				// instantaneous which is at odds with the manuals and App
-				if((get_microseconds_tick()-connect_delay_timestamp) > (MIN_GREEN_FLASH_DURATION * usTICK_SECONDS))
+				if((get_microseconds_tick() - connect_delay_timestamp) > (MIN_GREEN_FLASH_DURATION * usTICK_SECONDS))
 				{
 					connection_attempts_timestamp = get_microseconds_tick();
 					mqtt_connection_state = MQTT_STATE_CONNECT;
@@ -183,11 +193,13 @@ void MQTT_Task(void *pvParameters)
 				{
 					mqtt_connection_state = MQTT_STATE_SUBSCRIBE;
 				}
+
 				if((get_microseconds_tick() - connection_attempts_timestamp) > CONNECT_ATTEMPTS_TIMEOUT)
 				{
 					xQueueSend(xRestartNetworkMailbox, &restart_network, 0);
 					zprintf(LOW_IMPORTANCE,"MQTT Connect timeout - triggering network restart...\r\n");
-					mqtt_connection_state = MQTT_STATE_INITIAL;	// restart everything, including getting new credentials
+					// restart everything, including getting new credentials
+					mqtt_connection_state = MQTT_STATE_INITIAL;
 				}
 				break;
 
@@ -212,7 +224,7 @@ void MQTT_Task(void *pvParameters)
 
 			case MQTT_STATE_DISCONNECT:
 				mqtt_printf("\tDisconnecting\r\n");
-				if( true == MQTT_Disconnect(&aws_client) )
+				if(MQTT_Disconnect(&aws_client))
 				{
 					// process_system_event(STATUS_GETTING_CREDENTIALS); // Alternate Red
 					xEventGroupClearBits(xConnectionStatus_EventGroup, CONN_STATUS_MQTT_UP);
@@ -231,33 +243,40 @@ void MQTT_Task(void *pvParameters)
 				break;
 		}
 
-		 vTaskDelay(pdMS_TO_TICKS( 10 ));
+		 osDelay(pdMS_TO_TICKS(10));
 	}
 }
-
+//------------------------------------------------------------------------------
 static void AWS_Hash(uint8_t* data, uint32_t size, char* result)
 {
-	volatile int returns[3] = {0, 0, 0};
-	wc_Sha256	sha;
+	wc_Sha256 sha;
 
-	if( CREDS_ABSOLUTE_MAX_LENGTH < size )
+	if(size > CREDS_ABSOLUTE_MAX_LENGTH)
 	{
-		returns[0] = 0xFFFFFFFF;
-		returns[1] = 0xFFFFFFFF;
-		returns[2] = 0xFFFFFFFF;
 		return;
 	}
 
-	returns[0] = wc_InitSha256(&sha);
-	returns[1] = wc_Sha256Update(&sha, data, size);
-	returns[2] = wc_Sha256Final(&sha, (byte*)result);
+	if (wc_InitSha256(&sha) != 0)
+	{
+		return;
+	}
 
-	uint32_t	out_size = 48;
+	if (wc_Sha256Update(&sha, data, size) != 0)
+	{
+		return;
+	}
+
+	if (wc_Sha256Final(&sha, (byte*)result) != 0)
+	{
+		return;
+	}
+
+	word32 out_size = 48;
 	Base64_Encode((const byte*)result, WC_SHA256_DIGEST_SIZE, (byte*)result, &out_size);
 
-	mqtt_printf("Hash Results: %d %d %d\r\n", returns[0], returns[1], returns[2]);
+	//mqtt_printf("Hash Results: %d %d %d\r\n", returns[0], returns[1], returns[2]);
 }
-
+//------------------------------------------------------------------------------
 uint32_t MQTT_Unpack_Credentials(SUREFLAP_CREDENTIALS* credentials)
 {
 	credentials->decode_result = 0;
@@ -267,21 +286,34 @@ uint32_t MQTT_Unpack_Credentials(SUREFLAP_CREDENTIALS* credentials)
 		WC_PKCS12* pkcs = wc_PKCS12_new();
 
 		credentials->unpacked_cert_length = strlen(credentials->certificate);
-		Base64_Decode((byte*)credentials->certificate,
-					credentials->unpacked_cert_length,
-					(byte*)credentials->certificate,
-					(word32*)&credentials->unpacked_cert_length);
 
-		credentials->decode_result = wc_d2i_PKCS12((const byte*)credentials->certificate, credentials->unpacked_cert_length, pkcs);
+		credentials->decode_result = Base64_Decode((byte*)credentials->certificate,
+													credentials->unpacked_cert_length,
+													(byte*)credentials->certificate,
+													(word32*)&credentials->unpacked_cert_length);
+
+		if (credentials->decode_result != 0)
+		{
+			wc_PKCS12_free(pkcs);
+			vPortFree(credentials->certificate);
+			credentials->certificate = NULL;
+
+			return credentials->decode_result;
+		}
+
+		credentials->decode_result = wc_d2i_PKCS12(credentials->certificate,
+													credentials->unpacked_cert_length,
+													pkcs);
+
 		if(!credentials->decode_result)
 		{
 			credentials->decode_result = wc_PKCS12_parse(pkcs,
-					(char const*)GetDerivedKey_text(),
-					(byte**)&credentials->decoded_key,
-					(word32*)&credentials->decoded_key_size,
-					(byte**)&credentials->decoded_cert,
-					(word32*)&credentials->decoded_cert_size,
-					NULL);
+														(char const*)GetDerivedKey_text(),
+														(byte**)&credentials->decoded_key,
+														(word32*)&credentials->decoded_key_size,
+														(byte**)&credentials->decoded_cert,
+														(word32*)&credentials->decoded_cert_size,
+														NULL);
 		}
 
 		wc_PKCS12_free(pkcs);
@@ -291,10 +323,20 @@ uint32_t MQTT_Unpack_Credentials(SUREFLAP_CREDENTIALS* credentials)
 		if(credentials->decode_result == 0)
 		{
 			MQTT_Stored_Certificate.size = credentials->decoded_cert_size;
-			memcpy(MQTT_Stored_Certificate.data, credentials->decoded_cert, credentials->decoded_cert_size);
+			memcpy(MQTT_Stored_Certificate.data,
+					(uint8_t*)credentials->decoded_cert,
+					credentials->decoded_cert_size);
 
 			MQTT_Stored_Private_Key.size = credentials->decoded_key_size;
-			memcpy(MQTT_Stored_Private_Key.data, credentials->decoded_key, credentials->decoded_key_size);
+			memcpy(MQTT_Stored_Private_Key.data,
+					(uint8_t*)credentials->decoded_key,
+					credentials->decoded_key_size);
+
+			vPortFree(credentials->decoded_cert);
+			vPortFree(credentials->decoded_key);
+
+			credentials->decoded_cert = 0;
+			credentials->decoded_key = 0;
 		}
 	}
 
@@ -305,7 +347,7 @@ uint32_t MQTT_Unpack_Credentials(SUREFLAP_CREDENTIALS* credentials)
 
 	return credentials->decode_result;
 }
-
+//------------------------------------------------------------------------------
 static void MQTT_Hash_It_Up(SUREFLAP_CREDENTIALS* creds)
 {
 	creds->decoded_cert_size = MQTT_Stored_Certificate.size;
@@ -315,73 +357,126 @@ static void MQTT_Hash_It_Up(SUREFLAP_CREDENTIALS* creds)
 
 	AWS_Hash((uint8_t*)creds->decoded_cert, creds->decoded_cert_size, creds->cert_hash);
 	AWS_Hash((uint8_t*)creds->decoded_key, creds->decoded_key_size, creds->key_hash);
+
 	creds->combined_hash = 0;
-	for( uint32_t i = 0; i < AWS_HASH_MAX_LENGTH; i += 4 )
+	for(uint32_t i = 0; i < AWS_HASH_MAX_LENGTH; i += 4)
 	{
 		creds->combined_hash ^= *(uint32_t*)&creds->cert_hash[i];
 		creds->combined_hash ^= *(uint32_t*)&creds->key_hash[i];
 	}
 }
-
-static bool MQTT_Init(AWS_IoT_Client* client)
-{
-	memset(client, 0, sizeof(AWS_IoT_Client));
-	return true;
-}
-
+//------------------------------------------------------------------------------
 static bool MQTT_Load_Credential_Field(char* buffer, uint32_t* index, char* field, uint32_t max_size)
 {
-	uint32_t	field_index	= 0;
-	bool		ret			= true;
+	uint32_t field_index	= 0;
+	bool ret	= true;
 
 	// Copy all text before the delimiter ':' into the field, up to a maximum.
-	while( buffer[*index] && (buffer[*index] != ':') && (field_index < (max_size-1)) )
+	while(buffer[*index] && (buffer[*index] != ':') && (field_index < (max_size-1)))
 	{
 		field[field_index++] = buffer[(*index)++];
 	}
 
-	if( buffer[*index] != ':' ){ ret = false; } // If we ended before finding a delimiter, something went wrong.
-	field[field_index] = '\0'; // Cap the field with a null terminator, so we can use str functions.
+	// If we ended before finding a delimiter, something went wrong.
+	if(buffer[*index] != ':')
+	{
+		ret = false;
+	}
+
+	// Cap the field with a null terminator, so we can use str functions.
+	field[field_index] = '\0';
 	(*index)++;
 	return ret;
 }
-
+//------------------------------------------------------------------------------
 static bool MQTT_Interpret_Credentials(SUREFLAP_CREDENTIALS* creds, char* response)
 {
-	bool		valid_creds = true;
-	char		network_type[2];
-	uint32_t	progress	= 0;
-	char*		data_start 	= response; //strstr(response, "\r\n\r\n");
-	if( (strlen(response) < MQTT_MIN_CRED_LENGTH) ||
-	    (data_start == NULL) ){ return false; }
+	bool valid_creds = true;
+	char network_type[2];
+	uint32_t progress	= 0;
+	//strstr(response, "\r\n\r\n");
+	char*		data_start 	= response;
 
-	progress = 0; //(uint32_t)(data_start - response) + strlen("\r\n\r\n");
+	if((strlen(response) < MQTT_MIN_CRED_LENGTH)
+	|| (data_start == NULL))
+	{
+		return false;
+	}
 
-	if( true == valid_creds ){ valid_creds = MQTT_Load_Credential_Field(response, &progress, creds->version, sizeof(creds->version)); }
-	if( true == valid_creds ){ valid_creds = MQTT_Load_Credential_Field(response, &progress, creds->id, sizeof(creds->id)); }
-	if( true == valid_creds ){ valid_creds = MQTT_Load_Credential_Field(response, &progress, creds->client_id, sizeof(creds->client_id)); }
-	if( true == valid_creds ){ valid_creds = MQTT_Load_Credential_Field(response, &progress, creds->username, sizeof(creds->username)); }
-	if( true == valid_creds ){ valid_creds = MQTT_Load_Credential_Field(response, &progress, creds->password, sizeof(creds->password)); }
-	if( true == valid_creds )
+	//(uint32_t)(data_start - response) + strlen("\r\n\r\n");
+	progress = 0;
+
+	if(valid_creds)
+	{
+		valid_creds = MQTT_Load_Credential_Field(response, &progress, creds->version, sizeof(creds->version));
+	}
+
+	if(valid_creds)
+	{
+		valid_creds = MQTT_Load_Credential_Field(response, &progress, creds->id, sizeof(creds->id));
+	}
+
+	if(valid_creds)
+	{
+		valid_creds = MQTT_Load_Credential_Field(response, &progress, creds->client_id, sizeof(creds->client_id));
+	}
+
+	if(valid_creds)
+	{
+		valid_creds = MQTT_Load_Credential_Field(response, &progress, creds->username, sizeof(creds->username));
+	}
+
+	if(valid_creds)
+	{
+		valid_creds = MQTT_Load_Credential_Field(response, &progress, creds->password, sizeof(creds->password));
+	}
+
+	if(valid_creds)
 	{
 		valid_creds = MQTT_Load_Credential_Field(response, &progress, network_type, sizeof(network_type));
-		if( '0' == network_type[0] ){ creds->network_type = SUREFLAP_NETWORK_TYPE_XIVELY; }
-		else{ creds->network_type = SUREFLAP_NETWORK_TYPE_AWS; }
+		if(network_type[0] == '0')
+		{
+			creds->network_type = SUREFLAP_NETWORK_TYPE_XIVELY;
+		}
+
+		else
+		{
+			creds->network_type = SUREFLAP_NETWORK_TYPE_AWS;
+		}
 	}
-	if( true == valid_creds ){ valid_creds = MQTT_Load_Credential_Field(response, &progress, creds->base_topic, sizeof(creds->base_topic)); }
-	if( true == valid_creds ){ valid_creds = MQTT_Load_Credential_Field(response, &progress, creds->host, sizeof(creds->host)); }
-	if( true == valid_creds )
+
+	if(valid_creds)
+	{
+		valid_creds = MQTT_Load_Credential_Field(response, &progress, creds->base_topic, sizeof(creds->base_topic));
+	}
+
+	if(valid_creds)
+	{
+		valid_creds = MQTT_Load_Credential_Field(response, &progress, creds->host, sizeof(creds->host));
+	}
+
+	if(valid_creds)
 	{
 		creds->certificate = pvPortMalloc(CERTIFICATE_MAX_SIZE);
-		if( NULL == creds->certificate ){ valid_creds = false; }
+		if(!creds->certificate)
+		{
+			valid_creds = false;
+		}
 	}
-	if( true == valid_creds ){ MQTT_Load_Credential_Field(response, &progress, creds->certificate, CERTIFICATE_MAX_SIZE-1); }
 
-	if( (true == valid_creds) && (strlen(creds->client_id) < AWS_CLIENT_ID_MIN_LENGTH) ){ valid_creds = false; }
+	if(valid_creds)
+	{
+		MQTT_Load_Credential_Field(response, &progress, creds->certificate, CERTIFICATE_MAX_SIZE-1);
+	}
+
+	if((valid_creds) && (strlen(creds->client_id) < AWS_CLIENT_ID_MIN_LENGTH))
+	{
+		valid_creds = false;
+	}
 
 	return valid_creds;
 }
-
+//------------------------------------------------------------------------------
 typedef enum
 {
 	CRED_REQ_USE_FLASH_KEY,
@@ -413,18 +508,22 @@ static bool MQTT_Send_Credential_Request(SUREFLAP_CREDENTIALS* creds)
 	uint8_t 	*SharedSecret;
 	DERIVED_KEY_SOURCE key;
 	uint64_t 	time_since_epoch_ms;
-	int32_t		encrypted_data;		// indicates if x-enc was present in HTTP response header. We don't care here.
+	// indicates if x-enc was present in HTTP response header. We don't care here.
+	int32_t		encrypted_data;
 	static CRED_REQ_KEY_TYPE cred_req_key_type = CRED_REQ_USE_FLASH_KEY;
 
-	if(checkFlashDerivedKey() && (CRED_REQ_USE_FLASH_KEY == cred_req_key_type))	// check if the Derived Key stored in Flash is valid
+	// check if the Derived Key stored in Flash is valid
+	if(checkFlashDerivedKey() && (CRED_REQ_USE_FLASH_KEY == cred_req_key_type))
 	{
 		zprintf(LOW_IMPORTANCE,"Using Derived Key from Flash\r\n");
-		key = DERIVED_KEY_FLASH;	// use the Derived Key from before the power cycle / restart
+		// use the Derived Key from before the power cycle / restart
+		key = DERIVED_KEY_FLASH;
 	}
 	else
 	{
 		zprintf(LOW_IMPORTANCE,"Using Derived Key from RAM\r\n");
-		key = DERIVED_KEY_CURRENT;	// there is no old key, so use the current key
+		// there is no old key, so use the current key
+		key = DERIVED_KEY_CURRENT;
 	}
 
 	MQTT_Hash_It_Up(creds);
@@ -501,13 +600,14 @@ static bool MQTT_Send_Credential_Request(SUREFLAP_CREDENTIALS* creds)
 		// key we used, so responded with v02:0::::1:::
 		// The server may have also not sent a signature if it didn't like our one
 		zprintf(LOW_IMPORTANCE,"Server probably did not like my signature\r\n");
-		cred_req_key_type = CRED_REQ_USE_RAM_KEY;	// try the RAM key next time
+		// try the RAM key next time
+		cred_req_key_type = CRED_REQ_USE_RAM_KEY;
 		retval = false;
 	}
 
 	return retval;
 }
-
+//------------------------------------------------------------------------------
 static bool MQTT_Get_Credentials(SUREFLAP_CREDENTIALS* creds)
 {
 	static const BACKOFF_SPECS	cred_backoff_specs =
@@ -534,13 +634,13 @@ static bool MQTT_Get_Credentials(SUREFLAP_CREDENTIALS* creds)
 			break;
 
 		case BACKOFF_WAITING:
-			vTaskDelay(pdMS_TO_TICKS( 1000 ));
+			osDelay(pdMS_TO_TICKS(1000));
 			return false;
 
 		case BACKOFF_FAILED:
 
 		default:
-			vTaskDelay(pdMS_TO_TICKS( 10000 ));
+			osDelay(pdMS_TO_TICKS(10000));
 			Backoff_Reset(&cred_backoff);
 			return false;
 	}
@@ -556,7 +656,7 @@ static bool MQTT_Get_Credentials(SUREFLAP_CREDENTIALS* creds)
 
 	return result;
 }
-
+//------------------------------------------------------------------------------
 static bool MQTT_Connect(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials, bool clean_connect)
 {
 	static const BACKOFF_SPECS	connect_backoff_specs =
@@ -581,12 +681,12 @@ static bool MQTT_Connect(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentia
 			break;
 
 		case BACKOFF_WAITING:
-			vTaskDelay(pdMS_TO_TICKS( 1000 ));
+			vTaskDelay(pdMS_TO_TICKS(1000));
 			return false;
 
 		case BACKOFF_FAILED:
 		default:
-			vTaskDelay(pdMS_TO_TICKS( 1000 ));
+			vTaskDelay(pdMS_TO_TICKS(1000));
 			Backoff_Reset(&connect_backoff);
 			return false;
 	}
@@ -605,55 +705,67 @@ static bool MQTT_Connect(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentia
 		xQueueSend(xBufferMessageMailbox, &online_buffered_message, 0);
 		return true;
 	}
+
 	mqtt_printf("Failure: %d\r\n", result);
 	Backoff_Progress(&connect_backoff);
+
 	return false;
 }
-
+//------------------------------------------------------------------------------
 static bool MQTT_Subscribe(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials)
 {
-	const BACKOFF_SPECS	subscribe_backoff_specs	= {	MQTT_SUBS_RETRY_BASE,
-													MQTT_SUBS_RETRY_MULT,
-													MQTT_SUBS_RETRY_JITTER,
-													MQTT_SUBS_RETRY_MAX };
-	BACKOFF				subscribe_backoff		= {0, MQTT_SUBS_RETRY_BASE, 0, &subscribe_backoff_specs};
+	const BACKOFF_SPECS	subscribe_backoff_specs	=
+	{
+		MQTT_SUBS_RETRY_BASE,
+		MQTT_SUBS_RETRY_MULT,
+		MQTT_SUBS_RETRY_JITTER,
+		MQTT_SUBS_RETRY_MAX
+	};
+
+	BACKOFF subscribe_backoff = { 0, MQTT_SUBS_RETRY_BASE, 0, &subscribe_backoff_specs };
 
 	BACKOFF_RESULT	backoff_result = Backoff_GetStatus(&subscribe_backoff);
 
-	switch( backoff_result )
+	switch(backoff_result)
 	{
 		case BACKOFF_READY:
 		case BACKOFF_FINAL_ATTEMPT:
 			break;
 
 		case BACKOFF_WAITING:
-			vTaskDelay(pdMS_TO_TICKS( 1000 ));
+			vTaskDelay(pdMS_TO_TICKS(1000));
 			return false;
 
 		case BACKOFF_FAILED:
 			mqtt_printf("\tSubscribe failed too many times. Disconnect and try again.\r\n");
 			mqtt_connection_state = MQTT_STATE_DISCONNECT;
+
 		default:
-			vTaskDelay(pdMS_TO_TICKS( 1000 ));
+			vTaskDelay(pdMS_TO_TICKS(1000));
 			return false;
 	}
 
 	IoT_Error_t result = AWS_Resubscribe(client);
 
-	if( AWS_SUCCESS == result || MQTT_RX_BUFFER_TOO_SHORT_ERROR == result )
+	if(result == AWS_SUCCESS || result == MQTT_RX_BUFFER_TOO_SHORT_ERROR)
 	{
 		Backoff_Reset(&subscribe_backoff);
 		return true;
 	}
+
 	Backoff_Progress(&subscribe_backoff);
+
 	return false;
 }
-
+//------------------------------------------------------------------------------
 static bool MQTT_Poll(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials)
 {
-	static MQTT_MESSAGE			outgoing_message;
-	char					signed_message[BASE_TOPIC_MAX_SIZE + MAX_INCOMING_MQTT_MESSAGE_SIZE_SMALL + SIGNATURE_LENGTH_ASCII + 1];
-	static MQTT_MESSAGE*	pending_message = NULL;
+	extern QueueHandle_t xOutgoingMQTTMessageMailbox;
+
+	static MQTT_MESSAGE outgoing_message;
+	char signed_message[BASE_TOPIC_MAX_SIZE + MAX_INCOMING_MQTT_MESSAGE_SIZE_SMALL + SIGNATURE_LENGTH_ASCII + 1];
+	static MQTT_MESSAGE* pending_message = NULL;
+
 	IoT_Error_t result;
 	EventBits_t ConnStatus = xEventGroupGetBits(xConnectionStatus_EventGroup);
 
@@ -663,7 +775,7 @@ static bool MQTT_Poll(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials)
 		return false;
 	}
 
-	if( (NULL != pending_message) || (pdPASS == xQueueReceive(xOutgoingMQTTMessageMailbox, &outgoing_message, 0)) )
+	if(pending_message || (pdPASS == xQueueReceive(xOutgoingMQTTMessageMailbox, &outgoing_message, 0)))
 	{
 		// We now need to sign the outgoing message in accordance with the current
 		// value of the Derived Key.
@@ -671,42 +783,51 @@ static bool MQTT_Poll(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials)
 		// and 1 byte space)
 		// Note that we need to re-sign it each time we try to send it in case the Derived Key
 		// has changed.
-		snprintf(signed_message, (BASE_TOPIC_MAX_SIZE + MAX_INCOMING_MQTT_MESSAGE_SIZE_SMALL + SIGNATURE_LENGTH_ASCII + 1),
-				 				"%s/messages%s%s", credentials->base_topic,
-												outgoing_message.subtopic,
-												outgoing_message.message);
+		snprintf(signed_message,
+				(BASE_TOPIC_MAX_SIZE + MAX_INCOMING_MQTT_MESSAGE_SIZE_SMALL + SIGNATURE_LENGTH_ASCII + 1),
+				"%s/messages%s%s",
+				credentials->base_topic,
+				outgoing_message.subtopic,
+				outgoing_message.message);
 
 		CalculateSignature((uint8_t *)signed_message, DERIVED_KEY_CURRENT, (uint8_t *)signed_message, strlen(signed_message));
 		sprintf(&signed_message[64]," %s",outgoing_message.message);
 		pending_message = &outgoing_message;
+
 		result = AWS_Publish(client, credentials, pending_message->subtopic, signed_message, strlen(signed_message), QOS1);
-		if( AWS_SUCCESS == result )
+		if(result == AWS_SUCCESS)
 		{
 			pending_message = NULL;
 		}
 	}
 
 	result = aws_iot_mqtt_yield(client, AWS_YIELD_TIMEOUT);
-	if( (AWS_SUCCESS != result) && (NETWORK_SSL_NOTHING_TO_READ != result) && (MQTT_RX_BUFFER_TOO_SHORT_ERROR != result) )
+	if((AWS_SUCCESS != result)
+	&& (NETWORK_SSL_NOTHING_TO_READ != result)
+	&& (MQTT_RX_BUFFER_TOO_SHORT_ERROR != result))
 	{
 		aws_printf("\r\n--- Yield Failed: %d\r\n", result);
 		return false;
 	}
+
 	if( MQTT_RX_BUFFER_TOO_SHORT_ERROR == result )
 	{
 		aws_printf("\r\n--- Too long a message received. ---\r\n");
 	}
+
 	return true;
 }
-
+//------------------------------------------------------------------------------
 static bool MQTT_Disconnect(AWS_IoT_Client* client)
 {
 	IoT_Error_t result = aws_iot_mqtt_disconnect(client);
-	if( (AWS_SUCCESS == result) || (NETWORK_DISCONNECTED_ERROR == result) )
+	if((AWS_SUCCESS == result) || (NETWORK_DISCONNECTED_ERROR == result))
 	{
 		return true;
 	}
+
 	aws_iot_mqtt_yield(client, AWS_YIELD_TIMEOUT);
+
 	return false;
 }
 
@@ -721,11 +842,18 @@ void mqtt_status_dump(void)
 {
 	zprintf(CRITICAL_IMPORTANCE,"MQTT status:\r\nConnectionStatus: ");
 	if ((xEventGroupGetBits(xConnectionStatus_EventGroup) & CONN_STATUS_NETWORK_UP) !=0)
+	{
 		zprintf(CRITICAL_IMPORTANCE,"CONN_STATUS_NETWORK_UP ");
+	}
+
 	if ((xEventGroupGetBits(xConnectionStatus_EventGroup) & CONN_STATUS_MQTT_UP) !=0)
+	{
 		zprintf(CRITICAL_IMPORTANCE,"CONN_STATUS_MQTT_UP ");
+	}
+
 	zprintf(CRITICAL_IMPORTANCE,"\r\nMQTT state machine: %s\r\n",mqtt_states[mqtt_connection_state]);
 }
+
 #else // MQTT_SERVER_SIMULATED
 void mqtt_status_dump(void)
 {

@@ -185,22 +185,9 @@ bool HTTP_POST_Request(char* URL,
 
 			http_printf(HTTP_LINE "Reading Response | ");
 
-			wolfSSL_peek(connection.session, &connection.result, 1); // Load up the buffers!
-/*
-			memset(hpost_response, 0 , sizeof(hpost_response));
+			// Load up the buffers!
+			wolfSSL_peek(connection.session, &connection.result, 1);
 
-			uint32_t time_stamp = get_microseconds_tick();
-
-			uint16_t i = 0;
-			int ch;
-			int result = wolfSSL_read(connection.session, &ch, 1);
-			while(i < sizeof(hpost_response) && result == WOLFSSL_SUCCESS
-					&& (get_microseconds_tick() - time_stamp) < 10000000)
-			{
-				hpost_response[i++] = ch;
-				result = wolfSSL_read(connection.session, &ch, 1);
-			}
-*/
 			// The entire HTTP response is held within a WolfSSL internal buffer.
 			// We can both peek and read bytes from it.
 			// We need to parse the header, looking for x-signature and x-update fields
@@ -283,11 +270,18 @@ bool HTTP_POST_Request(char* URL,
 
 			// if the server did like it, it will start using it!
 			zprintf(LOW_IMPORTANCE,"Firmware update triggered via X-Update: 1\r\n");
-			process_system_event(STATUS_FIRMWARE_UPDATING);	// put on red steady LEDs at top priority
-			HFU_trigger(true);	// start the update
-			MQTT_notify_no_creds();	// Tell the MQTT subsystem that no credentials are coming.
-									// This is essential to suppress the MQTT watchdog which would
-									// otherwise reset the unit!				
+
+			// put on red steady LEDs at top priority
+			//process_system_event(STATUS_FIRMWARE_UPDATING);
+
+			// start the update
+			//HFU_trigger(true);
+
+			// Tell the MQTT subsystem that no credentials are coming.
+			// This is essential to suppress the MQTT watchdog which would
+			// otherwise reset the unit!
+			MQTT_notify_no_creds();
+
 			return false;			
 		}			
 		
@@ -321,7 +315,7 @@ static bool HTTP_Open_Connection(HTTP_CONNECTION* connection, char* URL)
 	result_open_connection = wolfSSL_CTX_load_verify_buffer(connection->context,
 			(unsigned char*)starfield_fixed_ca_cert,
 			strlen(starfield_fixed_ca_cert),
-			SSL_FILETYPE_PEM );
+			SSL_FILETYPE_PEM);
 
 	wolfSSL_CTX_SetIORecv(connection->context, Wrapper_Receive);
 	wolfSSL_CTX_SetIOSend(connection->context, Wrapper_Send);
@@ -335,9 +329,8 @@ static bool HTTP_Open_Connection(HTTP_CONNECTION* connection, char* URL)
 
 	result_open_connection = wolfSSL_check_domain_name(connection->session, URL);
 
-	ip_addr_t hostent_addr;
-
 	//query host IP address
+	ip_addr_t hostent_addr;
 	err_t err = netconn_gethostbyname(URL, &hostent_addr);
 
 	if(err != ERR_OK || hostent_addr.addr == 0)
@@ -353,17 +346,7 @@ static bool HTTP_Open_Connection(HTTP_CONNECTION* connection, char* URL)
 	{
 		return false;
 	}
-/*
-	struct sockaddr_in host_address;
-	host_address.sin_family = AF_INET;
-	host_address.sin_port = htons(HTTP_PORT);
-	host_address.sin_addr.s_addr = IPADDR_ANY;
 
-	if (bind(connection->socket, (struct sockaddr*)&host_address, sizeof(host_address)) != 0)
-	{
-		return false;
-	}
-*/
 	struct timeval timeout = { 0 };
 	timeout.tv_sec = 5000;
 
@@ -422,9 +405,9 @@ static bool HTTP_Read_Content(HTTP_CONNECTION* connection, HTTP_RESPONSE_DATA* r
 			uint32_t	chunk_bytes_read;
 			bool		end_of_response = false;
 
-			while( (false == end_of_response) &&
-				   (connection->bytes_read < response_data->buffer_length) &&
-				   ((get_microseconds_tick() - response_data->activity_timestamp) < HTTP_POST_TIMEOUT) )
+			while(!end_of_response
+			&& (connection->bytes_read < response_data->buffer_length)
+			&& ((get_microseconds_tick() - response_data->activity_timestamp) < HTTP_POST_TIMEOUT))
 			{
 				// we repeatedly read in chunks
 				chunk_size = 0;
@@ -433,17 +416,18 @@ static bool HTTP_Read_Content(HTTP_CONNECTION* connection, HTTP_RESPONSE_DATA* r
 				do
 				{
 					local_bytes_read = wolfSSL_read(connection->session, &chunk_size_hex[chunk_size_hex_index], 1);
-					if(local_bytes_read > 0)
+					if(local_bytes_read)
 					{
 						chunk_size_hex_index++;
 					}
 
 				}
-				while( (chunk_size_hex[chunk_size_hex_index - 1] != '\n') &&
-						 (chunk_size_hex_index < (sizeof(chunk_size_hex) - 1)) &&
-						 ((get_microseconds_tick() - response_data->activity_timestamp) < HTTP_POST_TIMEOUT) );
+				while((chunk_size_hex[chunk_size_hex_index - 1] != '\n')
+				&& (chunk_size_hex_index < (sizeof(chunk_size_hex) - 1))
+				&& ((get_microseconds_tick() - response_data->activity_timestamp) < HTTP_POST_TIMEOUT));
 
-				if( 0 == local_bytes_read ) // ran out of bytes before getting the hex size.
+				// ran out of bytes before getting the hex size.
+				if(!local_bytes_read)
 				{
 					end_of_response = true;
 					return false;
@@ -458,70 +442,55 @@ static bool HTTP_Read_Content(HTTP_CONNECTION* connection, HTTP_RESPONSE_DATA* r
 				}
 				else
 				{
-					while((chunk_bytes_read < chunk_size) &&
-						   (connection->bytes_read < response_data->buffer_length)
-						   )//&& ((get_microseconds_tick() - response_data->activity_timestamp) < HTTP_POST_TIMEOUT)
+					while((chunk_bytes_read < chunk_size)
+					&& (connection->bytes_read < response_data->buffer_length)
+					&& ((get_microseconds_tick() - response_data->activity_timestamp) < HTTP_POST_TIMEOUT))
 					{
 						local_bytes_read = wolfSSL_read(connection->session,
-								&response_data->buffer[connection->bytes_read],
-								chunk_size - chunk_bytes_read);
-						if( local_bytes_read > 0 )
+														&response_data->buffer[connection->bytes_read],
+														chunk_size - chunk_bytes_read);
+						if(local_bytes_read)
 						{
 							chunk_bytes_read += local_bytes_read;
 							connection->bytes_read += local_bytes_read;
 						}
 					}
-//					for(uint32_t i=0; i<connection->bytes_read; i++)
-//					{
-//						if( response_data->buffer[i]>31 && response_data->buffer[i]<127)
-//							zprintf(LOW_IMPORTANCE,"%c",response_data->buffer[i]);
-//						else
-//							zprintf(LOW_IMPORTANCE,".");
-//						if( (i % 128) == 127) zprintf(LOW_IMPORTANCE,"\r\n");
-//						if( (i % 16) == 15) DbgConsole_Flush();
-//					}
-//					zprintf(LOW_IMPORTANCE,"\r\n");
 				}
 
 				chunk_size_hex[0] = '\0';
-				wolfSSL_read(connection->session, chunk_size_hex, 2);	// consume the trailing \r\n
-				if( chunk_size_hex[0] != '\r' ) zprintf(LOW_IMPORTANCE,"Chunk termination incorrect\r\n");
+				// consume the trailing \r\n
+				wolfSSL_read(connection->session, chunk_size_hex, 2);
+
+				if(chunk_size_hex[0] != '\r')
+				{
+					zprintf(LOW_IMPORTANCE,"Chunk termination incorrect\r\n");
+				}
 			}
 		}
 		else
 		{
 			// Not chunked, so must have Content Length.
-			while(	(connection->bytes_read < response_data->content_length) &&
-					(connection->bytes_read < response_data->buffer_length) &&
-					((get_microseconds_tick() - response_data->activity_timestamp) < HTTP_POST_TIMEOUT) )
+			while((connection->bytes_read < response_data->content_length)
+			&& (connection->bytes_read < response_data->buffer_length)
+			&& ((get_microseconds_tick() - response_data->activity_timestamp) < HTTP_POST_TIMEOUT))
 			{
-				local_bytes_read = wolfSSL_read(connection->session, &response_data->buffer[connection->bytes_read], response_data->buffer_length - connection->bytes_read);
-				if( local_bytes_read > 0 )
+				local_bytes_read = wolfSSL_read(connection->session,
+												&response_data->buffer[connection->bytes_read],
+												response_data->buffer_length - connection->bytes_read);
+				if(local_bytes_read)
 				{
 					connection->bytes_read += local_bytes_read;
 				}
 			}
-//			for(uint32_t i=0; i<connection->bytes_read; i++)
-//			{
-//				if( response_data->buffer[i]>31 && response_data->buffer[i]<127)
-//					zprintf(LOW_IMPORTANCE,"%c",response_data->buffer[i]);
-//				else
-//					zprintf(LOW_IMPORTANCE,".");
-//				if( (i % 128) == 127) zprintf(LOW_IMPORTANCE,"\r\n");
-//				if( (i % 16) == 15) DbgConsole_Flush();
-//			}			
-//			zprintf(LOW_IMPORTANCE,"\r\n");
 		}
+
 		http_printf(response_data->buffer);
 		http_printf("%d Bytes Read.\r\n", connection->bytes_read);
 		zprintf(LOW_IMPORTANCE, "Bytes read = %d\r\n", connection->bytes_read);
-		//for(int i=0; i<20; i++){zprintf(LOW_IMPORTANCE," %02X",response_data->buffer[i]);}zprintf(LOW_IMPORTANCE,"\r\n");		
 	}
 
 	return true;
 }
-
-static char http_request_buffer[1024];
 
 static bool HTTP_Transmit_Message(WOLFSSL* ssl, char* URL, char* resource, char* contents, char* signature, DERIVED_KEY_SOURCE tx_key)
 {
@@ -529,16 +498,19 @@ static bool HTTP_Transmit_Message(WOLFSSL* ssl, char* URL, char* resource, char*
 	const char* postHeader2		= " HTTP/1.1\r\nHost: ";
 	const char*	postHeader3		= "\r\nAccept: */*\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: ";
 	const char* signatureHeader	= "\r\nX-Signature: ";
+	// Padding to allow extra length characters.
+	char		postLength[8];
+	static char http_request_buffer[1024];
 
-	char		postLength[8]; // Padding to allow extra length characters.
-
-	snprintf(postLength, sizeof(postLength), "%d\r\n\r\n", strlen(contents)); // In-place replacement, hence the padding above.
+	// In-place replacement, hence the padding above.
+	snprintf(postLength, sizeof(postLength), "%d\r\n\r\n", strlen(contents));
 	uint32_t total_length = strlen(postHeader1) + strlen(resource) +
 							strlen(postHeader2) + strlen(URL) +
 							strlen(postHeader3) + strlen(postLength) +
 							strlen(contents);
-	if( DERIVED_KEY_NONE != tx_key )
-	{	// add in length of signature
+	if(tx_key != DERIVED_KEY_NONE)
+	{
+		// add in length of signature
 		total_length += strlen(signatureHeader) + SIGNATURE_LENGTH_ASCII;
 	}
 
@@ -576,7 +548,8 @@ static bool HTTP_Transmit_Message(WOLFSSL* ssl, char* URL, char* resource, char*
 	ptr += sprintf(ptr, "%s", URL);
 
 	if(DERIVED_KEY_NONE != tx_key)
-	{	// add in length of signature
+	{
+		// add in length of signature
 		transmitted_length += wolfSSL_write(ssl, signatureHeader, strlen(signatureHeader));
 		transmitted_length += wolfSSL_write(ssl, signature, strlen(signature));
 
@@ -598,12 +571,11 @@ static bool HTTP_Transmit_Message(WOLFSSL* ssl, char* URL, char* resource, char*
 		*ptr = 0;
 		return false;
 	}
+
 	http_printf(HTTP_LINE "Wrote all %d bytes.\r\n", total_length);
 
 	return true;
 }
-
-static char http_buffer[1024];
 
 static bool HTTP_Process_Header(WOLFSSL* ssl, HTTP_RESPONSE_DATA* response_data)
 {
@@ -613,10 +585,10 @@ static bool HTTP_Process_Header(WOLFSSL* ssl, HTTP_RESPONSE_DATA* response_data)
 	const char* ServiceUnavailable	= "HTTP/1.1 503";
 	const char* xtime_r				= "x-time: ";
 	const char* update				= "x-update: 1"; // response from Server requires the space
-	const char* xenc_r				= "x-enc: ";	// firmware page has additional encryption
+	const char* xenc_r				= "x-enc: "; // firmware page has additional encryption
 	const char* receivedSignatureHeader = "x-signature: ";
 
-	volatile uint8_t*	line_buffer = pvPortMalloc(MAX_HEADER_LINE_LEN);
+	uint8_t*	line_buffer = pvPortMalloc(MAX_HEADER_LINE_LEN);
 	uint8_t		c;
 	uint32_t	line_ptr;
 	uint8_t		eol_detect;
@@ -633,7 +605,7 @@ static bool HTTP_Process_Header(WOLFSSL* ssl, HTTP_RESPONSE_DATA* response_data)
 	}
 
 	response_data->activity_timestamp = get_microseconds_tick();
-	memset(http_buffer, 0, sizeof(http_buffer));
+	//memset(http_buffer, 0, sizeof(http_buffer));
 
 	zprintf(LOW_IMPORTANCE,"HTTP response:\r\n");
 	// Parse the header line by line.
@@ -645,7 +617,7 @@ static bool HTTP_Process_Header(WOLFSSL* ssl, HTTP_RESPONSE_DATA* response_data)
 		line_ptr = 0;
 
 		while((eol_detect < 2) && (i < MAX_HEADER_LINE_LEN - 1)
-				&& ((get_microseconds_tick() - response_data->activity_timestamp) < HTTP_POST_TIMEOUT))
+		&& ((get_microseconds_tick() - response_data->activity_timestamp) < HTTP_POST_TIMEOUT))
 		{
 			// Timeout rather than relying on no data pending, in case of data interruption.
 			if(0 < wolfSSL_read(ssl, &c, 1))
@@ -665,7 +637,6 @@ static bool HTTP_Process_Header(WOLFSSL* ssl, HTTP_RESPONSE_DATA* response_data)
 				}
 
 				i++;
-				http_buffer[i] = c;
 			}
 		}
 
@@ -694,8 +665,8 @@ static bool HTTP_Process_Header(WOLFSSL* ssl, HTTP_RESPONSE_DATA* response_data)
 			continue;
 		}
 
-		if((strcmp(GatewayTimeout, (const char*)line_buffer) == 0) ||
-				(strcmp(ServiceUnavailable, (const char*)line_buffer) == 0))
+		if((strcmp(GatewayTimeout, (const char*)line_buffer) == 0)
+		|| (strcmp(ServiceUnavailable, (const char*)line_buffer) == 0))
 		{
 			zprintf(LOW_IMPORTANCE,"Server Error: %s\r\n",line_buffer);
 			response_data->server_error = true;
@@ -732,9 +703,6 @@ static bool HTTP_Process_Header(WOLFSSL* ssl, HTTP_RESPONSE_DATA* response_data)
 		}
 		else if(memcmp(xtime_r, (const char*)line_buffer, strlen(xtime_r)) == 0)
 		{
-			// got the x-time field
-			//sscanf((const char*)(line_buffer + strlen(xtime_r)), "%lu", &response_data->message_time);
-
 			response_data->message_time = xConverterStrToUInt64(line_buffer + strlen(xtime_r));
 
 			get_UTC_ms(&time_now);
@@ -754,14 +722,11 @@ static bool HTTP_Process_Header(WOLFSSL* ssl, HTTP_RESPONSE_DATA* response_data)
 				end_of_header_reached = true;
 				response_data->reject_message = true;
 			}
-
-			//response_data->reject_message = false;
 		}
 	}
-	while((false == end_of_header_reached));// && ((get_microseconds_tick() - response_data->activity_timestamp) < HTTP_POST_TIMEOUT));
-	vPortFree(line_buffer);
+	while(!end_of_header_reached && ((get_microseconds_tick() - response_data->activity_timestamp) < HTTP_POST_TIMEOUT));
 
-	//response_data->chunked = true;
+	vPortFree(line_buffer);
 
 	return end_of_header_reached;
 }
@@ -776,16 +741,16 @@ static bool HTTP_Calculate_Signature(HTTP_CONNECTION* connection, HTTP_RESPONSE_
 {
 	response_data->signature_matches = false;
 
-	//if( (true == response_data->got_signature) && (false == response_data->reject_message) )
+	if(response_data->got_signature && !response_data->reject_message)
 	{
 		// need to calculate the signature of the response
 		// Note that the signature is calculated over the X-Time field, the Content-Length field
 		// and the actual response. So we need to generate that as a single data block! A bit of a faff, easy on the Server though!
 		static char block_to_sign[4096];
 		char *bptr;
-		char xupdate_s[] = "X-Update:1;";	// Note this is different to the format of the incoming response!
+		// Note this is different to the format of the incoming response!
+		char xupdate_s[] = "X-Update:1;";
 		char content[] = "Content-Length:";
-		//char content[] = "d";
 		char xtime_s[] = "X-Time:";
 		char xenc_s[] = "X-Enc:";
 		uint32_t bytes_to_sign;
@@ -794,11 +759,13 @@ static bool HTTP_Calculate_Signature(HTTP_CONNECTION* connection, HTTP_RESPONSE_
 		// Under these circumstances, we must ignore bytes_read, and use content_length instead.
 		if(response_data->content_length == -1)
 		{
-			bytes_to_sign = connection->bytes_read;	// content_length was not specified, so data was chunked
+			// content_length was not specified, so data was chunked
+			bytes_to_sign = connection->bytes_read;
 		}	
-		else if(response_data->content_length != 0)
+		else if(response_data->content_length)
 		{
-			bytes_to_sign = response_data->content_length;	// content_length was specified and was non-zero
+			// content_length was specified and was non-zero
+			bytes_to_sign = response_data->content_length;
 		}
 		else
 		{
@@ -870,13 +837,12 @@ static bool HTTP_Calculate_Signature(HTTP_CONNECTION* connection, HTTP_RESPONSE_
 				response_data->signature_matches = false;
 			}
 
-			//response_data->signature_matches = true;
-
 			return response_data->signature_matches;
 		}
 		/*
 		else
-		{	// assume signature failure
+		{
+			// assume signature failure
 			zprintf(CRITICAL_IMPORTANCE,"Cannot allocate memory for HTTP Response signature check\r\n");
 			return false;
 		}

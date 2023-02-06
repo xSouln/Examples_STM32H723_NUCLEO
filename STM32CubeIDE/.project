@@ -77,6 +77,11 @@
 			<locationURI>PARENT-1-PROJECT_LOC/Libs/Wireless/mac_user_build_config.h</locationURI>
 		</link>
 		<link>
+			<name>UserSettings/opt.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Middlewares/Third_Party/LwIP/src/include/lwip/opt.h</locationURI>
+		</link>
+		<link>
 			<name>UserSettings/user_settings.h</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/MQTT/user_settings.h</locationURI>
@@ -300,26 +305,6 @@
 			<name>MQTT/AWS/aws_iot_mqtt_client_yield.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_mqtt_client_yield.c</locationURI>
-		</link>
-		<link>
-			<name>MQTT/AWS/aws_iot_shadow.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_shadow.c</locationURI>
-		</link>
-		<link>
-			<name>MQTT/AWS/aws_iot_shadow_actions.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_shadow_actions.c</locationURI>
-		</link>
-		<link>
-			<name>MQTT/AWS/aws_iot_shadow_json.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_shadow_json.c</locationURI>
-		</link>
-		<link>
-			<name>MQTT/AWS/aws_iot_shadow_records.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_shadow_records.c</locationURI>
 		</link>
 		<link>
 			<name>MQTT/inc/Backoff.h</name>
@@ -995,11 +980,6 @@
 			<name>MQTT/AWS/include/aws_iot_shadow_key.h</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_shadow_key.h</locationURI>
-		</link>
-		<link>
-			<name>MQTT/AWS/include/aws_iot_shadow_records.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_shadow_records.h</locationURI>
 		</link>
 		<link>
 			<name>MQTT/AWS/include/aws_iot_version.h</name>

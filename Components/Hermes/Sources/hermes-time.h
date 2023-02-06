@@ -56,5 +56,6 @@ void set_utc(uint32_t val);
 bool get_gmt(uint32_t utc_secs, HERMES_TIME_GMT* out);
 struct tm *hermes_gmtime(time_t *tod);
 int time_string(char *str);
+time_t wc_time(time_t* t);
 
 #endif

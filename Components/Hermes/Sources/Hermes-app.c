@@ -65,13 +65,17 @@ extern QueueHandle_t xNvStoreMailboxSend;
 
 // global variables
 uint8_t uptime_min_count = 0;
-uint8_t bootRN = 0; // Random number assigned on boot. Supposed to be different every time to allow
-					// the server to distinguish when the hub has restarted. when not 0, has been initialised
-bool trigger_send_version_info = false;	// flag set when MSG_HUB_VERSION_INFO is received to trigger the sending of MSG_HUB_VERSION_INFO
-uint32_t blocking_test_per = 0;		// %age packet loss
-bool blocking_test_active = false;	// becomes true on reception of first PACKET_BLOCKING_TEST
-									// and remains true for 5 mins after last packet.
-									// Then reverts back to false so normal operation can resume
+// Random number assigned on boot. Supposed to be different every time to allow
+// the server to distinguish when the hub has restarted. when not 0, has been initialised
+uint8_t bootRN = 0;
+// flag set when MSG_HUB_VERSION_INFO is received to trigger the sending of MSG_HUB_VERSION_INFO
+bool trigger_send_version_info = false;
+// %age packet loss
+uint32_t blocking_test_per = 0;
+// becomes true on reception of first PACKET_BLOCKING_TEST
+// and remains true for 5 mins after last packet.
+// Then reverts back to false so normal operation can resume
+bool blocking_test_active = false;
 uint32_t blocking_test_failure_start;
 
 bool trigger_delayed_pairing_mode_disabled_event = false;
@@ -83,6 +87,7 @@ static void HermesApp_MaintainConnection(void);
 static void button_handler(void);
 void update_led_view(void);
 void surenet_blocking_test_watchdog();
+
 // Mailboxes for inter task communication
 QueueHandle_t		xIncomingMQTTMessageMailbox;
 QueueHandle_t		xOutgoingMQTTMessageMailbox;
@@ -106,123 +111,151 @@ static MQTT_MESSAGE mqtt_message;
 // This is the main Hermes Application task
 void hermes_app_task(void *pvParameters)
 {
-    MQTT_MESSAGE* 	outgoing_message			= NULL;
+    MQTT_MESSAGE* 	outgoing_message = NULL;
 	SERVER_MESSAGE	server_message;
-	SYSTEM_STATUS_EVENTS 	system_event;
-	uint32_t				last_heard;
-	uint32_t				last_heard_check_time		= get_microseconds_tick();
-	bool					rf_online					= false;
-	bool					mqtt_message_pending		= false;
-	bool 					blocking_test_ok 			= true;
-	uint32_t				signature_change_timestamp;
+	SYSTEM_STATUS_EVENTS system_event;
+	uint32_t last_heard;
+	uint32_t last_heard_check_time = get_microseconds_tick();
+	bool rf_online = false;
+	bool mqtt_message_pending = false;
+	bool blocking_test_ok = true;
+	uint32_t signature_change_timestamp;
 	uint32_t random_value;
 
-
-    device_buffer_init();  // initialise buffer for messages to go to Devices
+	// initialise buffer for messages to go to Devices
+    device_buffer_init();
     server_buffer_init();
-    HubReg_Init();	// This sets up the Device Table part of the register map.
+    // This sets up the Device Table part of the register map.
+    HubReg_Init();
 	DFU_init();
 
-	do	// set BootRN to a non zero random value
+	// set BootRN to a non zero random value
+	do
 	{
 		HAL_RNG_GenerateRandomNumber(&hrng, &random_value);
 
+		// Note this is not the same as Hub1. In Hub1, BootRN gets set to the low byte of
+		// current time when MQTT subscription is successful.
 		bootRN = (uint8_t)random_value;
-						// Note this is not the same as Hub1. In Hub1, BootRN gets set to the low byte of
-						// current time when MQTT subscription is successful.
 	}
-	while(0 == bootRN);
+	while(!bootRN);
 
-	process_system_event(STATUS_RF_OFFLINE);	// set up LED status to reflect initial value of rf_online variable
+	// set up LED status to reflect initial value of rf_online variable
+	process_system_event(STATUS_RF_OFFLINE);
 
 	signature_change_timestamp = get_UpTime();
 
     while(1)
     {
-        Surenet_Interface_Handler();    // this polls the SureNet mailboxes and events, and calls back
-                                        // in this context with any results.
-                                        // The SureNet callbacks are all weakly linked stubs, and are
-                                        // in Surenet-Interface.c
-                                        // We need to call this as often as we can to minimise delays between
-                                        // devices requesting data and us providing it. Note there are some
-                                        // timing hard-stops in the devices as they will go to sleep if
-                                        // they don't hear from the Hub.
+    	// this polls the SureNet mailboxes and events, and calls back
+		// in this context with any results.
+		// The SureNet callbacks are all weakly linked stubs, and are
+		// in Surenet-Interface.c
+		// We need to call this as often as we can to minimise delays between
+		// devices requesting data and us providing it. Note there are some
+		// timing hard-stops in the devices as they will go to sleep if
+		// they don't hear from the Hub.
 
-                                        // Furthermore, the devices remain awake waiting for the reply, so
-                                        // the faster we can reply, the longer their batteries will last.
+		// Furthermore, the devices remain awake waiting for the reply, so
+		// the faster we can reply, the longer their batteries will last.
+        Surenet_Interface_Handler();
 
 		if(SNTP_IsTimeValid())
 		{
-			DFU_Handler();
-		}	// process any firmware update activity
+			// process any firmware update activity
+			////DFU_Handler();
+		}
 
-		HubReg_Check_Full();	// Check for any registers whose values need to be sent to the Server
+		// Check for any registers whose values need to be sent to the Server
+		HubReg_Check_Full();
 
-		HermesApp_MaintainConnection();	// Do connection maintenance like LED states, hub report, and SNTP.
+		// Do connection maintenance like LED states, hub report, and SNTP.
+		HermesApp_MaintainConnection();
 
 		// check for messages arriving from MQTT interface
-
-		if( (uxQueueMessagesWaiting(xIncomingMQTTMessageMailbox) > 0) &&
-		    (pdPASS == xQueueReceive(xIncomingMQTTMessageMailbox,&mqtt_message,0)) )
+		if((uxQueueMessagesWaiting(xIncomingMQTTMessageMailbox) > 0)
+		&& (pdPASS == xQueueReceive(xIncomingMQTTMessageMailbox,&mqtt_message,0)))
         {
             process_MQTT_message_from_server(mqtt_message.message, mqtt_message.subtopic);
         }
 
 		// if there is a message waiting from the MQTT Connect function, the grab it and mark it as pending
-		if( (uxQueueMessagesWaiting(xBufferMessageMailbox) > 0) &&
-		    (pdPASS == xQueueReceive(xBufferMessageMailbox, &server_message, 0)) )
+		if((uxQueueMessagesWaiting(xBufferMessageMailbox) > 0)
+		&& (pdPASS == xQueueReceive(xBufferMessageMailbox, &server_message, 0)))
 		{
 			mqtt_message_pending = true;
 		}
 
 		// If there is a pending message, then attempt to pass it into the server buffer.
 		// If it doesn't go, don't clear the pending flag, and it will try again next time around.
-		if( true == mqtt_message_pending )
+		if(mqtt_message_pending)
 		{
-			if( true == server_buffer_add(&server_message) )
+			if(server_buffer_add(&server_message))
 			{
 				mqtt_message_pending = false;
 			}
 		}
 
-		if( (uxQueueMessagesWaiting(xSystemStatusMailbox) > 0) &&
-		    (pdPASS == xQueueReceive(xSystemStatusMailbox, &system_event, 0)) )
+		if((uxQueueMessagesWaiting(xSystemStatusMailbox) > 0)
+		&& (pdPASS == xQueueReceive(xSystemStatusMailbox, &system_event, 0)))
 		{
-			process_system_event(system_event);	// something has happened in the system, so
-		}										// update LEDs
+			// something has happened in the system, so update LEDs
+			process_system_event(system_event);
+		}
 
-        if( uxQueueSpacesAvailable(xOutgoingMQTTMessageMailbox) != 0 ) // Space in the mailbox.
+		// Space in the mailbox.
+        if(uxQueueSpacesAvailable(xOutgoingMQTTMessageMailbox))
         {
-			if( NULL == outgoing_message )
-			{	// See if there's a message to send.
+			if(!outgoing_message)
+			{
+				// See if there's a message to send.
 				outgoing_message = server_buffer_get_next_message();
 			}
 
-			if( NULL != outgoing_message )
+			if(outgoing_message)
 			{
-				xQueueSend(xOutgoingMQTTMessageMailbox, outgoing_message, 0); // Note this will copy the full size of the structure
-																			  // which could be much more than the message.
+				// Note this will copy the full size of the structure
+				// which could be much more than the message.
+				xQueueSend(xOutgoingMQTTMessageMailbox, outgoing_message, 0);
 				outgoing_message = NULL;
 			}
         }
 
+		/*
+        if(!outgoing_message)
+		{
+			// See if there's a message to send.
+			outgoing_message = server_buffer_get_next_message();
+		}
+
+		if(outgoing_message)
+		{
+			// Note this will copy the full size of the structure
+			// which could be much more than the message.
+			xQueueSend(xOutgoingMQTTMessageMailbox, outgoing_message, 0);
+			outgoing_message = NULL;
+		}
+*/
 		button_handler();
 
 		// Check status of RF comms every 5 seconds, and issue a system event if it's changed.
-		if( (get_microseconds_tick() - last_heard_check_time) > 5*usTICK_SECONDS )
+		if( (get_microseconds_tick() - last_heard_check_time) > 5 * usTICK_SECONDS )
 		{
 			last_heard = surenet_get_last_heard_from();
 			if (last_heard > (RF_COMMS_TIMEOUT * usTICK_SECONDS))
 			{
-				if( true == rf_online )
-				{	// just gone offline
+				if(rf_online)
+				{
+					// just gone offline
 					rf_online = false;
 					process_system_event(STATUS_RF_OFFLINE);
 				}
-			} else
+			}
+			else
 			{
-				if( false == rf_online )
-				{	// just come online
+				if(!rf_online)
+				{
+					// just come online
 					rf_online = true;
 					process_system_event(STATUS_RF_ONLINE);
 				}
@@ -230,22 +263,30 @@ void hermes_app_task(void *pvParameters)
 			last_heard_check_time = get_microseconds_tick();
 		}
 
-		if( true == blocking_test_active)
+		if(blocking_test_active)
 		{
 			surenet_blocking_test_watchdog();
-			if( blocking_test_per > 10)
-			{	// instantaneous PER indicates a failure
-				if( true ==  blocking_test_ok)
-				{	// we were previously OK.
-					process_system_event(STATUS_BLOCKING_TEST_BAD);	// Change LEDs to Red to indicate a problem
-					blocking_test_failure_start = get_microseconds_tick();		// note when we turned the LEDs red.
-					blocking_test_ok = false;	// flip state flag to indicate that we have an error condition
+			if(blocking_test_per > 10)
+			{
+				// instantaneous PER indicates a failure
+				if(blocking_test_ok)
+				{
+					// we were previously OK.
+					// Change LEDs to Red to indicate a problem
+					process_system_event(STATUS_BLOCKING_TEST_BAD);
+					// note when we turned the LEDs red.
+					blocking_test_failure_start = get_microseconds_tick();
+					// flip state flag to indicate that we have an error condition
+					blocking_test_ok = false;
 				}
 			}
 			else
-			{	// instantaneous PER is OK.
-				if( (false ==  blocking_test_ok) && ((get_microseconds_tick()-blocking_test_failure_start) > (2*usTICK_SECONDS)))
-				{	// we were previously indicating an error
+			{
+				// instantaneous PER is OK.
+				if((!blocking_test_ok)
+				&& ((get_microseconds_tick()-blocking_test_failure_start) > (2*usTICK_SECONDS)))
+				{
+					// we were previously indicating an error
 					process_system_event(STATUS_BLOCKING_TEST_GOOD);
 					blocking_test_ok = true;
 				}
@@ -259,19 +300,20 @@ void hermes_app_task(void *pvParameters)
 				blocking_test_per_prev = blocking_test_per;
 			}
 		}
+
 		// This is a fudge to hold off the pairing mode disabled event. The reason is that the Server
 		// for unknown reasons sends a spurious STATUS_DISPLAY_SUCCESS event some seconds after pairing
 		// has completed successfully and the LEDs have gone dim. This holdoff keeps the LEDs flashing
 		// brightly, and somewhat masking the spurious LED flash. It mimics the behaviour of Hub1 which
 		// does the same, although unintentionally in that case!
-		if( (true == trigger_delayed_pairing_mode_disabled_event) &&
-			((get_microseconds_tick()-trigger_delayed_pairing_mode_disabled_event_timestamp)>(7*usTICK_SECONDS)))
+		if((trigger_delayed_pairing_mode_disabled_event)
+		&& ((get_microseconds_tick() - trigger_delayed_pairing_mode_disabled_event_timestamp) > (7 * usTICK_SECONDS)))
 		{
 			trigger_delayed_pairing_mode_disabled_event = false;
 			process_system_event(STATUS_PAIRING_MODE_DISABLED);
 		}
 
-		if( (get_UpTime() - signature_change_timestamp) > SIGNATURE_UPDATE_PERIOD)
+		if((get_UpTime() - signature_change_timestamp) > SIGNATURE_UPDATE_PERIOD)
 		{
 			signature_change_timestamp = get_UpTime();
 			zprintf(LOW_IMPORTANCE,"Sending new shared secret to the Server\r\n");
@@ -288,22 +330,26 @@ static void HermesApp_MaintainConnection(void)
 	static EventBits_t	LastConnStatus		= 0;
 	EventBits_t			ConnStatus			= xEventGroupGetBits(xConnectionStatus_EventGroup);
 
-	if( ConnStatus != LastConnStatus )
-	{	// Check for a change, and decide what to do about it.
-		if( CONN_STATUS_FULL_CONNECTION == (ConnStatus & CONN_STATUS_FULL_CONNECTION) )
+	if(ConnStatus != LastConnStatus)
+	{
+		// Check for a change, and decide what to do about it.
+		if(ConnStatus & CONN_STATUS_FULL_CONNECTION)
 		{
 			//process_system_event(STATUS_CONNECTED_TO_CLOUD); //Moved to MQTT.c
 #ifdef UPLOAD_HUB_REGISTERS_ON_CLOUD_CONNECT
 //			zprintf(CRITICAL_IMPORTANCE,"Uploading Hub register map...\r\n");
 			HubReg_Refresh_All();
 #endif
-		} else if( CONN_STATUS_NETWORK_UP == (ConnStatus & CONN_STATUS_NETWORK_UP) )
+		}
+		else if(ConnStatus & CONN_STATUS_NETWORK_UP)
 		{
 			//process_system_event(STATUS_CONNECTING_TO_CLOUD); //Moved to MQTT.c
-		} else if( CONN_STATUS_STARTING == (ConnStatus & CONN_STATUS_STARTING) )
+		}
+		else if(ConnStatus & CONN_STATUS_STARTING)
 		{
 			//process_system_event(STATUS_GETTING_CREDENTIALS); //Moved to MQTT.c
-		} else
+		}
+		else
 		{
 			// ignore whatever the event was
 		}
@@ -311,16 +357,18 @@ static void HermesApp_MaintainConnection(void)
 		LastConnStatus = ConnStatus;
 	}
 
-	if( CONN_STATUS_NETWORK_UP == (ConnStatus & CONN_STATUS_NETWORK_UP) )
+	if(ConnStatus & CONN_STATUS_NETWORK_UP)
 	{
-		if( (true == has_timer_expired(&sntp_update_timer)) ||
-		    (true == SNTP_DidUpdateFail()) )
+		if(has_timer_expired(&sntp_update_timer)
+		|| SNTP_DidUpdateFail())
 		{
-			SNTP_AwaitUpdate(true, 0);	// Make the request, but don't wait around.
+			// Make the request, but don't wait around.
+			SNTP_AwaitUpdate(true, 0);
 			countdown_ms(&sntp_update_timer, APP_SNTP_UPDATE_INTERVAL);
 		}
 
-		send_hub_report();	// Sends a once-per-hour update to the server
+		// Sends a once-per-hour update to the server
+		send_hub_report();
 	}
 }
 

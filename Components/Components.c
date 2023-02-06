@@ -9,6 +9,10 @@
 
 REG_TIM_T* Timer4 = (REG_TIM_T*)TIM4;
 
+#ifdef TIM2
+REG_TIM_T* Timer2 = (REG_TIM_T*)TIM2;
+#endif
+
 static uint8_t time1_ms;
 static uint8_t time5_ms;
 static uint16_t time1000_ms;
@@ -255,6 +259,8 @@ xResult ComponentsInit(void* parent)
 	TerminalTxBind(&SerialPortUART.Tx);
 
 	sntp_update_time_stamp = 20000;
+
+	Timer2->Control1.CounterEnable = true;
 
 	//SNTP_Init();
 

@@ -3,7 +3,6 @@
  Made for Hermes
  by Chris Cowdery
  16/10/2018
-
  */
 
 #ifndef FREERTOS_IP_CONFIG_H

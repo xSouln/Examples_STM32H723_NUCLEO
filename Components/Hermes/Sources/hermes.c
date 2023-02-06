@@ -53,6 +53,8 @@
 #include "netif.h"
 
 #include "lwip.h"
+
+#include "wolfssl/wolfcrypt/asn_public.h"
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
@@ -111,6 +113,7 @@ extern void LWIP_UpdateLinkState();
 void HermesComponentInit()
 {
 	wolfSSL_Init();
+	wc_SetTimeCb(wc_time);
 
 	product_configuration.rf_pan_id = SUREFLAP_PAN_ID;
 
@@ -130,26 +133,15 @@ void HermesComponentInit()
 	product_configuration.sanity_state = PRODUCT_CONFIGURED;
 	product_configuration.product_state = PRODUCT_CONFIGURED;
 
-	GenerateSharedSecret(SHARED_SECRET_CURRENT);	// generate a truly random Shared Secret to be shared with the Server
-	GenerateDerivedKey(DERIVED_KEY_CURRENT);	// Used for signing data transfers between Hub and Server.
+	// generate a truly random Shared Secret to be shared with the Server
+	GenerateSharedSecret(SHARED_SECRET_CURRENT);
+	// Used for signing data transfers between Hub and Server.
+	GenerateDerivedKey(DERIVED_KEY_CURRENT);
 
 	hermes_app_init();
 	HTTPPostTask_init();
 	SNTP_Init();
-/*
-	//Delay boot-up by 2 seconds.  The LEDs will be off for this period, giving us a visual indication if the device ever reboots.
-	vTaskDelay(pdMS_TO_TICKS(2000));
 
-	int ret = wolfSSL_Init();
-
-	if(ret != WOLFSSL_SUCCESS)
-	{
-		while(true)
-		{
-			osDelay(1);
-		}
-	}
-*/
 	BABEL_set_aes_key(product_configuration.serial_number);
 	BABEL_aes_encrypt_init();
 
@@ -158,7 +150,7 @@ void HermesComponentInit()
 
 	led_driver_init();
 
-	LWIP_UpdateLinkState();
+	//LWIP_UpdateLinkState();
 
 	surenet_init(&rfmac, product_configuration.rf_pan_id, initial_RF_channel);
 
@@ -182,6 +174,14 @@ void HermesComponentInit()
 		zprintf(CRITICAL_IMPORTANCE,"MQTT Task creation failed!\r\n");
 	}
 
+	if (xTaskCreate(HTTPPostTask, "HTTP Post", HTTP_POST_TASK_STACK_SIZE, NULL, osPriorityNormal, &xHTTPPostTaskHandle) != pdPASS)
+	{
+		zprintf(CRITICAL_IMPORTANCE,"HTTP Post task creation failed!.\r\n");
+	}
+
+	osDelay(pdMS_TO_TICKS(2000));
+
+	LWIP_UpdateLinkState();
 }
 
 /**************************************************************
@@ -300,6 +300,7 @@ static void StartUpTask(void *pvParameters)
 				zprintf(CRITICAL_IMPORTANCE,"Watchdog task creation failed! - tick... tick... tick...\r\n");
 			}
 			break;
+
 		case PRODUCT_BLANK: // This is the state after a reset after firmware programming. It needs to support 'test'
 			shouldICryptFlag = false;
 			shouldIPackageFlag = false;
@@ -325,6 +326,7 @@ static void StartUpTask(void *pvParameters)
 				zprintf(CRITICAL_IMPORTANCE,"Watchdog task creation failed! - tick... tick... tick...\r\n");
 			}
 			break;
+
 		case PRODUCT_TESTED:	// Now I want to talk to the Label Printer
 		  	shouldICryptFlag = false;
 			shouldIPackageFlag = false;

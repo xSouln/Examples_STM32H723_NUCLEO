@@ -47,8 +47,8 @@
 #include "hermes-time.h"
 
 // Shared variables
-DEVICE_STATUS device_status[MAX_NUMBER_OF_DEVICES];
-DEVICE_STATUS_EXTRA device_status_extra[MAX_NUMBER_OF_DEVICES];
+DEVICE_STATUS device_status[MAX_NUMBER_OF_DEVICES] __attribute__((section("._user_dtcmram_ram")));
+DEVICE_STATUS_EXTRA device_status_extra[MAX_NUMBER_OF_DEVICES] __attribute__((section("._user_dtcmram_ram")));
 extern QueueHandle_t xNvStoreMailboxSend;
 extern QueueHandle_t xNvStoreMailboxResp;
 

@@ -36,7 +36,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-uint8_t ucHeap[configTOTAL_HEAP_SIZE] __attribute__((section("._user_rtos_ram"))) = {0};
+uint8_t ucHeap[configTOTAL_HEAP_SIZE];// __attribute__((section("._user_ram2_ram"))) = {0};
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -255,13 +255,13 @@ void MPU_Config(void)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   /* USER CODE BEGIN Callback 0 */
-	extern void vApplicationTickHook(void);
+
   /* USER CODE END Callback 0 */
   if (htim->Instance == TIM6) {
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
-  vApplicationTickHook();
+
   /* USER CODE END Callback 1 */
 }
 

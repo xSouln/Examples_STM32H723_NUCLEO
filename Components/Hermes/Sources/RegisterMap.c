@@ -272,7 +272,11 @@ void update_register_map_device_table_size(uint8_t number_of_devices)
 	uint16_t old_num_registers, num_registers;
 
 	if (number_of_devices>MAX_NUMBER_OF_DEVICES)
-		return;	// just bail out if request is larger than the maximum size
+	{
+		// just bail out if request is larger than the maximum size
+		return;
+	}
+
 	// First update the registers that depend on the number of devices we are exposing
 	old_number_of_devices = hubRegisterBank[HR_DEVICE_TABLE_SIZE].value;
 	num_registers = HR_DEVICE_TABLE+(sizeof(DEVICE_STATUS)*number_of_devices);
@@ -289,7 +293,8 @@ void update_register_map_device_table_size(uint8_t number_of_devices)
 	// Bearing in mind that the data already exists in the register map, we just need
 	// to set the Update flags for the newly exposed data.
 	if (number_of_devices>old_number_of_devices)
-	{	// set the update flags for the newly exposed part of the register map
+	{
+		// set the update flags for the newly exposed part of the register map
 		for (i=(old_num_registers+1); i<num_registers; i++)
 		{
 			hubRegisterBank[i].updateWebFlag = false;
@@ -305,9 +310,11 @@ void HubReg_Init(void)
 {
 	LED_MODE 	led_brightness;
 	LED_DISPLAY	led_display;
-	led_brightness = get_led_brightness(); // read value from NVM
+	// read value from NVM
+	led_brightness = get_led_brightness();
 
-	switch(led_brightness)	// translate from internal to external representation
+	// translate from internal to external representation
+	switch(led_brightness)
 	{
 		case LED_MODE_OFF:
 			led_display = LED_DISPLAY_OFF;
@@ -323,6 +330,7 @@ void HubReg_Init(void)
 			led_display = LED_DISPLAY_NORMAL;
 			break;
 	}
+
 	hubRegisterBank[HR_LEDS_MODE].value = led_display;
 
 	// set HR_DEVICE_TABLE_SIZE and HUB_NUM_REGISTERS, and their updateWebFlags.
@@ -350,15 +358,15 @@ void HubReg_Check_Full(void)
 	bool			sending = false;
 
 	// Work out if we need to transmit anything from the general map.
-	for( i = 0; i < HR_DEVICE_TABLE; i++ )
+	for(i = 0; i < HR_DEVICE_TABLE; i++)
 	{
-		if( false != hubRegisterBank[i].updateWebFlag )
+		if(hubRegisterBank[i].updateWebFlag)
 		{
 			sending = true;
 		}
 	}
 
-	if( true == sending )
+	if(sending)
 	{
 		Hub_Registers_Send_Range(0, HR_DEVICE_TABLE);
 	}
@@ -366,19 +374,19 @@ void HubReg_Check_Full(void)
 	sending = false;
 
 	// Now check the pair table, in large blocks.
-	for( j = 0; j < MAX_NUMBER_OF_DEVICES; j++ )
+	for(j = 0; j < MAX_NUMBER_OF_DEVICES; j++)
 	{
 		sending = false;
 		base_index = HR_DEVICE_TABLE + j * sizeof(DEVICE_STATUS);
-		for( i = 0; i < sizeof(DEVICE_STATUS); i++ )
+		for(i = 0; i < sizeof(DEVICE_STATUS); i++)
 		{
-			if( false != hubRegisterBank[base_index + i].updateWebFlag )
+			if(hubRegisterBank[base_index + i].updateWebFlag)
 			{
 				sending = true;
 			}
 		}
 
-		if( true == sending )
+		if(sending)
 		{
 			next_entry = (j / MAX_PAIR_ENTRIES_PER_MESSAGE) * MAX_PAIR_ENTRIES_PER_MESSAGE;
 			base_index = HR_DEVICE_TABLE + sizeof(DEVICE_STATUS) * next_entry;
@@ -390,7 +398,8 @@ void HubReg_Check_Full(void)
 
 static void Hub_Registers_Send_Range(uint32_t start_index, uint32_t count)
 {
-	static uint8_t 	server_set_reg_count	= 0;	// Will wrap around. Server has limit of 8 bit value
+	// Will wrap around. Server has limit of 8 bit value
+	static uint8_t 	server_set_reg_count	= 0;
 
 	uint8_t			outgoing_message[MAX_MESSAGE_SIZE_SERVER_BUFFER];
 	SERVER_MESSAGE	server_message = {outgoing_message, 0};
@@ -403,12 +412,14 @@ static void Hub_Registers_Send_Range(uint32_t start_index, uint32_t count)
 
 	if( count == 0 ){ return; }
 
-	pos = snprintf((char*)outgoing_message, sizeof(outgoing_message), "%d %d %d %d", MSG_REG_VALUES_INDEX_ADDED, server_set_reg_count, start_index, count);
+	pos = snprintf((char*)outgoing_message, sizeof(outgoing_message),
+			"%d %d %d %d", MSG_REG_VALUES_INDEX_ADDED, server_set_reg_count, start_index, count);
 	server_set_reg_count++;
 
 	for( i = 0; i < count; i++ )
 	{
-		pos += snprintf((char*)&outgoing_message[pos], sizeof(outgoing_message) - pos, " %02x", hubRegisterBank[start_index + i].value);
+		pos += snprintf((char*)&outgoing_message[pos], sizeof(outgoing_message) - pos,
+				" %02x", hubRegisterBank[start_index + i].value);
 	}
 
 	if( true == server_buffer_add(&server_message) )

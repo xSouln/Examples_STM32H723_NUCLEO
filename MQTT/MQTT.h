@@ -31,20 +31,19 @@
 #include "MQTT-Synapse.h"
 #endif
 
-#define MQTT_REBOOT_TIMEOUT	(10*usTICK_MINUTE)
+#define MQTT_REBOOT_TIMEOUT	(10 * usTICK_MINUTE)
 
 #define MIN_GREEN_FLASH_DURATION	5	// minimum duration that the LEDs flash green for when connecting
 #define CONNECT_ATTEMPTS_TIMEOUT	(usTICK_MINUTE * 3)	// give it long enough for network watchdog to try to fix basic connection issues
 
 #define INCOMING_MQTT_MESSAGE_QUEUE_DEPTH_SMALL	16
 #define INCOMING_MQTT_MESSAGE_QUEUE_DEPTH_LARGE	2
-#define MAX_INCOMING_MQTT_MESSAGE_SIZE_SMALL 	512    // Large enough for Thalamus messages + 64byte sig
-#define MAX_INCOMING_MQTT_TOPIC_SIZE 			100		// Could be up to 82 chars.
+#define MAX_INCOMING_MQTT_MESSAGE_SIZE_SMALL 	512 // Large enough for Thalamus messages + 64byte sig
+#define MAX_INCOMING_MQTT_TOPIC_SIZE 			100 // Could be up to 82 chars.
 
-#define AWS_YIELD_TIMEOUT       	5
 #define AWS_CLIENT_ID_MIN_LENGTH	5
 #define MQTT_MIN_CRED_LENGTH		3000
-#define CREDENTIAL_BUFFER_SIZE		4096	// measured chunked response size was 3638, so 4096 has a bit of spare capacity
+#define CREDENTIAL_BUFFER_SIZE		4096 // measured chunked response size was 3638, so 4096 has a bit of spare capacity
 
 #define PRINT_MQTT	false
 

@@ -2,7 +2,7 @@
 *
 * SUREFLAP CONFIDENTIALITY & COPYRIGHT NOTICE
 *
-* Copyright © 2013-2021 Sureflap Limited.
+* Copyright ï¿½ 2013-2021 Sureflap Limited.
 * All Rights Reserved.
 *
 * All information contained herein is, and remains the property of Sureflap 
@@ -53,7 +53,7 @@ char *mqtt_states[]={	"MQTT_STATE_INITIAL",
 #define MQTT_SUBS_RETRY_JITTER		100		// Milliseconds
 #define MQTT_SUBS_RETRY_MAX			5
 
-#define HUB_API_SERVER			"hub.api.surehub.io"
+#define HUB_API_SERVER "hub.api.surehub.io"
 
 static bool		MQTT_Init(AWS_IoT_Client* client);
 static bool		MQTT_Get_Credentials(SUREFLAP_CREDENTIALS* credentials);

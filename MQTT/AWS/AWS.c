@@ -19,11 +19,9 @@ const char* starfield_fixed_ca_cert = "-----BEGIN CERTIFICATE-----\nMIIEDzCCAveg
 static char	aws_wildcard_topic[]	= "v2/production/00000000-0000-0000-0000-000000000000/#\0\0\0\0\0\0\0\0\0";
 static char	aws_messages_topic[]	= "v2/production/00000000-0000-0000-0000-000000000000/messages\0\0\0\0\0\0\0\0\0";
 static char	aws_child_topic[]		= "v2/production/00000000-0000-0000-0000-000000000000/messages/XXXXXXXXXXXXXXXX\0\0\0\0\0\0\0\0\0";
-/*
-static char	aws_wildcard_topic[10 + BASE_TOPIC_MAX_SIZE];
-static char	aws_messages_topic[10 + BASE_TOPIC_MAX_SIZE];
-static char	aws_child_topic[30 + BASE_TOPIC_MAX_SIZE];
-*/
+
+void AWS_DisconnectHandler(AWS_IoT_Client* client, void* arg);
+
 #if AWS_INTERFACE_DEBUG
 static const char* mqtt_message_actions[] =
 {
@@ -57,13 +55,16 @@ IoT_Error_t AWS_Init(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials)
 	client_init_params.enableAutoReconnect = false;
 	client_init_params.pHostURL = credentials->host;
 	client_init_params.port = AWS_IOT_MQTT_PORT;
-	client_init_params.pRootCALocation = (char*)starfield_fixed_ca_cert; // Auto-filled in network_tls_wrapper.
+	// Auto-filled in network_tls_wrapper.
+	client_init_params.pRootCALocation = (char*)starfield_fixed_ca_cert;
 	client_init_params.pDeviceCertLocation = (char*)credentials;
 	client_init_params.pDevicePrivateKeyLocation = (char*)credentials;
-	client_init_params.mqttCommandTimeout_ms = AWS_COMMAND_TIMEOUT; // TAM Default was 20,000, think Xively was 1500.
+	// TAM Default was 20,000, think Xively was 1500.
+	client_init_params.mqttCommandTimeout_ms = AWS_COMMAND_TIMEOUT;
 	client_init_params.tlsHandshakeTimeout_ms = AWS_HANDSHAKE_TIMEOUT;
-	client_init_params.isSSLHostnameVerify = true; 
-	client_init_params.disconnectHandler = NULL; // Disconnects fully handled by the yield return.
+	client_init_params.isSSLHostnameVerify = true;////true
+	// Disconnects fully handled by the yield return.
+	client_init_params.disconnectHandler = NULL;
 	client_init_params.disconnectHandlerData = NULL;
 
 	ret = aws_iot_mqtt_init(client, &client_init_params);
@@ -78,7 +79,7 @@ IoT_Error_t AWS_Init(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials)
 	client->clientData.messageHandlers[0].pApplicationHandlerData = NULL;
 	client->clientData.messageHandlers[0].qos = QOS1;
 
-	if( AWS_SUCCESS != ret )
+	if(ret != AWS_SUCCESS)
 	{
 		aws_printf("\tFailed to initialise AWS.\r\n");
 	}
@@ -131,9 +132,18 @@ IoT_Error_t AWS_Connect(AWS_IoT_Client* client,
 	ret = aws_iot_mqtt_connect(client, &connect_params);
 	client->clientData.commandTimeoutMs = AWS_COMMAND_TIMEOUT;
 
-	aws_printf("\r\n\t@@@ AWS Connect @@@\r\n\t@\tClient ID:\t\t%s\r\n\t@\tLast Will:\tTopic:\t\t%s\r\n\t@\t\t\tMessage:\t%s\r\n\t@\tResult:\t\t%d\r\n\t@@@@@@@@@@@@@@@@@@@\r\n", credentials->client_id, connect_params.will.pTopicName, connect_params.will.pMessage, (int)ret);
+	aws_printf("\r\n\t@@@ AWS Connect @@@\r\n\t@\tClient ID:\t\t"
+				"%s\r\n\t@\tLast Will:\tTopic:\t\t"
+				"%s\r\n\t@\t\t\tMessage:\t"
+				"%s\r\n\t@\tResult:\t\t"
+				"%d\r\n\t@@@@@@@@@@@@@@@@@@@\r\n",
 
-	if( AWS_SUCCESS != ret )
+				credentials->client_id,
+				connect_params.will.pTopicName,
+				connect_params.will.pMessage,
+				(int)ret);
+
+	if(ret != AWS_SUCCESS)
 	{
 		IOT_ERROR("Error (%d) connecting %s.\n\r", ret, client_id);
 	}
@@ -148,9 +158,18 @@ IoT_Error_t AWS_Connect(AWS_IoT_Client* client,
 IoT_Error_t AWS_Subscribe(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials)
 {
 	client->clientData.commandTimeoutMs = AWS_SUBSCRIBE_COMMAND_TIMEOUT;
-	IoT_Error_t result = aws_iot_mqtt_subscribe(client, aws_wildcard_topic, strlen(aws_wildcard_topic), QOS1, &AWS_Message_Received, NULL);
+	IoT_Error_t result = aws_iot_mqtt_subscribe(client, aws_wildcard_topic,
+												strlen(aws_wildcard_topic),
+												QOS1,
+												&AWS_Message_Received,
+												NULL);
 	client->clientData.commandTimeoutMs = AWS_COMMAND_TIMEOUT;
-	aws_printf("\r\n\t+++ AWS Subscription +++\r\n\t+\tTopic:\t%s\r\n\t+\tResult:\t%d\r\n\t++++++++++++++++++++++++\r\n", aws_wildcard_topic, (int)result);
+
+	aws_printf("\r\n\t+++ AWS Subscription +++\r\n\t+\tTopic:\t"
+				"%s\r\n\t+\tResult:\t"
+				"%d\r\n\t++++++++++++++++++++++++\r\n",
+				aws_wildcard_topic,
+				(int)result);
 
 	return result;
 }
@@ -160,11 +179,21 @@ IoT_Error_t AWS_Resubscribe(AWS_IoT_Client* client)
 	client->clientData.commandTimeoutMs	= AWS_SUBSCRIBE_COMMAND_TIMEOUT;
 	IoT_Error_t result = aws_iot_mqtt_resubscribe(client);
 	client->clientData.commandTimeoutMs = AWS_COMMAND_TIMEOUT;
-	aws_printf("\r\n\t??? AWS Resubscription ???\r\n\t?\tResult:\t%d\r\n\t????????????????????????\r\n", (uint32_t)result);
+
+	aws_printf("\r\n\t??? AWS Resubscription ???\r\n\t?\tResult:\t"
+			"%d\r\n\t????????????????????????\r\n",
+			(uint32_t)result);
+
 	return result;
 }
-
-IoT_Error_t AWS_Publish(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials, char* sub_topic, char* message, int32_t message_len, QoS qos)
+static int AWS_PublishRequestsCount;
+static int AWS_PublishAcceptedRequestsCount;
+IoT_Error_t AWS_Publish(AWS_IoT_Client* client,
+						SUREFLAP_CREDENTIALS* credentials,
+						char* sub_topic,
+						char* message,
+						int32_t message_len,
+						QoS qos)
 {
 	IoT_Publish_Message_Params publish_params;
 	publish_params.qos = qos;
@@ -177,44 +206,71 @@ IoT_Error_t AWS_Publish(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credential
 	}
 	publish_params.payloadLen = message_len;
 
-	sprintf(aws_child_topic, "%s/messages%s/0", credentials->base_topic, sub_topic); // Sub-topic must start with '/' or '\0'
+	// Sub-topic must start with '/' or '\0'
+	sprintf(aws_child_topic, "%s/messages%s\0", credentials->base_topic, sub_topic);
 	client->clientData.commandTimeoutMs = AWS_PUBLISH_COMMAND_TIMEOUT;
+
 	IoT_Error_t result = aws_iot_mqtt_publish(client, aws_child_topic, strlen(aws_child_topic), &publish_params);
 	client->clientData.commandTimeoutMs = AWS_COMMAND_TIMEOUT;
 
-	aws_printf("\r\n\t>>> AWS Publish >>>\r\n\t>\tTopic:\t\t%s\r\n\t>\tMessage:\t%.*s\r\n\t>\tResult:\t\t%d\r\n\t>>>>>>>>>>>>>>>>>>>\r\n", aws_child_topic, message_len, message, (int)result);
+	aws_printf("\r\n\t>>> AWS Publish >>>\r\n\t>\tTopic:\t\t"
+			"%s\r\n\t>\tMessage:\t"
+			"%.*s\r\n\t>\tResult:\t\t"
+			"%d\r\n\t>>>>>>>>>>>>>>>>>>>\r\n", aws_child_topic, message_len, message, (int)result);
+
+	AWS_PublishRequestsCount++;
+
+	if(result == AWS_SUCCESS)
+	{
+		AWS_PublishAcceptedRequestsCount++;
+	}
 
 	return result;
 }
 
-void AWS_Message_Received(AWS_IoT_Client* pClient, char* pTopicName, uint16_t topicNameLen, IoT_Publish_Message_Params* pParams, void* pClientData)
+static int AWS_ReceivedMessagesCount;
+void AWS_Message_Received(AWS_IoT_Client* pClient,
+		char* pTopicName,
+		uint16_t topicNameLen,
+		IoT_Publish_Message_Params* pParams,
+		void* pClientData)
 {
 	extern QueueHandle_t xIncomingMQTTMessageMailbox;
-	MQTT_MESSAGE	msg;
+	MQTT_MESSAGE msg;
 
-	aws_printf("\r\n\t\t<<< AWS Message Received <<<\r\n\t\t<\tTopic:\t\t%.*s\r\n\t\t<\tMessage:\t%.*s\r\n\t\t<\tAction:\t\t?\r\n\t\t<<<<<<<<<<<<<<<<<<<<<<<<<<<<\r\n",
-			   topicNameLen, pTopicName,
-			   pParams->payloadLen, pParams->payload);
+	aws_printf("\r\n\t\t<<< AWS Message Received <<<\r\n\t\t<\tTopic:\t\t"
+				"%.*s\r\n\t\t<\tMessage:\t"
+				"%.*s\r\n\t\t<\tAction:\t\t?\r\n\t\t<<<<<<<<<<<<<<<<<<<<<<<<<<<<\r\n",
+				topicNameLen, pTopicName,
+				pParams->payloadLen, pParams->payload);
 
-	if( pParams->payloadLen >MAX_INCOMING_MQTT_MESSAGE_SIZE_SMALL)
+	if(pParams->payloadLen > MAX_INCOMING_MQTT_MESSAGE_SIZE_SMALL)
 	{
 		zprintf(CRITICAL_IMPORTANCE,"*** Incoming MQTT message too long. Dropping it.\r\n");
 		return;	// no point going further as it will fail the signature check
 	}
 
-	sprintf(msg.message, "%.*s/0", pParams->payloadLen, (char*)pParams->payload); // Fixed length string insertion with added null terminator.
+	// Fixed length string insertion with added null terminator.
+	sprintf(msg.message, "%.*s\0", pParams->payloadLen, (char*)pParams->payload);
 
-	uint32_t	i;
-	for( i = topicNameLen; i > 0; i-- )
-	{	// Find the last sub-topic by searching backwards.
-		if( pTopicName[i] == '/' )
-		{	// We don't want the slash.
+	uint32_t i;
+	for(i = topicNameLen; i > 0; i--)
+	{
+		// Find the last sub-topic by searching backwards.
+		if(pTopicName[i] == '/')
+		{
+			// We don't want the slash.
 			i++;
 			break;
 		}
 	}
-	sprintf(msg.subtopic, "%.*s/0", topicNameLen-i, &pTopicName[i]); // Fixed length string insertion with added null terminator.
+
+	// Fixed length string insertion with added null terminator.
+	sprintf(msg.subtopic, "%.*s\0", topicNameLen - i, &pTopicName[i]);
 
 	xQueueSend(xIncomingMQTTMessageMailbox, &msg, 0);
+
+	AWS_ReceivedMessagesCount++;
+
 	return;
 }

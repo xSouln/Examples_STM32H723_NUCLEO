@@ -432,7 +432,6 @@ BaseType_t sn_init(uint64_t *mac, uint16_t panid, uint8_t channel)
 	// Now set up Security Keys for each device
 
 #if USE_RANDOM_KEY
-	uint32_t j;
 #else
 	uint8_t key[SECURITY_KEY_SIZE] = {SECURITY_KEY_00,SECURITY_KEY_01,SECURITY_KEY_02,SECURITY_KEY_03, \
 									  SECURITY_KEY_04,SECURITY_KEY_05,SECURITY_KEY_06,SECURITY_KEY_07, \

@@ -56,7 +56,7 @@ BACKOFF_RESULT Backoff_GetStatus(BACKOFF* backoff)
 
 BACKOFF_RESULT Backoff_Progress(BACKOFF* backoff)
 {
-	if( NULL == backoff->specs )
+	if(!backoff->specs)
 	{
 		return BACKOFF_FAILED;
 	}
@@ -65,7 +65,7 @@ BACKOFF_RESULT Backoff_Progress(BACKOFF* backoff)
 	backoff->retry_delay_ms = backoff->specs->base_retry_interval_ms;
 
 	uint8_t	retries = backoff->retries;
-	while( 0 < retries-- )
+	while(0 < retries--)
 	{
 		backoff->retry_delay_ms *= backoff->specs->retry_mult_base;
 	}

@@ -25,7 +25,7 @@
 
 #include "Components.h"
 
-#define SNTP_SERVER		"pool.ntp.org"//"pool.ntp.org"
+#define SNTP_SERVER		"pool.ntp.org"
 #define SNTP_PORT		123
 #define SNTP_EPOCH 		(86400ul * (365ul * 70ul + 17ul))	// Epoch starts: 01-Jan-1970 00:00:00 //2208988800U
 

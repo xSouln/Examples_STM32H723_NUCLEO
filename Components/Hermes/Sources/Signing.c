@@ -229,7 +229,7 @@ uint8_t *GenerateDerivedKey(DERIVED_KEY_SOURCE dest)
 												product_configuration.ethernet_mac[5]);
 		
 //	zprintf(CRITICAL_IMPORTANCE,"Password = %s\r\n",password);
-	
+	//ret = wc_PKCS12_PBKDF(key,
 	ret = wc_PBKDF2(key,
 			password,
 			password_size-1,

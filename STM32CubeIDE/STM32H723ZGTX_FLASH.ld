@@ -163,11 +163,11 @@ SECTIONS
   } >ITCMRAM
   
   /* Modification start */
-  ._user_rtos_ram :
+  ._user_dtcmram_ram :
   {
-    . = ALIGN(8);
-    *(._user_rtos_section)
-    . = ALIGN(8);
+    . = ALIGN(4);
+    *(._user_dtcmram_section)
+    . = ALIGN(4);
   } >DTCMRAM
   /* Modification end */
   
