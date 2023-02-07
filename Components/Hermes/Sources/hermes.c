@@ -146,7 +146,8 @@ void HermesComponentInit()
 	BABEL_aes_encrypt_init();
 
 	shouldIPackageFlag = SHOULD_I_PACKAGE;
-	shouldICryptFlag = false;//true for AES Encryption
+	//true for AES Encryption
+	shouldICryptFlag = false;
 
 	led_driver_init();
 
@@ -158,12 +159,12 @@ void HermesComponentInit()
 	{
 		zprintf(CRITICAL_IMPORTANCE, "SNTP Task creation failed!\r\n");
 	}
-/*
+
 	if(xTaskCreate(led_task, "led_task", LED_TASK_STACK_SIZE, NULL, osPriorityNormal, NULL) != pdPASS)
 	{
 		zprintf(CRITICAL_IMPORTANCE,"LED task creation failed!\r\n");
 	}
-*/
+
 	if(xTaskCreate(hermes_app_task, "Hermes Application", HERMES_APPLICATION_TASK_STACK_SIZE, NULL, osPriorityNormal, NULL) != pdPASS)
 	{
 		zprintf(CRITICAL_IMPORTANCE, "Hermes Application task creation failed!\r\n");

@@ -147,19 +147,24 @@ static void LED_Start_Pattern(LED_MODE new_mode, LED_COLOUR new_colour, LED_PATT
 	// 1. duration == limited, so an override. Stack current pattern, and set new one.
 	// 2. duration == 0, and no override active. Set current pattern to requested one.
 	// 3. duration == 0, and override active. Set stacked pattern to requested one.
-	if( 0 == new_duration)
-	{	// This is a permanent pattern, so check if there is a limited duration one active now.
-		if( true == led_current_pattern.limited_life)
-		{ // this means that there is a short duration pattern active, so we just need to update the fallback pattern.
+	if(!new_duration)
+	{
+		// This is a permanent pattern, so check if there is a limited duration one active now.
+		if(led_current_pattern.limited_life)
+		{
+			// this means that there is a short duration pattern active, so we just need to update the fallback pattern.
 			pattern_to_update = &led_fallback_pattern;
 
-		} else
+		}
+		else
 		{
 			led_current_pattern.limited_life = false;
 			pattern_to_update = &led_current_pattern;
 		}
-	}else if (false == led_current_pattern.limited_life)
-	{ 	// Only do this temporary pattern if there isn't one already in progress.
+	}
+	else if (!led_current_pattern.limited_life)
+	{
+		// Only do this temporary pattern if there isn't one already in progress.
 		// Copy the current pattern into the fallback pattern.
 		memcpy(&led_fallback_pattern, &led_current_pattern,sizeof(LED_PATTERN));
 		led_current_pattern.limited_life = true;
@@ -167,8 +172,12 @@ static void LED_Start_Pattern(LED_MODE new_mode, LED_COLOUR new_colour, LED_PATT
 		pattern_to_update = &led_current_pattern;
 	}
 	
-	if( COLOUR_BACKSTOP > new_colour ){ pattern_to_update->colour = new_colour; }
-	if( LED_PATTERN_BACKSTOP > new_pattern)
+	if(new_colour < COLOUR_BACKSTOP)
+	{
+		pattern_to_update->colour = new_colour;
+	}
+
+	if(new_pattern < LED_PATTERN_BACKSTOP)
 	{
 		pattern_to_update->pattern = &led_pattern_defs[new_pattern];
 	}
@@ -187,10 +196,14 @@ static void LED_Start_Pattern(LED_MODE new_mode, LED_COLOUR new_colour, LED_PATT
 
 static bool LED_Progress_Stage(bool initial)
 {
-	if( (NULL == led_current_pattern.pattern) || (LED_PATTERN_NO_STAGE == led_current_pattern.stage_index) ){ return false; }
-	if( false == initial )
+	if(!led_current_pattern.pattern || (LED_PATTERN_NO_STAGE == led_current_pattern.stage_index))
 	{
-		switch( led_current_pattern.stage->behaviour )
+		return false;
+	}
+
+	if(!initial)
+	{
+		switch(led_current_pattern.stage->behaviour)
 		{
 			case LED_STAGE_MOVE_ON:	
 				led_current_pattern.stage_index++;
@@ -207,7 +220,7 @@ static bool LED_Progress_Stage(bool initial)
 		}
 	}
 	
-	if( led_current_pattern.stage_index >= led_current_pattern.pattern->num_stages )
+	if(led_current_pattern.stage_index >= led_current_pattern.pattern->num_stages)
 	{
 		led_current_pattern.stage_index = LED_PATTERN_NO_STAGE;
 		return false;
@@ -218,7 +231,7 @@ static bool LED_Progress_Stage(bool initial)
 	led_target_brightness.full = led_colour_masks[led_current_pattern.colour].full;
 	led_target_brightness.full &= led_side_masks[led_current_pattern.stage->side].full;
 	
-	for( uint32_t i = 0; i<LED_NUM_PHYSICALS; i++ )
+	for(uint32_t i = 0; i<LED_NUM_PHYSICALS; i++)
 	{
 		uint32_t calculated_target_brightness;
 		
@@ -228,13 +241,16 @@ static bool LED_Progress_Stage(bool initial)
 			case LED_MODE_DIM: // reduce target brightness if in DIM mode.
 				calculated_target_brightness = calculated_target_brightness * DIMMING_FACTOR / 100;
 				break;
+
 			case LED_MODE_OFF:
 				calculated_target_brightness = 0;
-				break;			
+				break;
+
 			case LED_MODE_NORMAL:
 			default:
 				break;
 		}
+
 		led_target_brightness.bytes[i] &= (uint8_t)calculated_target_brightness;
 	}
 	
@@ -247,30 +263,38 @@ static bool LED_Approach_Target(void)
 	int32_t		diff;
 	LED_BRIGHTNESS	altered_brightness;
 	
-	if( led_current_brightness.full == led_target_brightness.full ){ return true; }
+	if(led_current_brightness.full == led_target_brightness.full)
+	{
+		return true;
+	}
 	
-	for( i=0; i<LED_NUM_PHYSICALS; i++ )
+	for(i = 0; i < LED_NUM_PHYSICALS; i++)
 	{
 		diff = led_current_brightness.bytes[i] - led_target_brightness.bytes[i];
-		if( 0 != diff )
+		if(diff)
 		{
-			if( (NULL == led_current_pattern.pattern) ||
-			   	(NULL == led_current_pattern.stage) ||
-				(abs(diff) < led_current_pattern.stage->approach_rate) )
+			if(!led_current_pattern.pattern || !led_current_pattern.stage || (abs(diff) < led_current_pattern.stage->approach_rate))
 			{
 				led_current_brightness.bytes[i] = led_target_brightness.bytes[i];
-			} else
+			}
+			else
 			{
-				if( diff > 0 )
+				if(diff > 0)
 				{
 					led_current_brightness.bytes[i] -= led_current_pattern.stage->approach_rate;
-				} else
+				}
+				else
 				{
 					led_current_brightness.bytes[i] += led_current_pattern.stage->approach_rate;
 				}
 			}
 		}
-		if( led_current_brightness.bytes[i] > LED_MAX_BRIGHTNESS ){ led_current_brightness.bytes[i] = LED_MAX_BRIGHTNESS; }
+
+		if(led_current_brightness.bytes[i] > LED_MAX_BRIGHTNESS)
+		{
+			led_current_brightness.bytes[i] = LED_MAX_BRIGHTNESS;
+		}
+
 		altered_brightness.bytes[i] = led_current_brightness.bytes[i] / led_colour_divs[led_current_pattern.colour].bytes[i];
 	}
 	/*
@@ -280,7 +304,10 @@ static bool LED_Approach_Target(void)
 	PWM_UpdatePwmDutycycle(BOARD_PWM_BASEADDR, kPWM_Module_0, kPWM_PwmA, kPWM_SignedCenterAligned, LED_MAX_BRIGHTNESS-altered_brightness.bytes[LED_RIGHT_RED]);
 	PWM_SetPwmLdok(BOARD_PWM_BASEADDR, kPWM_Control_Module_0 | kPWM_Control_Module_1 | kPWM_Control_Module_2, true);
 	*/
-	if( led_current_brightness.full == led_target_brightness.full ){ return true; }
+	if(led_current_brightness.full == led_target_brightness.full)
+	{
+		return true;
+	}
 	
 	return false;
 }
@@ -291,61 +318,73 @@ static uint32_t LED_Implement_Pattern(void)
 	bool 			progressing			= false;
 	uint32_t		next_delay			= LED_DELAY_NO_PROGRESS;
 	
-	if( (true == led_current_pattern.limited_life) &&
-	   	(true == has_timer_expired(&led_current_pattern.life_timer)) )
-	{	// revert back to fallback display mode
+	if(led_current_pattern.limited_life && has_timer_expired(&led_current_pattern.life_timer))
+	{
+		// revert back to fallback display mode
 		memcpy(&led_current_pattern, &led_fallback_pattern, sizeof(LED_PATTERN));
 		LED_Start_Pattern(led_current_pattern.mode, led_current_pattern.colour, led_current_pattern.pattern->type, 0);
 		next_delay = LED_UPDATE_INTERVAL;
-	} else if( true == led_current_pattern.waiting )
+
+	}
+	else if(led_current_pattern.waiting)
 	{
-		if( true == has_timer_expired(&led_current_pattern.stage_timer) )
+		if(has_timer_expired(&led_current_pattern.stage_timer))
 		{
 			progressing = LED_Progress_Stage(false);
-			if( true == progressing )
+			if( progressing)
 			{
 				LED_Approach_Target();
 				next_delay = LED_UPDATE_INTERVAL;
-			} else
+			}
+			else
 			{
 				next_delay = LED_DELAY_NO_PROGRESS;
 			}
 			led_current_pattern.waiting = false;
-		} else
+		}
+		else
 		{
 			next_delay = left_ms(&led_current_pattern.stage_timer);
 		}
-	} else if( true == has_timer_expired(&led_update_timer) )
+	}
+	else if(has_timer_expired(&led_update_timer))
 	{
-		if( true == LED_Approach_Target() ) 
-		{	// Stage has reached its destination; check for a delay.
-			if( (NULL == led_current_pattern.pattern) ||
-			   	(NULL == led_current_pattern.stage) )
-			{	// Nothing to do.
-				next_delay = LED_DELAY_NO_PROGRESS;
-			} else if( 0 == led_current_pattern.stage->delay )
+		if(LED_Approach_Target())
+		{
+			// Stage has reached its destination; check for a delay.
+			if(!led_current_pattern.pattern || !led_current_pattern.stage)
 			{
-				progressing = LED_Progress_Stage(false); // False return mean we cannot progress...
-				if( true == progressing )
+				// Nothing to do.
+				next_delay = LED_DELAY_NO_PROGRESS;
+			}
+			else if(!led_current_pattern.stage->delay)
+			{
+				// False return mean we cannot progress...
+				progressing = LED_Progress_Stage(false);
+				if(progressing)
 				{
 					countdown_ms(&led_update_timer, LED_UPDATE_INTERVAL);
 					next_delay = LED_UPDATE_INTERVAL;
-				} else
+				}
+				else
 				{
 					next_delay = LED_DELAY_NO_PROGRESS;
 				}
-			} else
+			}
+			else
 			{
 				countdown_ms(&led_current_pattern.stage_timer, led_current_pattern.stage->delay);
 				next_delay = led_current_pattern.stage->delay;
 				led_current_pattern.waiting = true;
 			}
-		} else
+		}
+		else
 		{
 			countdown_ms(&led_update_timer, LED_UPDATE_INTERVAL);
 			next_delay = LED_UPDATE_INTERVAL;
 		}
-	} else
+	}
+	else
 	{
 		next_delay = left_ms(&led_update_timer);
 	}
@@ -368,18 +407,20 @@ void led_task(void *pvParameters)
 	
 	while(true)
 	{
-		if( LED_DELAY_NO_PROGRESS == to_delay )
-		{	// No pattern to progress and nothing in the mailbox. Just wait in messagebox.
+		if(LED_DELAY_NO_PROGRESS == to_delay)
+		{
+			// No pattern to progress and nothing in the mailbox. Just wait in messagebox.
 			to_delay = portMAX_DELAY;
-		} else
-		{	// Otherwise, we've got work to do.
+		}
+		else
+		{
+			// Otherwise, we've got work to do.
 			to_delay = LED_Implement_Pattern();
 		}
 		
-		if( pdPASS == xQueueReceive(xLedMailbox, &incoming_pattern, to_delay) )
+		if(pdPASS == xQueueReceive(xLedMailbox, &incoming_pattern, to_delay))
 		{
-			LED_Start_Pattern(	incoming_pattern.mode, incoming_pattern.colour, \
-								incoming_pattern.pattern_type, incoming_pattern.duration);
+			LED_Start_Pattern(incoming_pattern.mode, incoming_pattern.colour, incoming_pattern.pattern_type, incoming_pattern.duration);
 			to_delay = LED_UPDATE_INTERVAL;
 		}
 	};

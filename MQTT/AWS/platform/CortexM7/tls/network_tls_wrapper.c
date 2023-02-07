@@ -80,9 +80,9 @@ IoT_Error_t iot_tls_init(Network* pNetwork,
 			return NETWORK_SSL_INIT_ERROR;
 		}
 
-		//wolfSSL_CTX_set_verify(pNetwork->tlsDataParams.ssl_ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
-		wolfSSL_CTX_set_verify(pNetwork->tlsDataParams.ssl_ctx, SSL_VERIFY_NONE, NULL);
-		result = wolfSSL_CTX_UseSNI(pNetwork->tlsDataParams.ssl_ctx, WOLFSSL_SNI_HOST_NAME, pDestinationURL, strlen(pDestinationURL));
+		wolfSSL_CTX_set_verify(pNetwork->tlsDataParams.ssl_ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+		//wolfSSL_CTX_set_verify(pNetwork->tlsDataParams.ssl_ctx, SSL_VERIFY_NONE, NULL);
+		//result = wolfSSL_CTX_UseSNI(pNetwork->tlsDataParams.ssl_ctx, WOLFSSL_SNI_HOST_NAME, pDestinationURL, strlen(pDestinationURL));
 
 		if(result != SSL_SUCCESS)
 		{
@@ -143,8 +143,6 @@ IoT_Error_t iot_tls_init(Network* pNetwork,
 	{
 		return NETWORK_SSL_INIT_ERROR;
 	}
-
-	//wolfSSL_set_using_nonblock(pNetwork->tlsDataParams.ssl_obj, 1);
 
 	/* create a TCP socket */
 	pNetwork->tlsDataParams.socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
