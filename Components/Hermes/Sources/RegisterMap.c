@@ -94,7 +94,8 @@ void	update_register_map_device_table_size(uint8_t value);
 uint8_t	HRM_Read_Image_Hash(uint16_t address);
 
 // Register Name						Read Handler					Write Handler 				Value						Update Flag		End of Block	Hashed}
-T_HUB_REGISTER_ENTRY hubRegisterBank[HR_LAST_ELEMENT] = {
+T_HUB_REGISTER_ENTRY hubRegisterBank[HR_LAST_ELEMENT] HUB_REGISTER_BANK_MEM_SECTION =
+{
   [HR_DEVICE_TYPE] 						= {	reg_read,					null_write_fn,				DEVICE_TYPE_HUB,			false,			false,			true},	// 0
   [HR_NUM_REGISTERS_LOW]				= {	reg_read,					null_write_fn,				0,							false,			false,			true},
   [HR_NUM_REGISTERS_HIGH]				= {	reg_read,					null_write_fn,				0,							false,			false,			true},

@@ -84,7 +84,7 @@ static bool assign_new_short_addr(uint64_t addr64, uint16_t *addr16);
 static uint8_t current_channel = RF_CHANNEL1;	// this is the master reference.
 static uint8_t current_channel_page=0;
 /** This array stores all device related information. */
-static associated_device_t device_list[MAX_NUMBER_OF_DEVICES];
+static associated_device_t device_list[MAX_NUMBER_OF_DEVICES] DEVICE_LIST_MEM_SECTION;
 // Note that beacon_request_device_data.xx is not actually used, it is just stored. A hook could be added
 // to pass it out higher up the stack if a need was found for the information.
 BEACON_REQUEST_DEVICE_DATA beacon_request_device_data =
@@ -629,7 +629,8 @@ void usr_mlme_poll_conf(uint8_t status)
 // This gets called when a data message is received over the RF Interface.
 // Note that the buffer is freed immediately after this function returns, so
 // we have to copy the data out.
-RX_BUFFER rx_buffer;	// putting this variable outside the function means the debugger can see it out of context.
+// putting this variable outside the function means the debugger can see it out of context.
+RX_BUFFER rx_buffer SN_RX_BUFFER_MEM_SECTION;
 void usr_mcps_data_ind(wpan_addr_spec_t *SrcAddrSpec,
 		wpan_addr_spec_t *DstAddrSpec,
 		uint8_t msduLength,

@@ -253,13 +253,14 @@ typedef union
 
 // Private variables
 uint64_t *rf_mac;   // range 0x08 0x00 to 0x08 0xff is for Hub2 development
-static uint8_t SecurityKeys[MAX_NUMBER_OF_DEVICES][SECURITY_KEY_SIZE];
-static uint8_t SecretKeys[MAX_NUMBER_OF_DEVICES][CHACHA_MAX_KEY_SZ];
+static uint8_t SecurityKeys[MAX_NUMBER_OF_DEVICES][SECURITY_KEY_SIZE] SECURITY_KEYS_MEM_SECTION;
+static uint8_t SecretKeys[MAX_NUMBER_OF_DEVICES][CHACHA_MAX_KEY_SZ] SECRET_KEYS_MEM_SECTION;
 TaskHandle_t surenet_task_handle = NULL;
 
-static ACKNOWLEDGE_QUEUE acknowledge_queue[ACKNOWLEDGE_QUEUE_SIZE];    // 3x16=48bytes
-static ACKNOWLEDGE_QUEUE data_acknowledge_queue[DATA_ACKNOWLEDGE_QUEUE_SIZE];  // 3x16=48bytes
-static RECEIVED_SEQUENCE_NUMBER received_sequence_numbers[RX_SEQ_BUFFER_SIZE];
+static ACKNOWLEDGE_QUEUE acknowledge_queue[ACKNOWLEDGE_QUEUE_SIZE] ACKNOWLEDGE_QUEUE_MEM_SECTION;
+static ACKNOWLEDGE_QUEUE data_acknowledge_queue[DATA_ACKNOWLEDGE_QUEUE_SIZE] DATA_ACKNOWLEDGE_QUEUE_MEM_SECTION;
+static RECEIVED_SEQUENCE_NUMBER received_sequence_numbers[RX_SEQ_BUFFER_SIZE] RECEIVED_SEQUENCE_NUMBERS_MEM_SECTION;
+
 static uint32_t most_recent_rx_time;  // set when a PACKET_DATA is received by surenet_data_received()
 static PAIRING_REQUEST pairing_mode;   // Note that this variable is set by calls to sn_set_hub_pairing_mode(), and is read by calls to sn_get_hub_pairing_mode()
 static bool trigger_channel_hop=false;
@@ -272,11 +273,12 @@ static DETACH_STATE detach_state=DETACH_IDLE;
 
 // Ping related
 PING_STATS ping_stats;
-uint8_t ping_seq = 0;		// Ping sequence number.
+uint8_t ping_seq = 0; // Ping sequence number.
 
 // Device Firmware Update
-FIRMWARE_CHUNK firmware_chunk[DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES];
-uint8_t device_rcvd_segs[MAX_NUMBER_OF_DEVICES];	//0x00 is when both segments of a chunk are needed, 0x01 when only the 2nd segment.
+FIRMWARE_CHUNK firmware_chunk[DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES] DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES_MEM_SECTION;
+//0x00 is when both segments of a chunk are needed, 0x01 when only the 2nd segment.
+uint8_t device_rcvd_segs[MAX_NUMBER_OF_DEVICES];
 
 // Externals
 extern uint8_t uptime_min_count;	// Hub uptime - used for once-per-hour Pet Door messages
@@ -1641,8 +1643,8 @@ void convert_IEEE_to_sureflap(RECEIVED_PACKET *rx_packet, RX_BUFFER *rx_buffer)
  * Outputs         :
  * Returns         : true if the packet was OK, false if not
  **************************************************************/
-RECEIVED_PACKET  rx_packet; // putting this variable outside the function means the debugger can see it out of context.
-DEVICE_FIRMWARE_CHUNK dummy_chunk;	// allocated at compile time - this is quite large for the stack
+RECEIVED_PACKET  rx_packet SN_RX_PACKET_MEM_SECTION; // putting this variable outside the function means the debugger can see it out of context.
+DEVICE_FIRMWARE_CHUNK dummy_chunk SN_DUMMY_CHUNK_MEM_SECTION;	// allocated at compile time - this is quite large for the stack
 bool sn_process_received_packet(RX_BUFFER *rx_buffer)
 {
     int i;

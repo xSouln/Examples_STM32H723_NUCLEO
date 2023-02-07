@@ -66,7 +66,8 @@ typedef struct
 
 // Local variables
 
-DEVICE_BUFFER device_buffer[DEVICE_BUFFER_SIZE];    // make us a nice buffer to hold messages
+// make us a nice buffer to hold messages
+DEVICE_BUFFER device_buffer[DEVICE_BUFFER_SIZE] DEVICE_BUFFER_MEM_SECTION;
 
 /**************************************************************
  * Function Name   : device_buffer_init

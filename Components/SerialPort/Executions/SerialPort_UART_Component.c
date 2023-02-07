@@ -24,7 +24,7 @@
 //variables:
 
 static uint8_t uart_rx_circle_buf[RX_CIRCLE_BUF_SIZE_MASK + 1];
-static uint8_t rx_object_buf[RX_OBJECT_BUF_SIZE] __attribute__((section(".user_reg_2"))) = {0};
+static uint8_t rx_object_buf[RX_OBJECT_BUF_SIZE] __attribute__((section("._user_dtcmram_ram")));
 static uint8_t tx_circle_buf[TX_CIRCLE_BUF_SIZE_MASK + 1];
 
 SerialPortT SerialPortUART;

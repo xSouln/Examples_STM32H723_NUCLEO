@@ -61,24 +61,6 @@ volatile struct
 	uint32_t RxComplite : 1;
 
 } Events;
-
-//__attribute__((section(".user_reg_2")));
-
-#define LWIP_MEMPOOL_DECLARE_USER(name,num,size,desc) \
-  LWIP_DECLARE_MEMORY_ALIGNED(memp_memory_ ## name ## _base, ((num) * (MEMP_SIZE + MEMP_ALIGN_SIZE(size)))) __attribute__((section(".lwip_mem"))); \
-    \
-  LWIP_MEMPOOL_DECLARE_STATS_INSTANCE(memp_stats_ ## name) \
-    \
-  static struct memp *memp_tab_ ## name; \
-    \
-  const struct memp_desc memp_ ## name = { \
-    DECLARE_LWIP_MEMPOOL_DESC(desc) \
-    LWIP_MEMPOOL_DECLARE_STATS_REFERENCE(memp_stats_ ## name) \
-    LWIP_MEM_ALIGN_SIZE(size), \
-    (num), \
-    memp_memory_ ## name ## _base, \
-    &memp_tab_ ## name \
-  };
 /* USER CODE END 1 */
 
 /* Private variables ---------------------------------------------------------*/
@@ -138,8 +120,8 @@ __attribute__((at(0x30000200))) ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT
 
 #elif defined ( __GNUC__ ) /* GNU Compiler */
 
-ETH_DMADescTypeDef DMARxDscrTab[ETH_RX_DESC_CNT];// __attribute__((section(".RxDecripSection"))); /* Ethernet Rx DMA Descriptors */
-ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT];// __attribute__((section(".TxDecripSection")));   /* Ethernet Tx DMA Descriptors */
+ETH_DMADescTypeDef DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
+ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
 
 #endif
 
@@ -252,14 +234,6 @@ static void low_level_init(struct netif *netif)
   heth.Init.RxBuffLen = 1536;
 
   /* USER CODE BEGIN MACADDRESS */
-  /*
-  uint32_t sn0 = *(uint32_t *)(0x1FF0F420);//STM32 cpu id
-
-  MACAddr[0] = (sn0 >> 24) & 0xFF;
-  MACAddr[3] = (sn0 >> 16) & 0xFF;
-  MACAddr[4] = (sn0 >> 8) & 0xFF;
-  MACAddr[5] = sn0 & 0xFF;
-  */
 	mMACAddr[0] = 0x98;
 	mMACAddr[1] = 0x27;
 	mMACAddr[2] = 0x82;

@@ -57,8 +57,8 @@ extern QueueHandle_t		xBufferMessageMailbox;
 extern QueueHandle_t 		xRestartNetworkMailbox;
 extern EventGroupHandle_t	xConnectionStatus_EventGroup;
 
-STORED_CREDENTIAL MQTT_Stored_Certificate __attribute__((section("._user_ram3_ram")));
-STORED_CREDENTIAL MQTT_Stored_Private_Key __attribute__((section("._user_ram3_ram")));
+STORED_CREDENTIAL MQTT_Stored_Certificate MQTT_STORED_CERTIFICATE_MEM_SECTION;
+STORED_CREDENTIAL MQTT_Stored_Private_Key MQTT_STORED_PRIVATE_KEY_MEM_SECTION;
 //==============================================================================
 static void MQTT_Hash_It_Up(SUREFLAP_CREDENTIALS* creds);
 //==============================================================================

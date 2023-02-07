@@ -67,6 +67,11 @@
 			<locationURI>PARENT-1-PROJECT_LOC/MQTT/aws_iot_config.h</locationURI>
 		</link>
 		<link>
+			<name>UserSettings/hermes.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Components/Hermes/Sources/hermes.h</locationURI>
+		</link>
+		<link>
 			<name>UserSettings/lwipopts.h</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/LWIP/Target/lwipopts.h</locationURI>
@@ -80,11 +85,6 @@
 			<name>UserSettings/opt.h</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/Middlewares/Third_Party/LwIP/src/include/lwip/opt.h</locationURI>
-		</link>
-		<link>
-			<name>UserSettings/user_settings.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/user_settings.h</locationURI>
 		</link>
 		<link>
 			<name>UserSettings/wolfSSL.I-CUBE-wolfSSL_conf.h</name>

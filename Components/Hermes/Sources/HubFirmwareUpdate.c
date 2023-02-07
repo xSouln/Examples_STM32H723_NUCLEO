@@ -116,7 +116,7 @@ extern	uint32_t		m_bank_a_end;
 extern	uint32_t		m_bank_b_start;
 
 // module level variables
-uint8_t HFU_received_page[HFU_HTTP_HEADER_MAX_SIZE + HFU_PAGE_IV_SIZE + HFU_PAGE_HEADER_SIZE + HFU_PAGE_SIZE];
+uint8_t HFU_received_page[HFU_HTTP_HEADER_MAX_SIZE + HFU_PAGE_IV_SIZE + HFU_PAGE_HEADER_SIZE + HFU_PAGE_SIZE] HFU_RECEIVED_PAGE_MEM_SECTION;
 char *HFU_URL = "hub.api.surehub.io";
 char *HFU_resource = "/api/firmware";
 char HFU_contents[128];	// this is the request string for the HTTP Post Request - must be persistent as accessed from other task.

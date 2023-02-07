@@ -111,11 +111,20 @@ typedef struct
 extern bool global_message_trace_flag;
 
 // Local variables
-SERVER_BUFFER_ENTRY		server_buffer[SERVER_BUFFER_ENTRIES];       // make us a nice buffer to hold message entries
-SERVER_BUFFER_MESSAGE	server_buffer_message[SERVER_BUFFER_ENTRIES];     // store for actual server messages ~ 24K
-uint8_t 				next_message_index = 1;   // must never be zero
+// make us a nice buffer to hold message entries
+SERVER_BUFFER_ENTRY		server_buffer[SERVER_BUFFER_ENTRIES] SERVER_BUFFER_MEM_SECTION;
+// store for actual server messages ~ 24K
+SERVER_BUFFER_MESSAGE	server_buffer_message[SERVER_BUFFER_ENTRIES] SERVER_BUFFER_MESSAGE_MEM_SECTION;
+// must never be zero
+uint8_t 				next_message_index = 1;
 MQTT_MESSAGE			output_mqtt_message;
-const BACKOFF_SPECS		publish_backoff_specs = {BASE_MESSAGE_RETRY_MS, MESSAGE_RETRY_MULTIPLIER, MESSAGE_RETRY_JITTER_MAX, MAX_MESSAGE_RETRIES};
+const BACKOFF_SPECS		publish_backoff_specs =
+{
+	BASE_MESSAGE_RETRY_MS,
+	MESSAGE_RETRY_MULTIPLIER,
+	MESSAGE_RETRY_JITTER_MAX,
+	MAX_MESSAGE_RETRIES
+};
 
 // Local functions
 void server_buffer_message_drop(uint32_t i);

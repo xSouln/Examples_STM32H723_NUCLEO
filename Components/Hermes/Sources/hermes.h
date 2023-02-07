@@ -39,6 +39,26 @@
 
 #define MYUSERNAME ""
 
+#define MQTT_STORED_CERTIFICATE_MEM_SECTION __attribute__((section("._user_ram3_ram")))
+#define MQTT_STORED_PRIVATE_KEY_MEM_SECTION __attribute__((section("._user_ram3_ram")))
+#define DEVICE_STATUS_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define DEVICE_STATUS_EXTRA_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define SECURITY_KEYS_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define SECRET_KEYS_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define RECEIVED_SEQUENCE_NUMBERS_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define DEVICE_LIST_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define SERVER_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define SERVER_BUFFER_MESSAGE_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define HUB_REGISTER_BANK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define HFU_RECEIVED_PAGE_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define DEVICE_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define ACKNOWLEDGE_QUEUE_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define DATA_ACKNOWLEDGE_QUEUE_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define SN_RX_PACKET_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define SN_RX_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define SN_DUMMY_CHUNK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+
 // Stringification!
 #define XSTR(s)	STR(s)
 #define STR(s)	#s

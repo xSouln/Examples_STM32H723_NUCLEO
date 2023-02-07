@@ -82,7 +82,7 @@ IoT_Error_t iot_tls_init(Network* pNetwork,
 
 		wolfSSL_CTX_set_verify(pNetwork->tlsDataParams.ssl_ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
 		//wolfSSL_CTX_set_verify(pNetwork->tlsDataParams.ssl_ctx, SSL_VERIFY_NONE, NULL);
-		//result = wolfSSL_CTX_UseSNI(pNetwork->tlsDataParams.ssl_ctx, WOLFSSL_SNI_HOST_NAME, pDestinationURL, strlen(pDestinationURL));
+		result = wolfSSL_CTX_UseSNI(pNetwork->tlsDataParams.ssl_ctx, WOLFSSL_SNI_HOST_NAME, pDestinationURL, strlen(pDestinationURL));
 
 		if(result != SSL_SUCCESS)
 		{
