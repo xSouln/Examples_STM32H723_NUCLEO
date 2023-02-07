@@ -181,6 +181,16 @@ SECTIONS
   /* Modification end */
   
   /* Modification start */
+  ._user_ram1_ram :
+  {
+    . = ALIGN(4);
+    *(.RxDecripSection)
+    *(.TxDecripSection)
+    . = ALIGN(4);
+  } >RAM_D1
+  /* Modification end */
+  
+  /* Modification start */
   ._user_ram3_ram :
   {
     . = ALIGN(4);

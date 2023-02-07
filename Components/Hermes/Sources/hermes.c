@@ -109,11 +109,26 @@ extern void LWIP_UpdateLinkState();
 /*******************************************************************************
  * Code
  ******************************************************************************/
+static void* private_wolfSSL_Malloc(size_t size)
+{
+	return pvPortMalloc(size);
+}
+
+static void private_wolfSSL_Free(void *ptr)
+{
+	vPortFree(ptr);
+}
+
+static void* private_wolfSSL_Realloc(void *ptr, size_t size)
+{
+	return 0;
+}
 
 void HermesComponentInit()
 {
 	wolfSSL_Init();
 	wc_SetTimeCb(wc_time);
+	//wolfSSL_SetAllocators(private_wolfSSL_Malloc, private_wolfSSL_Free, private_wolfSSL_Realloc);
 
 	product_configuration.rf_pan_id = SUREFLAP_PAN_ID;
 

@@ -408,7 +408,7 @@
  * this should be set high.
  */
 #if !defined MEMP_NUM_PBUF || defined __DOXYGEN__
-#define MEMP_NUM_PBUF                   32
+#define MEMP_NUM_PBUF                   16
 #endif
 
 /**
@@ -433,7 +433,7 @@
  * (requires the LWIP_TCP option)
  */
 #if !defined MEMP_NUM_TCP_PCB || defined __DOXYGEN__
-#define MEMP_NUM_TCP_PCB                8
+#define MEMP_NUM_TCP_PCB                5
 #endif
 
 /**
@@ -861,7 +861,7 @@
  * LWIP_BROADCAST_PING==1: respond to broadcast pings (default is unicast only)
  */
 #if !defined LWIP_BROADCAST_PING || defined __DOXYGEN__
-#define LWIP_BROADCAST_PING             1//0
+#define LWIP_BROADCAST_PING             0
 #endif
 
 /**
@@ -915,7 +915,7 @@
  * LWIP_DHCP==1: Enable DHCP module.
  */
 #if !defined LWIP_DHCP || defined __DOXYGEN__
-#define LWIP_DHCP                       1//0
+#define LWIP_DHCP                       0
 #endif
 #if !LWIP_IPV4
 /* disable DHCP when IPv4 is disabled */
@@ -1978,7 +1978,7 @@
  * in seconds. (does not require sockets.c, and will affect tcp.c)
  */
 #if !defined LWIP_TCP_KEEPALIVE || defined __DOXYGEN__
-#define LWIP_TCP_KEEPALIVE              1//0
+#define LWIP_TCP_KEEPALIVE              0
 #endif
 
 /**
@@ -2002,7 +2002,7 @@
  * (milliseconds, much like winsock does) instead of a struct timeval (default).
  */
 #if !defined LWIP_SO_SNDRCVTIMEO_NONSTANDARD || defined __DOXYGEN__
-#define LWIP_SO_SNDRCVTIMEO_NONSTANDARD 1
+#define LWIP_SO_SNDRCVTIMEO_NONSTANDARD 0
 #endif
 
 /**

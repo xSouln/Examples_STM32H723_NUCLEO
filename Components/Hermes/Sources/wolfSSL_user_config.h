@@ -10,22 +10,23 @@ extern "C" {
 
 #define WOLFSSL_STM32_CUBEMX
 #define WOLFSSL_STM32H7
-#define NO_OLD_RNGNAME /* conflicts with STM RNG macro */
+#define NO_OLD_RNGNAME // conflicts with STM RNG macro
 #define HAVE_HASHDRBG
+#define NO_STM32_HASH
+#define NO_STM32_CRYPTO
 
 #undef WOLFSSL_NO_CLIENT_AUTH
 
 #define FREERTOS
 
 #define NO_FILESYSTEM
-//#define SINGLE_THREADED
 #define WOLFSSL_USER_IO
 #define HAVE_ERRNO_H
 
 #define WOLFSSL_SMALL_STACK
-//#define	WOLFSSL_SHA3_SMALL
-//#define WOLFSSL_MAX_SUITE_SZ	8
-//#define WOLFSSL_MAX_SIGALGO		4
+//#define WOLFSSL_SHA3_SMALL
+//#define WOLFSSL_MAX_SUITE_SZ 8
+//#define WOLFSSL_MAX_SIGALGO 4
 //#define OPENSSL_EXTRA
 #define WOLFSSL_STATIC_RSA
 #define WC_RSA_BLINDING
@@ -71,12 +72,12 @@ extern "C" {
 //#define HAVE_AESGCM
 //#define HAVE_AEAD
 #define HAVE_TLS_EXTENSIONS
-#define HAVE_SNI				1
+#define HAVE_SNI 1
 #define HAVE_CHACHA
 #define HAVE_PBKDF2
 
 //#define HAVE_ECC
-#define HAVE_CURVE25519
+//#define HAVE_CURVE25519
 //#define NO_ECC_SECP
 //#define HAVE_ALL_CURVES
 //#define HAVE_SUPPORTED_CURVES

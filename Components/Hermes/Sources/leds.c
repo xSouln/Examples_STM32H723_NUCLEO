@@ -59,8 +59,8 @@
 // - LED_MODE_DIM, LED_PATTERN_ALTERNATE = 5%
 
 // Driver task for LEDs
+#include "Components.h"
 #include <stdlib.h>
-#include "hermes.h"
 
 /* FreeRTOS kernel includes. */
 #include "FreeRTOS.h"
@@ -70,6 +70,7 @@
 
 // Other includes
 #include "leds.h"
+#include "tim.h"
 
 QueueHandle_t xLedMailbox;
 
@@ -263,6 +264,9 @@ static bool LED_Approach_Target(void)
 	int32_t		diff;
 	LED_BRIGHTNESS	altered_brightness;
 	
+	extern REG_TIM_T* Timer3;
+	extern REG_TIM_T* Timer12;
+
 	if(led_current_brightness.full == led_target_brightness.full)
 	{
 		return true;
@@ -304,6 +308,15 @@ static bool LED_Approach_Target(void)
 	PWM_UpdatePwmDutycycle(BOARD_PWM_BASEADDR, kPWM_Module_0, kPWM_PwmA, kPWM_SignedCenterAligned, LED_MAX_BRIGHTNESS-altered_brightness.bytes[LED_RIGHT_RED]);
 	PWM_SetPwmLdok(BOARD_PWM_BASEADDR, kPWM_Control_Module_0 | kPWM_Control_Module_1 | kPWM_Control_Module_2, true);
 	*/
+	Timer3->Control1.CounterEnable = false;
+	Timer12->Control1.CounterEnable = false;
+
+	Timer3->CaptureCompare3Value = (uint32_t)((float)Timer3->Period * altered_brightness.bytes[LED_LEFT_GREEN] / 100);
+	Timer12->CaptureCompare1Value = (uint32_t)((float)Timer12->Period * altered_brightness.bytes[LED_LEFT_RED] / 100);
+
+	Timer3->Control1.CounterEnable = true;
+	Timer12->Control1.CounterEnable = true;
+
 	if(led_current_brightness.full == led_target_brightness.full)
 	{
 		return true;

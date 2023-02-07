@@ -109,18 +109,18 @@ static uint8_t RxAllocStatus;
 
 #pragma location=0x30000000
 ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
-#pragma location=0x30000200
+#pragma location=0x30000000
 ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
 
 #elif defined ( __CC_ARM )  /* MDK ARM Compiler */
 
 __attribute__((at(0x30000000))) ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
-__attribute__((at(0x30000200))) ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
+__attribute__((at(0x30000000))) ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
 
 #elif defined ( __GNUC__ ) /* GNU Compiler */
 
-ETH_DMADescTypeDef DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
-ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
+ETH_DMADescTypeDef DMARxDscrTab[ETH_RX_DESC_CNT] __attribute__((section(".RxDecripSection"))); /* Ethernet Rx DMA Descriptors */
+ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT] __attribute__((section(".TxDecripSection")));   /* Ethernet Tx DMA Descriptors */
 
 #endif
 
@@ -185,8 +185,6 @@ void HAL_ETH_TxCpltCallback(ETH_HandleTypeDef *handlerEth)
   */
 void HAL_ETH_ErrorCallback(ETH_HandleTypeDef *handlerEth)
 {
-	eth_dma_errors++;
-
   if((HAL_ETH_GetDMAError(handlerEth) & ETH_DMACSR_RBU) == ETH_DMACSR_RBU)
   {
      osSemaphoreRelease(RxPktSemaphore);
@@ -218,8 +216,8 @@ static void low_level_init(struct netif *netif)
   ETH_MACConfigTypeDef MACConf = {0};
   /* Start ETH HAL Init */
 
+   uint8_t MACAddr[6] ;
   heth.Instance = ETH;
-  uint8_t MACAddr[6];
   MACAddr[0] = 0x98;
   MACAddr[1] = 0x27;
   MACAddr[2] = 0x82;

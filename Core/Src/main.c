@@ -36,7 +36,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-uint8_t ucHeap[configTOTAL_HEAP_SIZE];// __attribute__((section("._user_ram2_ram"))) = {0};
+uint8_t ucHeap[configTOTAL_HEAP_SIZE];// __attribute__((section("._user_ram2_ram")));
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -99,7 +99,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-  MX_DMA_Init();
+
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -113,8 +113,12 @@ int main(void)
   MX_RNG_Init();
   MX_CRC_Init();
   MX_TIM2_Init();
+  MX_TIM3_Init();
+  MX_TIM12_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start(&htim2);
+  HAL_TIM_PWM_Start(&htim12, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
   ComponentsInit(main);
   /* USER CODE END 2 */
 
@@ -216,12 +220,12 @@ void MPU_Config(void)
   MPU_InitStruct.BaseAddress = 0x30000000;
   MPU_InitStruct.Size = MPU_REGION_SIZE_32KB;
   MPU_InitStruct.SubRegionDisable = 0x0;
-  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
   MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
   MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
-  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
@@ -232,13 +236,6 @@ void MPU_Config(void)
   MPU_InitStruct.Size = MPU_REGION_SIZE_512KB;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
-/*
-  MPU_InitStruct.Number = MPU_REGION_NUMBER2;
-  MPU_InitStruct.BaseAddress = 0x2403E800;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_128KB;
-
-  HAL_MPU_ConfigRegion(&MPU_InitStruct);
-  */
   /* Enables the MPU */
   HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 

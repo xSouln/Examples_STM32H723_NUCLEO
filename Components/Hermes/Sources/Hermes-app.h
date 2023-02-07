@@ -42,7 +42,7 @@
 #define APP_SNTP_RETRY_INTERVAL		(1000)				// In milliseconds. How often to retry SNTP request if it fails.
 
 #define BUTTON_PRESSED	1
-#define READ_BUTTON() ((B1_GPIO_Port->IDR & B1_Pin) > 0)
+#define READ_BUTTON() ((BUTTON_1_GPIO_Port->IDR & BUTTON_1_Pin) > 0)
 
 typedef enum
 {

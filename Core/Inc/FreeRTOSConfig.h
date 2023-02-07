@@ -103,7 +103,7 @@ http://www.FreeRTOS.org/FreeRTOS-Plus/FreeRTOS_Plus_CLI/ */
 #define configTIMER_TASK_STACK_DEPTH             256
 
 /* The following flag must be enabled only when using newlib */
-#define configUSE_NEWLIB_REENTRANT          0
+#define configUSE_NEWLIB_REENTRANT          1
 
 /* CMSIS-RTOS V2 flags */
 #define configUSE_OS2_THREAD_SUSPEND_RESUME  1
@@ -134,7 +134,7 @@ to exclude the API function. */
  * The CMSIS-RTOS V2 FreeRTOS wrapper is dependent on the heap implementation used
  * by the application thus the correct define need to be enabled below
  */
-#define USE_FreeRTOS_HEAP_3
+#define USE_FreeRTOS_HEAP_4
 
 /* Cortex-M specific definitions. */
 #ifdef __NVIC_PRIO_BITS

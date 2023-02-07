@@ -23,23 +23,8 @@
  extern "C" {
 #endif
 
-/* Includes ------------------------------------------------------------------*/
-#define STM32H723xx
-
-/* ------------------------------------------------------------------------- */
-/* Hardware platform */
-/* ------------------------------------------------------------------------- */
-#define NO_STM32_HASH
-#define NO_STM32_CRYPTO
-//==============================================================================
 #include "wolfSSL_user_config.h"
-//==============================================================================
-/* bypass certificate date checking, due to lack of properly configured RTC source */
-/*
-#ifndef HAL_RTC_MODULE_ENABLED
-    #define NO_ASN_TIME
-#endif
-*/
+
 #ifdef __cplusplus
 }
 #endif

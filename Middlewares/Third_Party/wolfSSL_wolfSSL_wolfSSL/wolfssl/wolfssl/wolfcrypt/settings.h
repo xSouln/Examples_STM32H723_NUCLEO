@@ -265,8 +265,6 @@
     #include "wolfSSL.I-CUBE-wolfSSL_conf.h"
 #endif
 
-#include "wolfSSL.I-CUBE-wolfSSL_conf.h"
-
 #define WOLFSSL_MAKE_FIPS_VERSION(major, minor) (((major) * 256) + (minor))
 #if !defined(HAVE_FIPS)
     #define WOLFSSL_FIPS_VERSION_CODE WOLFSSL_MAKE_FIPS_VERSION(0,0)

@@ -13,6 +13,14 @@ REG_TIM_T* Timer4 = (REG_TIM_T*)TIM4;
 REG_TIM_T* Timer2 = (REG_TIM_T*)TIM2;
 #endif
 
+#ifdef TIM3
+REG_TIM_T* Timer3 = (REG_TIM_T*)TIM3;
+#endif
+
+#ifdef TIM12
+REG_TIM_T* Timer12 = (REG_TIM_T*)TIM12;
+#endif
+
 static uint8_t time1_ms;
 static uint8_t time5_ms;
 static uint16_t time1000_ms;
@@ -113,6 +121,7 @@ void ComponentsHandler()
 	{
 		time5_ms = 5;
 
+		/*
 		#ifdef SERIAL_PORT_COMPONENT_ENABLE
 		SerialPortComponentHandler();
 		#endif
@@ -120,7 +129,7 @@ void ComponentsHandler()
 		#ifdef TERMINAL_COMPONENT_ENABLE
 		TerminalComponentHandler();
 		#endif
-		/*
+
 		#ifdef TCP_SERVER_COMPONENT_ENABLE
 		TCPServerComponentHandler();
 		#endif
@@ -261,7 +270,8 @@ xResult ComponentsInit(void* parent)
 	sntp_update_time_stamp = 20000;
 
 	Timer2->Control1.CounterEnable = true;
-
+	//Timer3->Control1.CounterEnable = true;
+	//Timer12->Control1.CounterEnable = true;
 	//SNTP_Init();
 
 	return xResultAccept;
