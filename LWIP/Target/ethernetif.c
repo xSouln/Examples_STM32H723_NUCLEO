@@ -34,8 +34,7 @@
 
 /* Within 'USER CODE' section, code will be kept by default at each generation */
 /* USER CODE BEGIN 0 */
-#ifndef FREERTOS_TCP_ENABLE
-#include "TCPServer/TCPServer_Component.h"
+
 /* USER CODE END 0 */
 
 /* Private define ------------------------------------------------------------*/
@@ -584,7 +583,7 @@ void pbuf_free_custom(struct pbuf *p)
 }
 
 /* USER CODE BEGIN 6 */
-#endif
+
 /**
 * @brief  Returns the current time in milliseconds
 *         when LWIP_TIMERS == 1 and NO_SYS == 1

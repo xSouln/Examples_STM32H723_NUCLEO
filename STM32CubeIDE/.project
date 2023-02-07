@@ -52,11 +52,6 @@
 			<locationURI>PARENT-1-PROJECT_LOC/Core/Inc/FreeRTOSConfig.h</locationURI>
 		</link>
 		<link>
-			<name>UserSettings/FreeRTOSIPConfig.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/Components/Hermes/Sources/FreeRTOSIPConfig.h</locationURI>
-		</link>
-		<link>
 			<name>UserSettings/app_config.h</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/Libs/Wireless/app_config.h</locationURI>
@@ -90,6 +85,11 @@
 			<name>UserSettings/wolfSSL.I-CUBE-wolfSSL_conf.h</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/wolfSSL/wolfSSL.I-CUBE-wolfSSL_conf.h</locationURI>
+		</link>
+		<link>
+			<name>UserSettings/wolfSSL_user_config.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Components/Hermes/Sources/wolfSSL_user_config.h</locationURI>
 		</link>
 		<link>
 			<name>Drivers/CMSIS/system_stm32h7xx.c</name>
