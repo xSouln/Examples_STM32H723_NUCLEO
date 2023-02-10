@@ -22,19 +22,30 @@
 
 #ifndef __DEVICEFIRMWAREUPDATE__
 #define __DEVICEFIRMWAREUPDATE__
+
+#include "Hermes-compiller.h"
+
 #include "devices.h"
 
-typedef struct	// used to queue up firmware chunk requests from devices
+// used to queue up firmware chunk requests from devices
+typedef HERMES__PACKED_PREFIX struct
 {
-	uint64_t device_mac;			// we grab these parameters when the request comes in just in case
-	T_DEVICE_TYPE device_type;		// the Device Table gets changed whilst we are mid-process and
-	uint16_t		chunk_address;	// find we cannot look them up any longer!
-	uint16_t		attempts;	
-	bool						in_use;
-} DEVICE_RCVD_SEGS_PARAMETERS_QUEUE;
+	// we grab these parameters when the request comes in just in case
+	uint64_t device_mac;
 
-#define FIRST_SEGMENT_SIZE				72	// has 8 byte header + 64bytes of data
-#define SECOND_SEGMENT_SIZE				64	// just data
+	// the Device Table gets changed whilst we are mid-process and
+	T_DEVICE_TYPE device_type;
+
+	// find we cannot look them up any longer!
+	uint16_t chunk_address;
+
+	uint16_t attempts;
+	bool in_use;
+
+} HERMES__PACKED_POSTFIX DEVICE_RCVD_SEGS_PARAMETERS_QUEUE;
+
+#define FIRST_SEGMENT_SIZE				72 // has 8 byte header + 64bytes of data
+#define SECOND_SEGMENT_SIZE				64 // just data
 #define CHUNK_SIZE						(FIRST_SEGMENT_SIZE + SECOND_SEGMENT_SIZE)
 
 #define DEVICE_FIRMWARE_CACHE_ENTRIES	4

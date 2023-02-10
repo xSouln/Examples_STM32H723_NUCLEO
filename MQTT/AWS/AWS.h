@@ -4,10 +4,10 @@
  *
  * Created on 01 July 2019, 16:06
  */
-
+//==============================================================================
 #ifndef AWS_H
 #define	AWS_H
-
+//==============================================================================
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -17,7 +17,7 @@
 
 #include "credentials.h"
 #include "hermes-time.h"
-
+//------------------------------------------------------------------------------
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -35,7 +35,8 @@ extern "C" {
 #define AWS_READ_COMMAND_TIMEOUT		1
 #define AWS_HANDSHAKE_TIMEOUT			5000
 
-#define AWS_LIFE_TIMEOUT				(60 * usTICK_SECONDS) // Time to send "keep alive" cache messages.
+// Time to send "keep alive" cache messages.
+#define AWS_LIFE_TIMEOUT				(60 * usTICK_SECONDS)
 
 #define AWS_MAX_RECEIVED_MESSAGES		8
 
@@ -52,7 +53,7 @@ extern "C" {
 #endif
 
 #define AWS_USE_MSG_LEN		-1
-
+//------------------------------------------------------------------------------
 IoT_Error_t AWS_Init(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials);
 IoT_Error_t AWS_Connect(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials, const char* will_message, bool clean_connect);
 IoT_Error_t AWS_Subscribe(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials);
@@ -64,6 +65,6 @@ void AWS_Message_Received(AWS_IoT_Client* pClient, char* pTopicName, uint16_t to
 #ifdef	__cplusplus
 }
 #endif
-
-#endif	/* AWS_H */
+//==============================================================================
+#endif	// AWS_H
 

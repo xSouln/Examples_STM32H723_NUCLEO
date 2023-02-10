@@ -47,7 +47,7 @@ void SNTP_Task(void *pvParameters)
 {
     EventBits_t xEventBits;
 
-	while( true )
+	while(true)
 	{
 		xEventBits = xEventGroupWaitBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_REQUESTED, pdFALSE, pdFALSE, SNTP_AUTO_INTERVAL);
 
@@ -65,59 +65,40 @@ void SNTP_Init(void)
 
 bool SNTP_IsTimeValid(void)
 {
-	return (0 != (SNTP_EVENT_TIME_VALID & xEventGroupGetBits(xSNTP_EventGroup)));
+	return (SNTP_EVENT_TIME_VALID & xEventGroupGetBits(xSNTP_EventGroup)) != 0;
 }
 
 bool SNTP_DidUpdateFail(void)
 {
-	return (0 != (SNTP_EVENT_UPDATE_FAILED & xEventGroupGetBits(xSNTP_EventGroup)));
+	return (SNTP_EVENT_UPDATE_FAILED & xEventGroupGetBits(xSNTP_EventGroup)) != 0;
 }
 
 bool SNTP_AwaitUpdate(bool MakeRequest, uint32_t TimeToWait)
 {
 	EventBits_t xEventBits = xEventGroupGetBits(xSNTP_EventGroup);
 
-	if( (true == MakeRequest) && (0 == (SNTP_EVENT_UPDATE_UNDERWAY & xEventBits)) )
+	if(MakeRequest && !(SNTP_EVENT_UPDATE_UNDERWAY & xEventBits))
 	{
 		xEventGroupClearBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_FAILED | SNTP_EVENT_TIME_VALID);
 		xEventGroupSetBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_REQUESTED);
 	}
 
 	xEventBits = xEventGroupWaitBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_FAILED | SNTP_EVENT_TIME_VALID, pdFALSE, pdFALSE, TimeToWait);
-	if( (0 == TimeToWait) || (0 != (SNTP_EVENT_TIME_VALID & xEventBits)) )
+	if(!TimeToWait || (SNTP_EVENT_TIME_VALID & xEventBits))
 	{
 		return true;
 	}
+
 	return false;
 }
-
-static union
-{
-	uint8_t value[4];
-	uint32_t word;
-
-} input_ip_address;
-
-static void private_dns_found_callback(const char *name, const ip_addr_t *ipaddr, void *callback_arg)
-{
-	if (ipaddr)
-	{
-		input_ip_address.value[0] = ipaddr->addr >> 24;
-		input_ip_address.value[1] = ipaddr->addr >> 16;
-		input_ip_address.value[2] = ipaddr->addr >> 8;
-		input_ip_address.value[3] = ipaddr->addr >> 0;
-	}
-}
-
-static ip_addr_t addr = { 0 };
 
 bool SNTP_GetTime(void)
 {
 	int sntpSocket;
-	uint32_t rx_timeout = 1000; // TAM Check for the best value of this.
 	bool success = false;
 	NTP_PACKET* request = 0;
 	struct timeval timeout = { 0 };
+	ip_addr_t addr = { 0 };
 
 	xEventGroupClearBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_FAILED | SNTP_EVENT_TIME_VALID);
 	xEventGroupSetBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_UNDERWAY);
@@ -126,16 +107,6 @@ bool SNTP_GetTime(void)
 
 	do
 	{
-		//host_result = gethostbyname(SNTP_SERVER);
-		err_t res;
-/*
-		if (addr.addr == 0)
-		{
-			dns_gethostbyname(SNTP_SERVER, &addr, private_dns_found_callback, 0);www.google.com
-		}
-		*/
-		//dns_gethostbyname("pool.ntp.org", &addr, private_dns_found_callback, 0);//SNTP_SERVER
-
 		/* query host IP address */
 		err_t err = netconn_gethostbyname(SNTP_SERVER, &addr);
 
@@ -184,8 +155,6 @@ bool SNTP_GetTime(void)
 		sntp_printf("Found at %08x.\r\n", address.sin_addr);
 		sntp_printf(SNTP_LINE "Writing Request | ");
 
-		//;mem_malloc(sizeof(NTP_PACKET))
-
 		NTP_PACKET* request = mem_malloc(sizeof(NTP_PACKET));
 		memset(request, 0, sizeof(NTP_PACKET));
 		request->flags.versionNumber = 3;
@@ -207,29 +176,45 @@ bool SNTP_GetTime(void)
 		result = recvfrom(sntpSocket, request, sizeof(NTP_PACKET), 0, (struct sockaddr*)&address, &packet_len);
 		if(result == sizeof(NTP_PACKET))
 		{
-			if(request->stratum == 0)
-			{	// Invalid response, maybe a KoD.
+			if(!request->stratum)
+			{
+				// Invalid response, maybe a KoD.
 				sntp_printf("SNTP received an invalid response: %.4s\r\n", request.ref_identifier);
 				success = false;
 				break;
 			}
 
-			request->tx_ts_secs = swap32(request->tx_ts_secs) - SNTP_EPOCH; // Flip endianess and subtract epoch.
-			if( request->tx_ts_fraq & 0x80 ){ request->tx_ts_secs++; } // Fraction is 32-bit big-endian, so 0x80 represents 0.5.
+			// Flip endianess and subtract epoch.
+			request->tx_ts_secs = swap32(request->tx_ts_secs) - SNTP_EPOCH;
+
+			// Fraction is 32-bit big-endian, so 0x80 represents 0.5.
+			if(request->tx_ts_fraq & 0x80)
+			{
+				request->tx_ts_secs++;
+			}
+
 			sntp_printf("Received: %d seconds since epoch.\r\n", request->tx_ts_secs);
 			set_utc(request->tx_ts_secs);
 
-			volatile struct tm time;
+			struct tm time;
 			time = *hermes_gmtime(&request->tx_ts_secs);
-			sntp_printf(SNTP_LINE "Year: %d | Month: %d | Day: %d | Hour: %d | Minute: %d | Second: %d\r\n", time.tm_year, time.tm_mon, time.tm_mday, time.tm_hour, time.tm_min, time.tm_sec);
+
+			sntp_printf(SNTP_LINE "Year: %d | Month: %d | Day: %d | Hour: %d | Minute: %d | Second: %d\r\n",
+					time.tm_year,
+					time.tm_mon,
+					time.tm_mday,
+					time.tm_hour,
+					time.tm_min,
+					time.tm_sec);
+
 			success = true;
 		}
 		else
 		{
 			sntp_printf("Failed. Received %d/%d bytes.\r\n", result, sizeof(request));
 		}
-	}
-	while( false ); // Just for non-returning breaks.
+
+	} while(false);
 
 	shutdown(sntpSocket, SHUT_RDWR);
 	closesocket(sntpSocket);

@@ -32,6 +32,7 @@
 #include "event_groups.h"
 #include "timers.h"
 #include "hermes-time.h"
+#include "cmsis_os.h"
 /* FreeRTOS-TCP includes */
 
 // Other includes
@@ -69,11 +70,6 @@ void init_watchdog();
 void vRegisterBasicCLICommands(void);
 void vRegisterCLICommands( void );
 
-static const uint8_t ucIPAddress_printer[ 4 ] = { 192,168,0,2 };
-static const uint8_t ucIPAddress[ 4 ] = { configIP_ADDR0, configIP_ADDR1, configIP_ADDR2, configIP_ADDR3 };
-static const uint8_t ucNetMask[ 4 ] = { configNET_MASK0, configNET_MASK1, configNET_MASK2, configNET_MASK3 };
-static const uint8_t ucGatewayAddress[ 4 ] = { configGATEWAY_ADDR0, configGATEWAY_ADDR1, configGATEWAY_ADDR2, configGATEWAY_ADDR3 };
-static const uint8_t ucDNSServerAddress[ 4 ] = { configDNS_SERVER_ADDR0, configDNS_SERVER_ADDR1, configDNS_SERVER_ADDR2, configDNS_SERVER_ADDR3 };
 static uint8_t initial_RF_channel;
 BaseType_t xTCstatus;
 
@@ -90,8 +86,13 @@ extern QueueHandle_t xNvStoreMailboxResp;
 bool shouldIPackageFlag = false;
 bool shouldICryptFlag = false;
 bool amILocked = true;
-bool global_message_trace_flag = false;	// turned on by messagedump CLI command
-PRODUCT_CONFIGURATION product_configuration;	// This is a RAM copy of the product info from Flash.
+
+// turned on by messagedump CLI command
+bool global_message_trace_flag = false;
+
+// This is a RAM copy of the product info from Flash.
+PRODUCT_CONFIGURATION product_configuration;
+
 // local functions
 void write_product_configuration(void);
 static void StartUpTask(void *pvParameters);
@@ -100,35 +101,36 @@ static void service_watchdog(void);
 uint8_t printLevel = LOW_IMPORTANCE;
 void Core_detect(void);
 bool immediate_firmware_update = false;
-uint64_t rfmac = 0x982782e01fdc; // global because a pointer to this variable is used by the RF Stack
+
+// global because a pointer to this variable is used by the RF Stack
+uint64_t rfmac = 0x982782e01fdc;
+
 bool rf_channel_override = false;
 
 static const char SERIAL_NUMBER[] = "H201-0859935";
 
 extern void LWIP_UpdateLinkState();
+
+// Declare mutex
+osMutexDef(rand_mutex);
+
+// Mutex ID
+osMutexId(rand_mutex_id);
+
+SemaphoreHandle_t randMutex = 0;
+
+DebugCounterT DebugCounter;
 /*******************************************************************************
  * Code
  ******************************************************************************/
-static void* private_wolfSSL_Malloc(size_t size)
-{
-	return pvPortMalloc(size);
-}
-
-static void private_wolfSSL_Free(void *ptr)
-{
-	vPortFree(ptr);
-}
-
-static void* private_wolfSSL_Realloc(void *ptr, size_t size)
-{
-	return 0;
-}
-
 void HermesComponentInit()
 {
+	osDelay(pdMS_TO_TICKS(1000));
+
+	randMutex = xSemaphoreCreateMutex();
+
 	wolfSSL_Init();
 	wc_SetTimeCb(wc_time);
-	//wolfSSL_SetAllocators(private_wolfSSL_Malloc, private_wolfSSL_Free, private_wolfSSL_Realloc);
 
 	product_configuration.rf_pan_id = SUREFLAP_PAN_ID;
 
@@ -150,6 +152,7 @@ void HermesComponentInit()
 
 	// generate a truly random Shared Secret to be shared with the Server
 	GenerateSharedSecret(SHARED_SECRET_CURRENT);
+
 	// Used for signing data transfers between Hub and Server.
 	GenerateDerivedKey(DERIVED_KEY_CURRENT);
 
@@ -165,8 +168,6 @@ void HermesComponentInit()
 	shouldICryptFlag = false;
 
 	led_driver_init();
-
-	//LWIP_UpdateLinkState();
 
 	surenet_init(&rfmac, product_configuration.rf_pan_id, initial_RF_channel);
 
@@ -195,7 +196,7 @@ void HermesComponentInit()
 		zprintf(CRITICAL_IMPORTANCE,"HTTP Post task creation failed!.\r\n");
 	}
 
-	osDelay(pdMS_TO_TICKS(2000));
+	osDelay(pdMS_TO_TICKS(500));
 
 	LWIP_UpdateLinkState();
 }
@@ -301,7 +302,9 @@ static void StartUpTask(void *pvParameters)
 
 	switch (product_configuration.product_state)
 	{
-		case PRODUCT_NOT_CONFIGURED:	// should never get here!!
+		case PRODUCT_NOT_CONFIGURED:
+			// should never get here!!
+
 			shouldICryptFlag = false;
 			shouldIPackageFlag = false;
         	printLevel = LOW_IMPORTANCE;
@@ -317,7 +320,9 @@ static void StartUpTask(void *pvParameters)
 			}
 			break;
 
-		case PRODUCT_BLANK: // This is the state after a reset after firmware programming. It needs to support 'test'
+		case PRODUCT_BLANK:
+			// This is the state after a reset after firmware programming. It needs to support 'test'
+
 			shouldICryptFlag = false;
 			shouldIPackageFlag = false;
         	printLevel = MEDIUM_IMPORTANCE;                                     // Limit the CLI messages when communicating with Programmer
@@ -343,7 +348,9 @@ static void StartUpTask(void *pvParameters)
 			}
 			break;
 
-		case PRODUCT_TESTED:	// Now I want to talk to the Label Printer
+		case PRODUCT_TESTED:
+			// Now I want to talk to the Label Printer
+
 		  	shouldICryptFlag = false;
 			shouldIPackageFlag = false;
         	printLevel = LOW_IMPORTANCE;
@@ -367,7 +374,10 @@ static void StartUpTask(void *pvParameters)
 				zprintf(CRITICAL_IMPORTANCE,"Watchdog task creation failed! - tick... tick... tick...\r\n");
 			}
 			break;
-		case PRODUCT_CONFIGURED:	// everything set up, now I am ready for a customer
+
+		case PRODUCT_CONFIGURED:
+			// everything set up, now I am ready for a customer
+
 			GenerateSharedSecret(SHARED_SECRET_CURRENT);	// generate a truly random Shared Secret to be shared with the Server
 			GenerateDerivedKey(DERIVED_KEY_CURRENT);	// Used for signing data transfers between Hub and Server.
 					
@@ -620,27 +630,38 @@ static void shell_task(void *pvParameters)
 {
     BaseType_t result;
     char input[256];
-    vTaskDelay(pdMS_TO_TICKS( 1000 ));  // just wait for other initialisation messages to be emitted
+
+    // just wait for other initialisation messages to be emitted
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
     zprintf(MEDIUM_IMPORTANCE,"\r\nEnter 'help' for help\r\n");
+
     while(1)
     {
         zprintf(CRITICAL_IMPORTANCE, "HERMES >");
         //LOG_ReadLine((uint8_t *)input, sizeof(input));
         zprintf(CRITICAL_IMPORTANCE, "\r\n");
+
         do
         {
-		    //result = FreeRTOS_CLIProcessCommand( input, output, sizeof(output) );  // process input and generate some output
-			if( strlen(output)>256)
+        	// process input and generate some output
+		    //result = FreeRTOS_CLIProcessCommand( input, output, sizeof(output) );
+			if(strlen(output) > 256)
 			{
 				zprintf(CRITICAL_IMPORTANCE,"CLI Output too long! - system may become unstable");
-				output[sizeof(output)-1]='\0';	// we still want to know what the output was for debugging purposes
+
+				// we still want to know what the output was for debugging purposes
+				output[sizeof(output) - 1] = '\0';
 			}
-            zprintf(CRITICAL_IMPORTANCE, output); // print the partial output
+
+			// print the partial output
+            zprintf(CRITICAL_IMPORTANCE, output);
 
         }
-        while( result == pdTRUE ); // keep looping around until all output has been generated
+        while(result == pdTRUE); // keep looping around until all output has been generated
 
-        vTaskDelay(pdMS_TO_TICKS( 100 ));   // give up CPU for 100ms
+        // give up CPU for 100ms
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 
@@ -874,7 +895,8 @@ void led_hang(uint8_t val)
  **************************************************************/
 void initSureNetByProgrammer(void)
 {
-    surenet_init(&product_configuration.rf_mac, product_configuration.rf_pan_id, initial_RF_channel); // This initialises stack variables and starts the surenet task.
+	// This initialises stack variables and starts the surenet task.
+    surenet_init(&product_configuration.rf_mac, product_configuration.rf_pan_id, initial_RF_channel);
 }
 
 /**************************************************************
@@ -890,6 +912,7 @@ void connectToServer(void)
     HFU_init();
     HTTPPostTask_init();
     SNTP_Init();
+
     if( xTaskCreate(SNTP_Task, "SNTP Task", SNTP_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
     {
         zprintf(CRITICAL_IMPORTANCE, "SNTP Task creation failed!\r\n");
@@ -908,7 +931,6 @@ void connectToServer(void)
     if (xTaskCreate(HTTPPostTask, "HTTP Post", HTTP_POST_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &xHTTPPostTaskHandle) != pdPASS)
     {
         zprintf(CRITICAL_IMPORTANCE,"HTTP Post task creation failed!.\r\n");
-
     }
 
     if (xTaskCreate(HFU_task, "Hub Firmware Update", HFU_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &xHFUTaskHandle) != pdPASS)
@@ -927,13 +949,28 @@ void connectToServer(void)
  **************************************************************/
 int hermes_rand(void)
 {
-#include "rng.h"
+	#include "rng.h"
 
-	int result;
-	portENTER_CRITICAL();
-	//result = rand();
-	HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&result);
-	portEXIT_CRITICAL();
+	int result = -1;
+
+	//cannot be used because it stops the system timer
+	//that is used by the function HAL_RNG_GenerateRandomNumber()
+	//portENTER_CRITICAL();
+
+	if (!randMutex)
+	{
+		HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&result);
+		return result;
+	}
+
+	if (xSemaphoreTake(randMutex, portMAX_DELAY) == pdTRUE)
+	{
+		HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&result);
+		xSemaphoreGive(randMutex);
+	}
+
+	//portEXIT_CRITICAL()
+
 	return result;
 }
 

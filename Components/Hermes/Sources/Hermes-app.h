@@ -23,37 +23,43 @@
 * interface.
 *
 **************************************************************************/
-
 #ifndef __HERMES_APP_H__
 #define __HERMES_APP_H__
-
+//==============================================================================
 #include "leds.h"
-
-#define UPLOAD_HUB_REGISTERS_ON_CLOUD_CONNECT	// Ash said this was a good idea at 09:31 on 26th August 2020.
+//------------------------------------------------------------------------------
+// Ash said this was a good idea at 09:31 on 26th August 2020.
+#define UPLOAD_HUB_REGISTERS_ON_CLOUD_CONNECT
 // [09:31] Ashleigh Hopkins
 //    I think it's good if it does
 // [09:32] Ashleigh Hopkins
 //    There are some circumstances where we don't request it for whatever reason
 
-#define SIGNATURE_UPDATE_PERIOD		(3600*6)	// 6 hours
-#define RF_COMMS_TIMEOUT	60	// seconds
+#define SIGNATURE_UPDATE_PERIOD		(3600*6) // 6 hours
+#define RF_COMMS_TIMEOUT	60 // seconds
 
-#define APP_SNTP_UPDATE_INTERVAL	(15 * 60 * 1000)	// In milliseconds. How often to refresh SNTP.
-#define APP_SNTP_RETRY_INTERVAL		(1000)				// In milliseconds. How often to retry SNTP request if it fails.
+// In milliseconds. How often to refresh SNTP.
+#define APP_SNTP_UPDATE_INTERVAL	(15 * 60 * 1000)
+
+// In milliseconds. How often to retry SNTP request if it fails.
+#define APP_SNTP_RETRY_INTERVAL		(1000)
 
 #define BUTTON_PRESSED	1
 #define READ_BUTTON() ((BUTTON_1_GPIO_Port->IDR & BUTTON_1_Pin) > 0)
-
+//------------------------------------------------------------------------------
 typedef enum
 {
 	CONN_STATUS_STARTING		= (1<<0),
 	CONN_STATUS_NETWORK_UP		= (1<<1),
 	CONN_STATUS_MQTT_UP			= (1<<2),
 	CONN_STATUS_FULL_CONNECTION	= CONN_STATUS_NETWORK_UP | CONN_STATUS_MQTT_UP,
-} CONNECTION_STATUS_EVENT_BITS;
 
-typedef enum	// These are events sent from various parts of the system to the App
-{				// so it can update the LEDs accordingly
+} CONNECTION_STATUS_EVENT_BITS;
+//------------------------------------------------------------------------------
+// These are events sent from various parts of the system to the App
+// so it can update the LEDs accordingly
+typedef enum
+{
 	STATUS_GETTING_CREDENTIALS,		// Attempting to connect to hub.api.sureflap.io
 	STATUS_CONNECTING_TO_CLOUD,		// Attempting to connect to AWS
 	STATUS_CONNECTED_TO_CLOUD,		// Connected to AWS
@@ -69,8 +75,9 @@ typedef enum	// These are events sent from various parts of the system to the Ap
 	STATUS_BLOCKING_TEST_BAD,
 	STATUS_BLOCKING_TEST_OFF,
 	STATUS_BACKSTOP,
-} SYSTEM_STATUS_EVENTS;
 
+} SYSTEM_STATUS_EVENTS;
+//------------------------------------------------------------------------------
 void hermes_app_init(void);
 void hermes_app_task(void *pvParameters);
 void trigger_send_hub_version_info(void);
@@ -80,7 +87,7 @@ void store_led_brightness(LED_MODE bright_level);
 uint32_t readHwVersion(void);
 void update_led_view(void);
 LED_MODE get_led_brightness(void);
-
+//==============================================================================
 #endif
 
 

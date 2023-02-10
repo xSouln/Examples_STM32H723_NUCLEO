@@ -28,10 +28,10 @@
 #include <string.h>
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
+#include "hermes.h"
 
 #include "time.h"
 #include "hermes-time.h"
-#include "time.h"
 #include "tim.h"
 
 // no longer used now we have SNTP to set the time.
@@ -114,13 +114,28 @@ uint32_t get_microseconds_tick(void)
 void vApplicationTickHook(void)
 {
     static uint32_t div = 0;
+    static int hermes_app_task_circle;
+    static int hub_state_conversation_send;
+    static int mqtt_task_circle;
+    static int sn_task_circle;
+
     div++;
 	UTC_ms++;
+
     if(div >= configTICK_RATE_HZ)
     {
         div = 0;
         UTC++;
         UpTime++;
+
+        DebugCounter.hermes_app_task_circle_per_second = (DebugCounter.hermes_app_task_circle - hermes_app_task_circle);
+        hermes_app_task_circle = DebugCounter.hermes_app_task_circle;
+
+        DebugCounter.mqtt_task_circle_per_second = (DebugCounter.mqtt_task_circle - mqtt_task_circle);
+		mqtt_task_circle = DebugCounter.mqtt_task_circle;
+
+		DebugCounter.sn_task_circle_per_second = (DebugCounter.sn_task_circle - sn_task_circle);
+		sn_task_circle = DebugCounter.sn_task_circle;
     }
 }
 

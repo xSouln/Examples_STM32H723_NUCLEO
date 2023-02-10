@@ -57,13 +57,13 @@ SN_DATA_RECEIVED_RESPONSE surenet_data_received_cb(RECEIVED_PACKET *rx_packet)
 	T_MESSAGE *rx_message;	
 	SERVER_MESSAGE server_message;
 	// the largest message that can arrive from a device is
-	uint8_t message_body[30+T_MESSAGE_PAYLOAD_SIZE*3];
+	uint8_t message_body[30 + T_MESSAGE_PAYLOAD_SIZE*3];
 	// a THALAMUS_MULTIPLE which could be MESSAGE_PAYLOAD_SIZE
     server_message.message_ptr = message_body;
 	uint16_t registerNumber,length;
 	uint16_t i,pos;
-	static uint8_t server_msg_index=0;
-	SN_DATA_RECEIVED_RESPONSE 	retval = SN_ACCEPTED;
+	static uint8_t server_msg_index = 0;
+	SN_DATA_RECEIVED_RESPONSE retval = SN_ACCEPTED;
 	
 	// zprintf(LOW_IMPORTANCE, "surenet_data_received_cb():\r\n");
 	// packet_dump(rx_packet);
@@ -77,8 +77,8 @@ SN_DATA_RECEIVED_RESPONSE surenet_data_received_cb(RECEIVED_PACKET *rx_packet)
 	}
 	
 	//skip past SureNet Header
-	rx_message=(T_MESSAGE *)((uint8_t *)rx_packet+sizeof(HEADER));
-	registerNumber = (uint16_t)((rx_message->payload[1] & 0xff)  +(rx_message->payload[0] << 8));
+	rx_message = (T_MESSAGE *)((uint8_t *)rx_packet+sizeof(HEADER));
+	registerNumber = (uint16_t)((rx_message->payload[1] & 0xff) + (rx_message->payload[0] << 8));
 	length = (uint16_t)((rx_message->payload[3] & 0xff) + (rx_message->payload[2] << 8));
 			
 	switch(rx_message->command)
@@ -115,7 +115,7 @@ SN_DATA_RECEIVED_RESPONSE surenet_data_received_cb(RECEIVED_PACKET *rx_packet)
 			if(MOVEMENT_DUMMY_REGISTER == registerNumber)
 			{
 				// This is a Pet Door Movement event, which is a group of registers sent atomically. Length is assumed to be correct!
-				pos = sprintf((char *)message_body,"%d",MSG_MOVEMENT_EVENT);
+				pos = sprintf((char*)message_body,"%d",MSG_MOVEMENT_EVENT);
 
 				// build string containing list of values
 				for (i=0; i<length; i++)
@@ -138,7 +138,7 @@ SN_DATA_RECEIVED_RESPONSE surenet_data_received_cb(RECEIVED_PACKET *rx_packet)
 						MSG_REG_VALUES_INDEX_ADDED, server_msg_index++, registerNumber, length);
 
 				// build string containing list of values
-				for (i=0; i<length; i++)
+				for(i = 0; i<length; i++)
 				{
 					pos+=sprintf((char *)&message_body[pos]," %02x",rx_message->payload[4+i]);
 				}
@@ -162,7 +162,7 @@ SN_DATA_RECEIVED_RESPONSE surenet_data_received_cb(RECEIVED_PACKET *rx_packet)
 			// build string containing list of values
 			for(i = 0; i < ((rx_message->length) - MESSAGE_OVERHEAD); i++)
 			{
-				pos+=sprintf((char *)&message_body[pos]," %02x",rx_message->payload[i]);
+				pos += sprintf((char *)&message_body[pos]," %02x",rx_message->payload[i]);
 			}
 			server_message.source_mac = rx_packet->packet.header.source_address;
 
@@ -171,6 +171,10 @@ SN_DATA_RECEIVED_RESPONSE surenet_data_received_cb(RECEIVED_PACKET *rx_packet)
 			{
 				// couldn't be queued.
 				retval = SN_REJECTED;
+			}
+			else
+			{
+
 			}
 			break;
 
@@ -182,7 +186,7 @@ SN_DATA_RECEIVED_RESPONSE surenet_data_received_cb(RECEIVED_PACKET *rx_packet)
 			// build string containing list of values
 			for(i = 0; i < ((rx_message->length) - MESSAGE_OVERHEAD); i++)
 			{
-				pos+=sprintf((char *)&message_body[pos]," %02x",rx_message->payload[i]);
+				pos += sprintf((char *)&message_body[pos]," %02x",rx_message->payload[i]);
 			}
 
 			server_message.source_mac = rx_packet->packet.header.source_address;

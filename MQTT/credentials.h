@@ -36,6 +36,7 @@ typedef enum
 {
 	SUREFLAP_NETWORK_TYPE_XIVELY	= 0,
 	SUREFLAP_NETWORK_TYPE_AWS		= 1
+
 } SUREFLAP_NETWORK_TYPE;
 
 typedef struct

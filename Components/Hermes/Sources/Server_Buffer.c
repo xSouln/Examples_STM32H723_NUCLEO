@@ -76,15 +76,27 @@
 #include "Backoff.h"
 
 // Local #defines
-#define SERVER_BUFFER_ENTRIES					32  // 128 messages is 4 for each of 32 devices
-#define MAX_SERVER_MESSAGE_SIZE					MAX_MESSAGE_SIZE_SERVER_BUFFER // bit of a guess, but at least we can truncate at this length and dump an error message
-#define SERVER_MESSAGE_ARRAY_STORAGE_THRESHOLD  192  // messages larger than this will be stored with pvPortMalloc() / pvPortFree()
-                                                     //  Tom says that a typical Thalamus message is about 160 bytes
+// 128 messages is 4 for each of 32 devices
+#define SERVER_BUFFER_ENTRIES					32
+
+// bit of a guess, but at least we can truncate at this length and dump an error message
+#define MAX_SERVER_MESSAGE_SIZE					MAX_MESSAGE_SIZE_SERVER_BUFFER
+
+// messages larger than this will be stored with pvPortMalloc() / pvPortFree()
+// Tom says that a typical Thalamus message is about 160 bytes
+#define SERVER_MESSAGE_ARRAY_STORAGE_THRESHOLD  192
+
 #define MESSAGE_STORED_VIA_MALLOC   0xffff
 #define MESSAGE_STORED_STATICALLY	0xfffe
-#define MAX_MESSAGE_RETRIES         5       // a message will be sent this many times at MESSAGE_RETRY_INTERVALS
-#define MESSAGE_RETRY_INTERVAL      10     // interval between message retries
-#define MAX_MESSAGE_ALARM           3       // Send a warning to MQTT to say we are concerned about this topic
+
+ // a message will be sent this many times at MESSAGE_RETRY_INTERVALS
+#define MAX_MESSAGE_RETRIES         5
+
+// interval between message retries
+#define MESSAGE_RETRY_INTERVAL      10
+
+// Send a warning to MQTT to say we are concerned about this topic
+#define MAX_MESSAGE_ALARM           3
 
 #define BASE_MESSAGE_RETRY_MS		40000
 #define MESSAGE_RETRY_MULTIPLIER	2
@@ -94,18 +106,31 @@ typedef struct
 {
     bool free;
     uint8_t message[SERVER_MESSAGE_ARRAY_STORAGE_THRESHOLD];
+
 } SERVER_BUFFER_MESSAGE;
 
 typedef struct
 {
-    uint32_t	buffer_entry_timestamp;	// UTC when this message entered the buffer
-    BACKOFF		backoff;				// Details required for retries and backing off publish attempts.
+	// UTC when this message entered the buffer
+    uint32_t	buffer_entry_timestamp;
+
+    // Details required for retries and backing off publish attempts.
+    BACKOFF		backoff;
+
     // note index is a magic number - setting it to 0 marks this entry as free
-    uint8_t 	index;      			// ID of this message, given when it entered the buffer. Used for removing messages when reflection is received from server
-    uint8_t*	message;                // pointer to actual text message string within SERVER_BUFFER_MESSAGE or via pvPortMalloc
-    uint16_t	message_storage;        // where the message is stored, array index (small messages) or
-										// MESSAGE_STORED_VIA_MALLOC for pvPortMalloc (large messages)
-    uint64_t	source_mac;				// most economical way of storing the topic. Will be NULL for Hub sourced messages
+    // ID of this message, given when it entered the buffer. Used for removing messages when reflection is received from server
+    uint8_t 	index;
+
+    // pointer to actual text message string within SERVER_BUFFER_MESSAGE or via pvPortMalloc
+    uint8_t*	message;
+
+    // where the message is stored, array index (small messages) or
+    // MESSAGE_STORED_VIA_MALLOC for pvPortMalloc (large messages)
+    uint16_t	message_storage;
+
+    // most economical way of storing the topic. Will be NULL for Hub sourced messages
+    uint64_t	source_mac;
+
 } SERVER_BUFFER_ENTRY;
 
 extern bool global_message_trace_flag;
@@ -136,11 +161,17 @@ void server_buffer_message_drop(uint32_t i);
 void server_buffer_init(void)
 {
     uint32_t i;
-	memset(server_buffer, 0, sizeof(server_buffer));	// explicitly zero these two here so they don't have to be in
-	memset(server_buffer_message, 0, sizeof(server_buffer_message));	// the .bss section
-    for( i = 0; i < SERVER_BUFFER_ENTRIES; i++ )
+
+    // explicitly zero these two here so they don't have to be in
+	memset(server_buffer, 0, sizeof(server_buffer));
+
+	// the .bss section
+	memset(server_buffer_message, 0, sizeof(server_buffer_message));
+
+    for(i = 0; i < SERVER_BUFFER_ENTRIES; i++)
     {
-        server_buffer_message[i].free = true; // overwrites the initialisation at startup time.
+    	// overwrites the initialisation at startup time.
+        server_buffer_message[i].free = true;
     }
 }
 
@@ -150,19 +181,20 @@ void server_buffer_init(void)
  *                 : Note it copies the message to an internal buffer, so the caller can
  *                 : free their memory on return from this function
  **************************************************************/
-bool server_buffer_add(SERVER_MESSAGE* message)   // Add this message and topic
+// Add this message and topic
+bool server_buffer_add(SERVER_MESSAGE* message)
 {
     uint32_t i, j;
-    uint32_t oldest_time;
-    uint32_t oldest_index;
     uint32_t len;
+
     // first find the next free space in our buffer
     i = 0;
-    while( (i < SERVER_BUFFER_ENTRIES) && (server_buffer[i].index != 0) )
+    while((i < SERVER_BUFFER_ENTRIES) && server_buffer[i].index)
     {
         i++;
     }
-	if( true == global_message_trace_flag )
+
+	if(global_message_trace_flag)
 	{
 		zprintf(CRITICAL_IMPORTANCE,"Message from %08x%08x for server: %s\r\n",
 			(uint32_t)(((message->source_mac)>>32) & 0xffffffff),
@@ -170,93 +202,138 @@ bool server_buffer_add(SERVER_MESSAGE* message)   // Add this message and topic
 			message->message_ptr);
 		//DbgConsole_Flush();
 	}
-    if( i == SERVER_BUFFER_ENTRIES )
+
+    if(i == SERVER_BUFFER_ENTRIES)
     {
-        return false;	// bail out as we are full
+    	// bail out as we are full
+        return false;
     }
+
     server_buffer[i].buffer_entry_timestamp = get_UTC();
     server_buffer[i].backoff.specs = &publish_backoff_specs;
 	Backoff_Reset(&server_buffer[i].backoff);
     server_buffer[i].index = next_message_index++;
-    if( next_message_index == 0 ) next_message_index++;    // must never be zero
-    server_buffer[i].source_mac = message->source_mac;  // most economical way of storing the topic. Will be NULL for Hub sourced messages
+
+    // must never be zero
+    if(!next_message_index)
+	{
+    	next_message_index++;
+	}
+
+
+    // most economical way of storing the topic. Will be NULL for Hub sourced messages
+    server_buffer[i].source_mac = message->source_mac;
 
     // now deal with copying message to relevant place
     // first find the length of the string, up to MAX_SERVER_MESSAGE_SIZE
-    len = strlen((char*)message->message_ptr) + 1;	// +1 to include terminating zero
-    if( len < SERVER_MESSAGE_ARRAY_STORAGE_THRESHOLD )
+    // +1 to include terminating zero
+    len = strlen((char*)message->message_ptr) + 1;
+    if(len < SERVER_MESSAGE_ARRAY_STORAGE_THRESHOLD)
     {
         // we are going to store the message text in server_buffer_message[]
         // Find a free slot
-        j=0;
-        while( (server_buffer_message[j].free == false) && (j < SERVER_BUFFER_ENTRIES) )
+        j = 0;
+        while(!server_buffer_message[j].free && (j < SERVER_BUFFER_ENTRIES))
         {
             j++;
         }
         if( j == SERVER_BUFFER_ENTRIES )
         {
             sbuffer_printf("server_buffer_add() ERROR 1 - CANNOT ALLOCATE STORAGE\r\n");
-			server_buffer[i].index = 0;	// mark this entry as free as we couldn't use it in the end
+
+            // mark this entry as free as we couldn't use it in the end
+			server_buffer[i].index = 0;
+
             return false;
         }
         // Now set up storage references in server_buffer
-        server_buffer[i].message = server_buffer_message[j].message;    // set buffer to point to where message is stored
-        server_buffer[i].message_storage = j;   // note index in server_buffer_message[] used to store message
-        server_buffer_message[j].free = false;    // mark entry as used
+        // set buffer to point to where message is stored
+        server_buffer[i].message = server_buffer_message[j].message;
+
+        // note index in server_buffer_message[] used to store message
+        server_buffer[i].message_storage = j;
+
+        // mark entry as used
+        server_buffer_message[j].free = false;
+
         // and finally copy message
-        strcpy((char*)server_buffer[i].message,(char*)message->message_ptr);
-    } else
-    { // message too large, so have to MALLOC some space to put it in.
-        if( len < MAX_SERVER_MESSAGE_SIZE )
+        strcpy((char*)server_buffer[i].message, (char*)message->message_ptr);
+    }
+    else
+    {
+    	// message too large, so have to MALLOC some space to put it in.
+        if(len < MAX_SERVER_MESSAGE_SIZE)
         {
             server_buffer[i].message = pvPortMalloc(len);
-            if( server_buffer[i].message != NULL )
-            {   // if we could allocate some storage, copy message into it
+            if(server_buffer[i].message)
+            {
+            	// if we could allocate some storage, copy message into it
                 strcpy((char*)server_buffer[i].message, (char*)message->message_ptr);
-                server_buffer[i].message_storage = MESSAGE_STORED_VIA_MALLOC;   // Note that we have stored via MALLOC
-            } else
+
+                // Note that we have stored via MALLOC
+                server_buffer[i].message_storage = MESSAGE_STORED_VIA_MALLOC;
+            }
+            else
             {
                 sbuffer_printf("server_buffer_add() ERROR 2 - CANNOT ALLOCATE STORAGE\r\n");
-				server_buffer[i].index = 0;	// mark this entry as free as we couldn't use it in the end
+
+                // mark this entry as free as we couldn't use it in the end
+				server_buffer[i].index = 0;
+
                 return false;
             }
-        } else
+        }
+        else
         {
 			sbuffer_printf("server_buffer_add() ERROR - MESSAGE TOO LARGE - dropping message\r\n");
-			server_buffer[i].index = 0;	// mark this entry as free as we couldn't use it in the end
-            return true;	// we return true here otherwise we'll probably get
-							// retries of the same message!
+
+			// mark this entry as free as we couldn't use it in the end
+			server_buffer[i].index = 0;
+
+			// we return true here otherwise we'll probably get
+			// retries of the same message!
+            return true;
         }
     }
 	return true;
 }
 
 bool server_buffer_construct_message(MQTT_MESSAGE* message, uint32_t index)
-{	// Make header of form 0x0iir where i is index, r is retries.
+{
+	// Make header of form 0x0iir where i is index, r is retries.
 	uint16_t header = (server_buffer[index].index << 4) + server_buffer[index].backoff.retries;
-	// Message is of form: tttttttt hhhh m... where t is Timestamp, h is header, and m... is the actual message.
-	uint32_t message_length = snprintf(message->message, sizeof(message->message), "%08x %04x %s\0",
-									   server_buffer[index].buffer_entry_timestamp, header, server_buffer[index].message);
 
-	if( message_length > sizeof(message->message) )
+	// Message is of form: tttttttt hhhh m... where t is Timestamp, h is header, and m... is the actual message.
+	uint32_t message_length = snprintf(message->message, sizeof(message->message),
+										"%08x %04x %s\0",
+										server_buffer[index].buffer_entry_timestamp,
+										header, server_buffer[index].message);
+
+	if(message_length > sizeof(message->message))
 	{
 		sbuffer_printf("server_buffer_construct_message() error: Buffered message too long to fit in MQTT message.\r\n");
-		return false; // Message is too long! Someone fucked up.
+
+		// Message is too long! Someone fucked up.
+		return false;
 	}
 
-	if( server_buffer[index].source_mac != 0 ) // Only want to set the topic if we can successfully construct the message.
-	{	// If source is a child device, MAC address is appended as sub-topic. Include '/' so we don' have to worry about it later.
+	// Only want to set the topic if we can successfully construct the message.
+	if(server_buffer[index].source_mac)
+	{
+		// If source is a child device, MAC address is appended as sub-topic. Include '/' so we don' have to worry about it later.
 		// Gotta swap MAC around!
-		uint32_t	i, pos = 1;
-		uint8_t*	data = (uint8_t*)&server_buffer[index].source_mac;
+		uint32_t i, pos = 1;
+		uint8_t* data = (uint8_t*)&server_buffer[index].source_mac;
 		message->subtopic[0] = '/';
 
-		for( i = 0; i < sizeof(server_buffer[index].source_mac); i++ )
+		for(i = 0; i < sizeof(server_buffer[index].source_mac); i++)
 		{
 			pos += sprintf(&message->subtopic[pos], "%02X", data[i]);
 		}
 	}
-//	zprintf(LOW_IMPORTANCE,"sending to Server %s\r\n",message->message);
+
+	//zprintf(LOW_IMPORTANCE,"sending to Server %s\r\n",message->message);
+
 	return true;
 }
 
@@ -273,52 +350,64 @@ MQTT_MESSAGE* server_buffer_get_next_message(void)
 {
     uint32_t i;
 
-	memset(output_mqtt_message.subtopic, '\0', sizeof(output_mqtt_message.subtopic)); // Null topic means Hub base topic "messages".
+    // Null topic means Hub base topic "messages".
+	memset(output_mqtt_message.subtopic, '\0', sizeof(output_mqtt_message.subtopic));
 
     // Need to find next message to send.
 	// Backoff arranges sucessive transmissions to be spaced at increasing intervals,
 	// to avoid network clashes. If too many retries are attempted, MQTT task
 	// wants to take emergency action (QoS0 message). In the worst case, a message
 	// is dropped; we may want to take more drastic action (such as reconnection).
-	BACKOFF_RESULT	backoff_result;
-    for( i = 0; i < SERVER_BUFFER_ENTRIES; i++ )
+	BACKOFF_RESULT backoff_result;
+    for(i = 0; i < SERVER_BUFFER_ENTRIES; i++)
 	{
-		if( 0 != server_buffer[i].index )
+		if(server_buffer[i].index)
 		{
 			backoff_result = Backoff_GetStatus(&server_buffer[i].backoff);
-			switch( backoff_result )
+			switch(backoff_result)
 			{
 				case BACKOFF_FINAL_ATTEMPT:
-					if( false == server_buffer_construct_message(&output_mqtt_message, i) )
-					{	// Message could not be constructed, so drop it.
+					if(!server_buffer_construct_message(&output_mqtt_message, i))
+					{
+						// Message could not be constructed, so drop it.
 						server_buffer_message_drop(i);
 						break;
 					}
-					MQTT_Alarm(MQTT_MESSAGE_FAILED_A_FEW_TIMES, &output_mqtt_message); // Notify MQTT that we might have a problem. MQTT will attempt a QoS0 transmission.
+
+					// Notify MQTT that we might have a problem. MQTT will attempt a QoS0 transmission.
+					MQTT_Alarm(MQTT_MESSAGE_FAILED_A_FEW_TIMES, &output_mqtt_message);
 					Backoff_Progress(&server_buffer[i].backoff);
+
 					break;
 
 				case BACKOFF_READY:
-					if( false == server_buffer_construct_message(&output_mqtt_message, i) )
-					{	// Message could not be constructed, so drop it.
+					if(!server_buffer_construct_message(&output_mqtt_message, i))
+					{
+						// Message could not be constructed, so drop it.
 						server_buffer_message_drop(i);
 						break;
 					}
 					Backoff_Progress(&server_buffer[i].backoff);
-					return &output_mqtt_message; // Found a message reayd to go, and constructed properly, so return it.
-				case BACKOFF_WAITING:	// Not resolved yet, but waiting longer to resend.
+
+					// Found a message reayd to go, and constructed properly, so return it.
+					return &output_mqtt_message;
+
+				case BACKOFF_WAITING:
+					// Not resolved yet, but waiting longer to resend.
 					break;
 
 				case BACKOFF_FAILED:
 					server_buffer_construct_message(&output_mqtt_message, i);
-					MQTT_Alarm(MQTT_MESSAGE_FAILED_TOO_MANY_TIMES, &output_mqtt_message); // Notify MQTT that we have a problem, and are going to kill the message
+					// Notify MQTT that we have a problem, and are going to kill the message
+					MQTT_Alarm(MQTT_MESSAGE_FAILED_TOO_MANY_TIMES, &output_mqtt_message);
 					server_buffer_message_drop(i);
 					break;
 			}
 		}
 	}
 
-	return NULL; // Didn't find any messages that can be sent.
+    // Didn't find any messages that can be sent.
+	return NULL;
 }
 
 /**************************************************************
@@ -327,18 +416,25 @@ MQTT_MESSAGE* server_buffer_get_next_message(void)
  **************************************************************/
 void server_buffer_message_drop(uint32_t i)
 {
-    if( server_buffer[i].message_storage == MESSAGE_STORED_VIA_MALLOC )
+    if(server_buffer[i].message_storage == MESSAGE_STORED_VIA_MALLOC)
     {
-        if( server_buffer[i].message != NULL )
+        if(server_buffer[i].message != NULL)
         {
-            vPortFree(server_buffer[i].message);   // Free the buffer
-			server_buffer[i].message = NULL;	// mark the buffer as free to prevent it being freed again
+        	// Free the buffer
+            vPortFree(server_buffer[i].message);
+
+            // mark the buffer as free to prevent it being freed again
+			server_buffer[i].message = NULL;
         }
-    } else if( server_buffer[i].message_storage < SERVER_BUFFER_ENTRIES )
-	{	// mark the entry in the server_buffer_message buffer free
+    }
+    else if(server_buffer[i].message_storage < SERVER_BUFFER_ENTRIES)
+	{
+    	// mark the entry in the server_buffer_message buffer free
 		server_buffer_message[server_buffer[i].message_storage].free = true;
 	}
-    server_buffer[i].index = 0;   // mark this entry as empty
+
+    // mark this entry as empty
+    server_buffer[i].index = 0;
 }
 
 /**************************************************************
@@ -348,30 +444,41 @@ void server_buffer_message_drop(uint32_t i)
  * Returns         : true if a reflected message has been handled
  **************************************************************/
 bool server_buffer_process_reflected_message(char *message)
-{   // messages are of the form utc hdr blah blah blah
+{
+	// messages are of the form utc hdr blah blah blah
     char*		pos;
     uint32_t	hdr;
     uint8_t		index;
     uint32_t	i;
 
-    pos = strchr(message,' ');   // find next space,
+    // find next space,
+    pos = strchr(message,' ');
 
-    if( pos != NULL )
+    if(pos)
     {
-        pos++;  // pos should now point to HDR which is a 4 digit hex number.
-        sscanf(pos, "%x", &hdr); // extract HDR
-        index = (hdr >> 4) & 0xff;    // extract index from hdr
+    	// pos should now point to HDR which is a 4 digit hex number.
+        pos++;
+
+        // extract HDR
+        sscanf(pos, "%x", &hdr);
+
+        // extract index from hdr
+        index = (hdr >> 4) & 0xff;
+
         i = 0;
-        while( ((server_buffer[i].index != index) || (server_buffer[i].index == 0)) \
-				&& (i < SERVER_BUFFER_ENTRIES) )
-        {   // search for the message with a matching index
+        while(((server_buffer[i].index != index) || (server_buffer[i].index == 0)) && (i < SERVER_BUFFER_ENTRIES))
+        {
+        	// search for the message with a matching index
             i++;
         }
-        if( i < SERVER_BUFFER_ENTRIES )
-        {   // found the message, so kill it
+
+        if(i < SERVER_BUFFER_ENTRIES)
+        {
+        	// found the message, so kill it
             server_buffer_message_drop(i);
             return true;
-        }   // else it might have already been killed and this is an out of date reflection
+        }
+        // else it might have already been killed and this is an out of date reflection
     }
     return false;
 }
@@ -380,23 +487,27 @@ bool server_buffer_process_reflected_message(char *message)
  * Function Name   : server_buffer_dump
  * Description     : Dump out active buffer entries
  **************************************************************/
-void server_buffer_dump()  // dump valid messages out of the UART
+// dump valid messages out of the UART
+void server_buffer_dump()
 {
     uint32_t i;
 
     zprintf(HIGH_IMPORTANCE,"pos timestamp lastsent delay    retries index storage_type src_mac          message\r\n");
-    for( i = 0; i < SERVER_BUFFER_ENTRIES; i++ )
+    for(i = 0; i < SERVER_BUFFER_ENTRIES; i++)
     {
-        if( server_buffer[i].index > 0 )
+        if(server_buffer[i].index > 0)
         {
-            zprintf(HIGH_IMPORTANCE,"%03d %08X  %08X %08X %03d     %03d   %04x         %08X%08X ", i, server_buffer[i].buffer_entry_timestamp, \
-                                                                 server_buffer[i].backoff.last_retry_tick, \
-																 server_buffer[i].backoff.retry_delay_ms, \
-                                                                 server_buffer[i].backoff.retries, \
-                                                                 server_buffer[i].index, \
-                                                                 server_buffer[i].message_storage, \
-                                                                 (uint32_t)((server_buffer[i].source_mac&0xffffffff00000000)>>32), \
-                                                                 (uint32_t)(server_buffer[i].source_mac&0xffffffff  ));
+            zprintf(HIGH_IMPORTANCE,"%03d %08X  %08X %08X %03d     %03d   %04x         %08X%08X ",
+            		i,
+					server_buffer[i].buffer_entry_timestamp,
+					server_buffer[i].backoff.last_retry_tick,
+					server_buffer[i].backoff.retry_delay_ms,
+					server_buffer[i].backoff.retries,
+					server_buffer[i].index,
+					server_buffer[i].message_storage,
+					(uint32_t)((server_buffer[i].source_mac&0xffffffff00000000) >> 32),
+					(uint32_t)(server_buffer[i].source_mac&0xffffffff));
+
             zprintf(HIGH_IMPORTANCE,"%s\r\n",server_buffer[i].message);
 			//DbgConsole_Flush();
         }

@@ -28,11 +28,8 @@
 #include "dns.h"
 //==============================================================================
 #define AWS_YIELD_EXTENSION		50
-#define SOCKET_RX_BLOCK_TIME	500
+#define SOCKET_RX_BLOCK_TIME	333
 #define SOCKET_TX_BLOCK_TIME	3000
-
-static int tx_errors_count;
-static int rx_errors_count;
 //==============================================================================
 IoT_Error_t iot_tls_init(Network* pNetwork,
 							char* pRootCALocation,
@@ -332,15 +329,21 @@ IoT_Error_t iot_tls_is_connected(Network* pNetwork)
 	return NETWORK_PHYSICAL_LAYER_CONNECTED;
 }
 //------------------------------------------------------------------------------
+static int aws_tx_send_out_off_range;
 int Wrapper_Send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
 	int size = send(ssl->rfd, buf, sz, ssl->wflags);
+
+	if ((uint32_t)buf < 0x24000000 || (uint32_t)buf > 0x300007D00)
+	{
+		aws_tx_send_out_off_range++;
+	}
 
 	switch(size)
 	{
 		case -1:
 			// Could not transmit.
-			tx_errors_count++;
+			DebugCounter.aws_tx_errors_count++;
 			return WOLFSSL_CBIO_ERR_WANT_WRITE;
 			//return WOLFSSL_CBIO_ERR_CONN_CLOSE;
 		default:
@@ -348,15 +351,21 @@ int Wrapper_Send(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 	}
 }
 //------------------------------------------------------------------------------
+static int aws_rx_send_out_off_range;
 int Wrapper_Receive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
 	int size = recv(ssl->rfd, buf, sz, ssl->wflags);
+
+	if ((uint32_t)buf < 0x24000000 || (uint32_t)buf > 0x300007D00)
+	{
+		aws_rx_send_out_off_range++;
+	}
 
 	switch(size)
 	{
 		case -1:
 			// Could not transmit.
-			rx_errors_count++;
+			DebugCounter.aws_rx_errors_count++;
 			return WOLFSSL_CBIO_ERR_WANT_READ;
 			//return WOLFSSL_CBIO_ERR_CONN_CLOSE;
 		default:

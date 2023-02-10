@@ -186,8 +186,7 @@ IoT_Error_t AWS_Resubscribe(AWS_IoT_Client* client)
 
 	return result;
 }
-static int AWS_PublishRequestsCount;
-static int AWS_PublishAcceptedRequestsCount;
+
 IoT_Error_t AWS_Publish(AWS_IoT_Client* client,
 						SUREFLAP_CREDENTIALS* credentials,
 						char* sub_topic,
@@ -218,17 +217,16 @@ IoT_Error_t AWS_Publish(AWS_IoT_Client* client,
 			"%.*s\r\n\t>\tResult:\t\t"
 			"%d\r\n\t>>>>>>>>>>>>>>>>>>>\r\n", aws_child_topic, message_len, message, (int)result);
 
-	AWS_PublishRequestsCount++;
+	DebugCounter.aws_publish_requests_count++;
 
 	if(result == AWS_SUCCESS)
 	{
-		AWS_PublishAcceptedRequestsCount++;
+		DebugCounter.aws_publish_accepted_requests_count++;
 	}
 
 	return result;
 }
 
-static int AWS_ReceivedMessagesCount;
 void AWS_Message_Received(AWS_IoT_Client* pClient,
 		char* pTopicName,
 		uint16_t topicNameLen,
@@ -270,7 +268,7 @@ void AWS_Message_Received(AWS_IoT_Client* pClient,
 
 	xQueueSend(xIncomingMQTTMessageMailbox, &msg, 0);
 
-	AWS_ReceivedMessagesCount++;
+	DebugCounter.aws_received_messages_count++;
 
 	return;
 }

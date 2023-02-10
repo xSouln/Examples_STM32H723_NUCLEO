@@ -22,7 +22,6 @@
 * provide a few misc helper functions. 
 *             
 **************************************************************************/
-#ifndef FREERTOS_TCP_ENABLE
 #include "hermes.h"
 
 /* Standard includes. */
@@ -71,11 +70,13 @@ BaseType_t xNetworkInterfaceInitialise( void )
 
 	if(xFirstTime)
 	{
-		xRestartNetworkMailbox	= xQueueCreate(1, sizeof(bool));	// only make this once		
+		// only make this once
+		xRestartNetworkMailbox	= xQueueCreate(1, sizeof(bool));
 		
 	}
 	
-	xFirstTime = false;	// future invocations of this call tree will do less initialisation
+	// future invocations of this call tree will do less initialisation
+	xFirstTime = false;
 	
     return xReturn;
 }
@@ -106,4 +107,3 @@ uint32_t ulApplicationGetNextSequenceNumber(uint32_t ulSourceAddress,
     result = hermes_rand();
 	return result;
 }
-#endif

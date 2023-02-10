@@ -59,6 +59,11 @@ extern EventGroupHandle_t	xConnectionStatus_EventGroup;
 
 STORED_CREDENTIAL MQTT_Stored_Certificate MQTT_STORED_CERTIFICATE_MEM_SECTION;
 STORED_CREDENTIAL MQTT_Stored_Private_Key MQTT_STORED_PRIVATE_KEY_MEM_SECTION;
+
+static AWS_IoT_Client 			aws_client;
+SUREFLAP_CREDENTIALS			aws_credentials MQTT_SUREFLAP_CREDENTIALS;
+static MQTT_CONNECTION_STATE	mqtt_connection_state = MQTT_STATE_INITIAL;
+static bool no_creds = false;
 //==============================================================================
 static void MQTT_Hash_It_Up(SUREFLAP_CREDENTIALS* creds);
 //==============================================================================
@@ -90,15 +95,10 @@ void MQTT_Alarm(MQTT_ALARM alarm_code, MQTT_MESSAGE* alarming_message)
 // If the Server responds to a credential request with
 // the x-update:1 field, then there will be no
 // credentials.
-static bool no_creds = false;
 void MQTT_notify_no_creds(void)
 {
 	no_creds = true;
 }
-
-static AWS_IoT_Client 			aws_client;
-SUREFLAP_CREDENTIALS			aws_credentials;
-static MQTT_CONNECTION_STATE	mqtt_connection_state = MQTT_STATE_INITIAL;
 //------------------------------------------------------------------------------
 MQTT_CONNECTION_STATE get_mqtt_connection_state(void)
 {
@@ -122,6 +122,8 @@ void MQTT_Task(void *pvParameters)
 		{
 			mqtt_connection_state = MQTT_STATE_STOP;
 		}
+
+		DebugCounter.mqtt_task_circle++;
 
 		switch(mqtt_connection_state)
 		{

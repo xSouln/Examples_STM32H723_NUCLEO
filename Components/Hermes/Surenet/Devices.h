@@ -27,7 +27,8 @@
 
 #ifndef __DEVICES_H__
 #define __DEVICES_H__
-//#include "SureNetDriver-Public.h"
+
+#include "Hermes-compiller.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -98,33 +99,53 @@ typedef enum
 	SECURITY_KEY_RENEW,
 } SECURITY_KEY_ACTION;
 
-typedef struct
+typedef HERMES__PACKED_PREFIX struct
 {
     uint8_t valid :1;
     uint8_t online :1;
-    uint8_t device_type :5;  //one of T_DEVICE_TYPE
+    uint8_t device_type :5; //one of T_DEVICE_TYPE
     uint8_t associated :1;
-} DEVICE_STATUS_BITS;
 
-typedef struct
+} HERMES__PACKED_POSTFIX DEVICE_STATUS_BITS;
+
+typedef HERMES__PACKED_PREFIX struct
 {
     uint64_t mac_address;
-    DEVICE_STATUS_BITS status;            // This ought to be BOOL, but BOOL takes 32 bits or 4 bytes on PIC32, which is a bloody waste for a single bit!
-    uint8_t lock_status;                  //current status of door locks, sent with every DEVICE_AWAKE
-    uint8_t device_rssi;                  //signal strength seen from device
-    uint8_t hub_rssi;                     //signal strength seen from hub
-    uint32_t last_heard_from;           // This is a problem because we store the array of DEVICE_STATUS's in NVM, which is very small.
-                                        //actually because of alignment we use 32 bits anyway
-                                        //now store some other per device useful information in gap
-} DEVICE_STATUS; 
+
+    // This ought to be BOOL, but BOOL takes 32 bits or 4 bytes on PIC32, which is a bloody waste for a single bit!
+    DEVICE_STATUS_BITS status;
+
+    //current status of door locks, sent with every DEVICE_AWAKE
+    uint8_t lock_status;
+
+    //signal strength seen from device
+    uint8_t device_rssi;
+
+    //signal strength seen from hub
+    uint8_t hub_rssi;
+
+    // This is a problem because we store the array of DEVICE_STATUS's in NVM, which is very small.
+    //actually because of alignment we use 32 bits anyway
+	//now store some other per device useful information in gap
+    uint32_t last_heard_from;
+
+} HERMES__PACKED_POSTFIX DEVICE_STATUS;
+
+
 #define DEVICE_STATUS_LAST_HEARD_POS	12
 
-typedef struct
+typedef HERMES__PACKED_PREFIX struct
 {
     uint8_t sec_key_invalid;
-    SECURITY_KEY_ACTION SendSecurityKey;            //used to track sending of security key to devices
+
+    //used to track sending of security key to devices
+    SECURITY_KEY_ACTION SendSecurityKey;
+
     DEVICE_AWAKE_STATUS device_awake_status;
-    uint8_t deviceMinutes;              // used to remember the minutes timestamp of last time the device communicated.
+
+    // used to remember the minutes timestamp of last time the device communicated.
+    uint8_t deviceMinutes;
+
     bool device_web_connected;  
     uint8_t tx_end_cnt; 
     uint8_t send_detach;
@@ -132,78 +153,106 @@ typedef struct
 	uint8_t ping_value;
 	uint8_t SecurityKeyUses;
 	SURENET_ENCRYPTION_TYPE	encryption_type;
-} DEVICE_STATUS_EXTRA; 
+
+} HERMES__PACKED_POSTFIX DEVICE_STATUS_EXTRA;
 
 typedef enum
-{	// Not used in Hub2, but sent by Devices for debugging
+{
+	// Not used in Hub2, but sent by Devices for debugging
     TX_STAT_SUCCESSES=0,
     TX_STAT_FAILED_ACK_SENDS,
     TX_STAT_GOOD_TRANSMISSIONS,
     TX_STAT_BAD_TRANSMISSIONS,
     TX_STAT_BACKSTOP
+
 } TX_STAT_INDICES;
 
-
-typedef struct	// parameters used as part of DEVICE_RCVD_SEGS message
+// parameters used as part of DEVICE_RCVD_SEGS message
+typedef HERMES__PACKED_PREFIX struct
 {
     uint8_t fetch_chunk_upper;
     uint8_t fetch_chunk_lower;
     uint8_t fetch_chunk_blocks; // 14
     uint8_t received_segments[9];
-} DEVICE_RCVD_SEGS_PARAMETERS;
 
-typedef struct     // This would be more logically located in SureNet.h, however, it needs DEVICE_DATA_STATUS
-{                           // which is used in two orthogonal ways, as a parameter in PACKET_DEVICE_AWAKE, and 
-                            // to manage the HUB_CONVERSATION. Perhaps they should be separated.
+} HERMES__PACKED_POSTFIX DEVICE_RCVD_SEGS_PARAMETERS;
+
+// This would be more logically located in SureNet.h, however, it needs DEVICE_DATA_STATUS
+// which is used in two orthogonal ways, as a parameter in PACKET_DEVICE_AWAKE, and
+// to manage the HUB_CONVERSATION. Perhaps they should be separated.
+
+typedef HERMES__PACKED_PREFIX struct
+{
     DEVICE_DATA_STATUS device_data_status;
-    uint8_t battery_voltage;    // multiply by 32 to get device battery voltage in millivolts
+
+    // multiply by 32 to get device battery voltage in millivolts
+    uint8_t battery_voltage;
     uint8_t device_hours;
     uint8_t device_minutes;
-    uint8_t lock_status;    // 4 - only used on Pet Door
-    uint8_t device_rssi;    // 5
-    uint8_t awake_count;    // 6
-    uint8_t sum;            // 7 - no idea what this is
-    uint8_t tx_stats[TX_STAT_BACKSTOP];     // 8-11 TBC
-// used for firmware download, if device_data_status == DEVICE_RCVD_SEGS
+
+    // 4 - only used on Pet Door
+    uint8_t lock_status;
+    uint8_t device_rssi;
+    uint8_t awake_count;
+
+    // 7 - no idea what this is
+    uint8_t sum;
+
+    // 8-11 TBC
+    uint8_t tx_stats[TX_STAT_BACKSTOP];
+
+    // used for firmware download, if device_data_status == DEVICE_RCVD_SEGS
 	union
 	{
 		SURENET_ENCRYPTION_TYPE encryption_type;
-    DEVICE_RCVD_SEGS_PARAMETERS rcvd_segs_params;
+		DEVICE_RCVD_SEGS_PARAMETERS rcvd_segs_params;
 	};
+
 	SURENET_ENCRYPTION_TYPE encryption_type_extended;
-} PACKET_DEVICE_AWAKE_PAYLOAD;
 
-typedef struct
+} HERMES__PACKED_POSTFIX PACKET_DEVICE_AWAKE_PAYLOAD;
+
+typedef HERMES__PACKED_PREFIX struct
 {
-	uint8_t					transmit_end_count;
+	uint8_t transmit_end_count;
 	SURENET_ENCRYPTION_TYPE	encryption_type;
-} DEVICE_TX_PAYLOAD;
 
-typedef struct	// used to send rcvd segs params into the application
+} HERMES__PACKED_POSTFIX DEVICE_TX_PAYLOAD;
+
+// used to send rcvd segs params into the application
+typedef HERMES__PACKED_PREFIX struct
 {
 	DEVICE_RCVD_SEGS_PARAMETERS rcvd_segs_params;
-	uint64_t	device_mac;
-} DEVICE_RCVD_SEGS_PARAMETERS_MAILBOX;
+	uint64_t device_mac;
 
-typedef struct
+} HERMES__PACKED_POSTFIX DEVICE_RCVD_SEGS_PARAMETERS_MAILBOX;
+
+typedef HERMES__PACKED_PREFIX struct
 {
     uint64_t src_addr;
     PACKET_DEVICE_AWAKE_PAYLOAD payload;
-} DEVICE_AWAKE_MAILBOX;
 
-typedef struct
+} HERMES__PACKED_POSTFIX DEVICE_AWAKE_MAILBOX;
+
+typedef HERMES__PACKED_PREFIX struct
 {
-	uint8_t device_index;	// device for which this is intended
+	// device for which this is intended
+	uint8_t device_index;
+
 	uint8_t len;
 	uint16_t chunk_address;
-	uint8_t chunk_data[136];	// 136 bytes - 8 byte header (which is 4 byte destination, 4 byte checksum), and 128 bytes of data. 
-} DEVICE_FIRMWARE_CHUNK;
 
-typedef struct
+	// 136 bytes - 8 byte header (which is 4 byte destination, 4 byte checksum), and 128 bytes of data.
+	uint8_t chunk_data[136];
+
+} HERMES__PACKED_POSTFIX DEVICE_FIRMWARE_CHUNK;
+
+typedef HERMES__PACKED_PREFIX struct
 {
 	uint64_t mac_address;
 	uint8_t value;
-} PING_REQUEST_MAILBOX;
+
+} HERMES__PACKED_POSTFIX PING_REQUEST_MAILBOX;
 
 void sn_devicetable_init(void);
 void device_table_dump(void);

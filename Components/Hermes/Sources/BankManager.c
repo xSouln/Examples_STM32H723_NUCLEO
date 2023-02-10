@@ -33,7 +33,6 @@
 
 const volatile BANK_DESCRIPTOR*	CurrentDescriptor;
 
-
 BM_BANK BM_GetCurrentBank(void)
 {
 	return BM_BANK_UNKONWN;

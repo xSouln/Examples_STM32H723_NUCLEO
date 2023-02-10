@@ -2,7 +2,7 @@
 *
 * SUREFLAP CONFIDENTIALITY & COPYRIGHT NOTICE
 *
-* Copyright © 2013-2021 Sureflap Limited.
+* Copyright ï¿½ 2013-2021 Sureflap Limited.
 * All Rights Reserved.
 *
 * All information contained herein is, and remains the property of Sureflap 
@@ -22,14 +22,10 @@
 * It handles the necessary format translation from T_MESSAGE to a string formatted for the server        
 *             
 **************************************************************************/
-
 #ifndef __DEVICE_TO_SERVER__
 #define __DEVICE_TO_SERVER__
+//==============================================================================
 
-
-
-
-
-
+//==============================================================================
 #endif
 

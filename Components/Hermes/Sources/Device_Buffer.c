@@ -53,8 +53,11 @@
 #include "Device_Buffer.h"
 
 // Local #defines
-#define DEVICE_BUFFER_SIZE  64          // Maximum number of messages in the buffer.
-#define MAX_MESSAGES_FOR_SAME_DEVICE  8 // maximum messages allowed into the buffer for the same Device
+// Maximum number of messages in the buffer.
+#define DEVICE_BUFFER_SIZE  64
+
+// maximum messages allowed into the buffer for the same Device
+#define MAX_MESSAGES_FOR_SAME_DEVICE  8
 
 typedef struct
 {
@@ -68,7 +71,6 @@ typedef struct
 
 // make us a nice buffer to hold messages
 DEVICE_BUFFER device_buffer[DEVICE_BUFFER_SIZE] DEVICE_BUFFER_MEM_SECTION;
-
 /**************************************************************
  * Function Name   : device_buffer_init
  * Description     : Initialise our device buffer
@@ -78,7 +80,8 @@ DEVICE_BUFFER device_buffer[DEVICE_BUFFER_SIZE] DEVICE_BUFFER_MEM_SECTION;
  **************************************************************/
 void device_buffer_init(void)
 {
-    memset(device_buffer,0,sizeof(device_buffer));    // clear our buffer;
+	// clear our buffer;
+    memset(device_buffer,0,sizeof(device_buffer));
 }
 
 /**************************************************************
@@ -96,19 +99,27 @@ bool device_message_is_new(uint64_t mac, T_MESSAGE *message)
 
     pMessage1 = (uint8_t *)message;
 
-    for (i=0; i<DEVICE_BUFFER_SIZE; i++)
+    for(i = 0; i < DEVICE_BUFFER_SIZE; i++)
     {
         if (device_buffer[i].mac_address == mac)
-        {   // device matches, so now compare message
+        {
+        	// device matches, so now compare message
             pMessage2 = (uint8_t *)&device_buffer[i].message;
 
-            for (j=0; j<message->length; j++)
+            for (j = 0; j<message->length; j++)
             {
-                if (pMessage1[j]!=pMessage2[j])
-                    break;  // if we have a mismatch, break out of this for() loop.
+                if (pMessage1[j] != pMessage2[j])
+                {
+                	// if we have a mismatch, break out of this for() loop.
+                    break;
+                }
             }
-            if (j==message->length)
-                return false;    // if we got to the end of the for loop, all characters must match, so it's a duplicate
+
+            if (message->length == j)
+            {
+            	// if we got to the end of the for loop, all characters must match, so it's a duplicate
+                return false;
+            }
         }
     }
     return true;
@@ -126,75 +137,104 @@ void device_buffer_add(uint64_t mac, T_MESSAGE *message)
 {
     uint32_t i;
     uint32_t oldest_index;
-    uint32_t age, oldest_age;       // difference between now and timestamp
-    uint32_t same_destination;      // count of messages in the buffer that are already going to the same destination
 
-	same_destination=0;
-    for (i=0; i<DEVICE_BUFFER_SIZE; i++)
-    {   // count how many messages we have that are already intended for this destination
+    // difference between now and timestamp
+    uint32_t age, oldest_age;
+
+    // count of messages in the buffer that are already going to the same destination
+    uint32_t same_destination;
+
+	same_destination = 0;
+    for (i = 0; i < DEVICE_BUFFER_SIZE; i++)
+    {
+    	// count how many messages we have that are already intended for this destination
         if (device_buffer[i].mac_address == mac)
+        {
             same_destination++;
+        }
     }
 
     // Need to find a place to store the message. First strategy is to just look for a free slot
-    i=0;
-    while((i<DEVICE_BUFFER_SIZE) && ((device_buffer[i].timestamp!=0) || (device_buffer[i].mac_address!=0)))
+    i = 0;
+    while((i < DEVICE_BUFFER_SIZE)
+    && ((device_buffer[i].timestamp != 0)
+    || (device_buffer[i].mac_address != 0)))
     {
         i++;
-    }   //
+    }
 
-    if ((i<DEVICE_BUFFER_SIZE) && (same_destination<MAX_MESSAGES_FOR_SAME_DEVICE))
-    {   // found a slot
+    if((i < DEVICE_BUFFER_SIZE) && (same_destination < MAX_MESSAGES_FOR_SAME_DEVICE))
+    {
+    	// found a slot
         device_buffer[i].mac_address = mac;
         device_buffer[i].timestamp = get_microseconds_tick();
-        memcpy(&device_buffer[i].message,message,sizeof(T_MESSAGE));
+        memcpy(&device_buffer[i].message, message, sizeof(T_MESSAGE));
     }
     else
-    {   // couldn't find a slot, so need a new strategy.
+    {
+    	// couldn't find a slot, so need a new strategy.
         // First attempt is to find the oldest entry using the current mac address and overwrite that one.
-        oldest_index=0xffffffff;    // invalid
-        oldest_age=0;
-        for (i=0; i<DEVICE_BUFFER_SIZE; i++)
+
+    	// invalid
+        oldest_index = 0xffffffff;
+
+        oldest_age = 0;
+
+        for(i = 0; i < DEVICE_BUFFER_SIZE; i++)
         {
             if (device_buffer[i].mac_address == mac)
-            {   // message is for same destination
-                age = get_microseconds_tick()-device_buffer[i].timestamp;
-                if (age>oldest_age) // this one is the oldest so far
+            {
+            	// message is for same destination
+                age = get_microseconds_tick() - device_buffer[i].timestamp;
+
+                // this one is the oldest so far
+                if (age > oldest_age)
                 {
-                    oldest_index=i; // so store the details
+                	// so store the details
+                    oldest_index = i;
                     oldest_age = age;
                 }
             }
         }
-        if (oldest_index<0xffffffff)
-        {   // we found one, so overwrite it
+        if (oldest_index < 0xffffffff)
+        {
+        	// we found one, so overwrite it
             device_buffer[oldest_index].mac_address = mac;
             device_buffer[oldest_index].timestamp = get_microseconds_tick();
-            memcpy(&device_buffer[oldest_index].message,message,sizeof(T_MESSAGE));
+            memcpy(&device_buffer[oldest_index].message, message, sizeof(T_MESSAGE));
         }
         else
-        {   // we didn't find one with a matching mac, so now we are on our final
+        {
+        	// we didn't find one with a matching mac, so now we are on our final
             // strategy which is just to overwrite the oldest one
-            oldest_index=0xffffffff;    // invalid
-            oldest_age=0;
-            for (i=0; i<DEVICE_BUFFER_SIZE; i++)
+
+        	// invalid
+            oldest_index = 0xffffffff;
+            oldest_age = 0;
+
+            for(i = 0; i < DEVICE_BUFFER_SIZE; i++)
             {
-                age = get_microseconds_tick()-device_buffer[i].timestamp;
-                if (age>oldest_age) // this one is the oldest so far
+                age = get_microseconds_tick() - device_buffer[i].timestamp;
+
+                // this one is the oldest so far
+                if(age > oldest_age)
                 {
-                    oldest_index=i; // so store the details
+                	// so store the details
+                    oldest_index=i;
                     oldest_age = age;
                 }
             }
-            if (oldest_index<0xffffffff)
-            {   // we found one, so overwrite it
+            if (oldest_index < 0xffffffff)
+            {
+            	// we found one, so overwrite it
                 device_buffer[oldest_index].mac_address = mac;
                 device_buffer[oldest_index].timestamp = get_microseconds_tick();
-                memcpy(&device_buffer[oldest_index].message,message,sizeof(T_MESSAGE));
+                memcpy(&device_buffer[oldest_index].message, message, sizeof(T_MESSAGE));
             }
             else
             {
-                zprintf(HIGH_IMPORTANCE, "INTERNAL INABILITY TO STORE MESSAGE FOR DEVICE!!!! - SHOULD NEVER HAPPEN!!!\r\n");
+                zprintf(HIGH_IMPORTANCE,
+                		"INTERNAL INABILITY TO STORE MESSAGE FOR DEVICE!!!! - SHOULD NEVER HAPPEN!!!\r\n");
             }
         }
     }
@@ -217,26 +257,35 @@ T_MESSAGE *device_buffer_get_next(uint64_t mac_address, uint32_t *index)
     uint32_t age;
     T_MESSAGE *retval = NULL;
 
-    oldest_index=0xffffffff;    // invalid
-    oldest_age=0;
-    for (i=0; i<DEVICE_BUFFER_SIZE; i++)
+    // invalid
+    oldest_index = 0xffffffff;
+    oldest_age = 0;
+    for (i = 0; i < DEVICE_BUFFER_SIZE; i++)
     {
         if (device_buffer[i].mac_address == mac_address)
-        {   // message is for same destination
-            age = get_microseconds_tick()-device_buffer[i].timestamp;
-            if (age>oldest_age) // this one is the oldest so far
+        {
+        	// message is for same destination
+            age = get_microseconds_tick() - device_buffer[i].timestamp;
+
+            // this one is the oldest so far
+            if (age>oldest_age)
             {
-                oldest_index=i; // so store the details
+            	// so store the details
+                oldest_index = i;
                 oldest_age = age;
             }
         }
     }
-    if (oldest_index!=0xffffffff)
-    { // found an entry
+
+    if(oldest_index != 0xffffffff)
+    {
+    	// found an entry
         retval = &device_buffer[oldest_index].message;
     }
 
-    *index = oldest_index;  // also return which item this is in the buffer so it can be cleared later on.
+    // also return which item this is in the buffer so it can be cleared later on.
+    *index = oldest_index;
+
     return retval;
 }
 
@@ -249,9 +298,10 @@ T_MESSAGE *device_buffer_get_next(uint64_t mac_address, uint32_t *index)
  **************************************************************/
 void device_buffer_clear_entry(uint32_t index)
 {
-    if (index<DEVICE_BUFFER_SIZE)   // test to ensure we don't splat memory or cause a fault if index is wrong!
+	// test to ensure we don't splat memory or cause a fault if index is wrong!
+    if(index < DEVICE_BUFFER_SIZE)
     {
-        memset(&device_buffer[index],0,sizeof(DEVICE_BUFFER));
+        memset(&device_buffer[index], 0, sizeof(DEVICE_BUFFER));
     }
 }
 
@@ -267,19 +317,25 @@ void device_buffer_dump(void)
     uint32_t 	i, j;
     char*		message_body;
     zprintf(CRITICAL_IMPORTANCE, "idx device_mac    timestamp     message\r\n");
-    for( i = 0; i < DEVICE_BUFFER_SIZE; i++ )
+    for(i = 0; i < DEVICE_BUFFER_SIZE; i++)
     {
- 		if ((device_buffer[i].timestamp!=0) && (device_buffer[i].mac_address!=0))
+ 		if ((device_buffer[i].timestamp != 0) && (device_buffer[i].mac_address != 0))
 		{
-        message_body = (char*)&device_buffer[i].message;
-        zprintf(CRITICAL_IMPORTANCE, "%02d ", i);
-        zprintf(CRITICAL_IMPORTANCE, "%08x%08x ", (uint32_t)((device_buffer[i].mac_address&0xffffffff00000000)>>32), (uint32_t)(device_buffer[i].mac_address&0xffffffff));
+			message_body = (char*)&device_buffer[i].message;
+			zprintf(CRITICAL_IMPORTANCE, "%02d ", i);
+
+			zprintf(CRITICAL_IMPORTANCE, "%08x%08x ",
+					(uint32_t)((device_buffer[i].mac_address & 0xffffffff00000000) >> 32),
+					(uint32_t)(device_buffer[i].mac_address & 0xffffffff));
+
 			zprintf(CRITICAL_IMPORTANCE, "%04x ",device_buffer[i].timestamp);
-        for( j = 0; j < device_buffer[i].message.length; j++ )
-        {
-            zprintf(CRITICAL_IMPORTANCE, "%02x ", message_body[j]);
-        }
-        zprintf(CRITICAL_IMPORTANCE, "\r\n");
+
+			for(j = 0; j < device_buffer[i].message.length; j++)
+			{
+				zprintf(CRITICAL_IMPORTANCE, "%02x ", message_body[j]);
+			}
+			zprintf(CRITICAL_IMPORTANCE, "\r\n");
+
 			DbgConsole_Flush();
 		}
     }
@@ -304,15 +360,18 @@ bool surenet_get_next_message_cb(uint64_t mac, T_MESSAGE **current_request_ptr, 
 {
 	T_MESSAGE *message;
 	uint32_t handle;
-	message = device_buffer_get_next(mac, &handle);    // get a pointer to the oldest message for this device
+	// get a pointer to the oldest message for this device
+	message = device_buffer_get_next(mac, &handle);
 
-	if (message!=NULL)
+	if(message)
 	{
 		*current_request_ptr = message;
 		*current_request_handle = handle;
 		return true;
 	}
-	return false;   // no new message at the moment.
+
+	// no new message at the moment.
+	return false;
 }
 
 /**************************************************************
@@ -327,5 +386,3 @@ void surenet_clear_message_cb(uint32_t current_request_handle)
 	device_buffer_clear_entry(current_request_handle);
     return;
 }
-
-

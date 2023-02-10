@@ -19,17 +19,19 @@
 * Purpose:  Handles retrieving SNTP from an internet Time Server.
 *           
 **************************************************************************/
-
 #ifndef __SNTP_H__
 #define __SNTP_H__
-
+//==============================================================================
 #include "Components.h"
-
+//------------------------------------------------------------------------------
 #define SNTP_SERVER		"pool.ntp.org"
 #define SNTP_PORT		123
-#define SNTP_EPOCH 		(86400ul * (365ul * 70ul + 17ul))	// Epoch starts: 01-Jan-1970 00:00:00 //2208988800U
 
-#define SNTP_AUTO_INTERVAL	portMAX_DELAY // Don't auto-update - wait for a signal to. Used to be pdMS_TO_TICKS(1000*60*15)
+// Epoch starts: 01-Jan-1970 00:00:00 //2208988800U
+#define SNTP_EPOCH 		(86400ul * (365ul * 70ul + 17ul))
+
+// Don't auto-update - wait for a signal to. Used to be pdMS_TO_TICKS(1000*60*15)
+#define SNTP_AUTO_INTERVAL	portMAX_DELAY
 
 #define PRINT_SNTP		false
 #define SNTP_LINE		"\t@ "
@@ -41,15 +43,16 @@
 #define sntp_printf(...)
 #define sntp_flush()
 #endif
-
+//------------------------------------------------------------------------------
 typedef enum
 {
 	SNTP_EVENT_UPDATE_REQUESTED	= (1<<0),
 	SNTP_EVENT_UPDATE_UNDERWAY	= (1<<1),
 	SNTP_EVENT_TIME_VALID		= (1<<2),
 	SNTP_EVENT_UPDATE_FAILED	= (1<<3),
-} SNTP_EVENT_BITS;
 
+} SNTP_EVENT_BITS;
+//------------------------------------------------------------------------------
 // Defines the structure of an NTP packet
 typedef struct
 {
@@ -74,13 +77,14 @@ typedef struct
 	uint32_t	recv_ts_fraq;		// Time at which request arrived at sender (fractions)
 	uint32_t	tx_ts_secs;			// Time at which request left sender (seconds)
 	uint32_t	tx_ts_fraq;			// Time at which request left sender (fractions)
-} NTP_PACKET;
 
+} NTP_PACKET;
+//------------------------------------------------------------------------------
 void SNTP_Init(void);
 void SNTP_Task(void* pvParameters);
 bool SNTP_IsTimeValid(void);
 bool SNTP_DidUpdateFail(void);
 bool SNTP_AwaitUpdate(bool MakeRequest, uint32_t TimeToWait);
 bool SNTP_GetTime(void);
-
+//==============================================================================
 #endif

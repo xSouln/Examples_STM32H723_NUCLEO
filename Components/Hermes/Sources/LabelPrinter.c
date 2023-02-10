@@ -19,7 +19,6 @@
 * Purpose:  Label Printer handler for Production Test   
 *             
 **************************************************************************/
-
 #include <stdlib.h>
 #include <stdio.h>
 #include "hermes.h"
@@ -93,7 +92,8 @@ LABEL_PRINT_STATE label_print_state;
 #define LBL_SERVER_4	1
 #define LBL_PORT		1800
 
-extern PRODUCT_CONFIGURATION product_configuration;	// This is a RAM copy of the product info from Flash.
+// This is a RAM copy of the product info from Flash.
+extern PRODUCT_CONFIGURATION product_configuration;
 
 // test function, invoked by typing 'labelreset' from CLI
 void restart_label_print(void)	// this is a bit naughty, but only needed for testing...
@@ -131,7 +131,7 @@ void label_task(void *pvParameters)
 	uint16_t 					crc;
 	uint8_t						byte;
 	char 						reply[128];
-	uint8_t						led_cycle_state = 0;	// used to cycle around colour LEDs.
+	uint8_t						led_cycle_state = 0; // used to cycle around colour LEDs.
 	uint32_t					led_cycle_timer;
 	uint32_t					start_timer;
 	uint8_t						old_button_state;
@@ -152,15 +152,23 @@ void label_task(void *pvParameters)
 				start_timer = get_microseconds_tick();
 				label_print_state = LABEL_WAIT_CONNECTED;
 				break;
-			case LABEL_WAIT_CONNECTED:	// wait for the phy to be connected. Actually don't!	
-				if( (get_microseconds_tick() - start_timer) > 1000000)	// wait one second for Ethernet to come up
+
+			case LABEL_WAIT_CONNECTED:
+				// wait for the phy to be connected. Actually don't!
+
+				// wait one second for Ethernet to come up
+				if((get_microseconds_tick() - start_timer) > 1000000)
+				{
 					label_print_state = LABEL_OPEN_SOCKET;
+				}
 				break;
-			case LABEL_OPEN_SOCKET:	// open a socket to 192.168.0.1 on port 1800
+
+			case LABEL_OPEN_SOCKET:
+				// open a socket to 192.168.0.1 on port 1800
 				lblSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 				if (lblSocket < 0)
 				{
-					address.sin_addr.s_addr = LWIP_MAKEU32(LBL_SERVER_1, LBL_SERVER_2,LBL_SERVER_3 ,LBL_SERVER_4);
+					address.sin_addr.s_addr = LWIP_MAKEU32(LBL_SERVER_1, LBL_SERVER_2, LBL_SERVER_3, LBL_SERVER_4);
 					address.sin_port = htons(LBL_PORT);
 
 					if(connect(lblSocket, (struct sockaddr*)&address, sizeof(address)) == 0)
@@ -180,25 +188,32 @@ void label_task(void *pvParameters)
 					label_print_state = LABEL_FAIL;
 				}
 				break;
-			case LABEL_IDENTIFY:	// Send the ID string to the Label Printer
-				sprintf(mac_string, "0000%02X%02X%02X%02X%02X%02X",	product_configuration.ethernet_mac[0],product_configuration.ethernet_mac[1], \
-																	product_configuration.ethernet_mac[2],product_configuration.ethernet_mac[3], \
-																	product_configuration.ethernet_mac[4],product_configuration.ethernet_mac[5]);
-				sprintf(idstring,"serial_number=%s&mac_address=%s&product_id=%1d", \
-								product_configuration.serial_number, \
-								mac_string,
-								DEVICE_TYPE_HUB);
-				len=strlen(idstring);	// how long is it _without_ leading length and \r\n\r\n
 
-				sprintf(idstring,"%d\r\n\r\nserial_number=%s&mac_address=%s&product_id=%1d", \
-								len, \
-								product_configuration.serial_number, \
+			case LABEL_IDENTIFY:
+				// Send the ID string to the Label Printer
+				sprintf(mac_string, "0000%02X%02X%02X%02X%02X%02X",
+						product_configuration.ethernet_mac[0],product_configuration.ethernet_mac[1],
+						product_configuration.ethernet_mac[2],product_configuration.ethernet_mac[3],
+						product_configuration.ethernet_mac[4],product_configuration.ethernet_mac[5]);
+
+				sprintf(idstring,"serial_number=%s&mac_address=%s&product_id=%1d",
+								product_configuration.serial_number,
 								mac_string,
 								DEVICE_TYPE_HUB);
+
+				// how long is it _without_ leading length and \r\n\r\n
+				len = strlen(idstring);
+
+				sprintf(idstring,"%d\r\n\r\nserial_number=%s&mac_address=%s&product_id=%1d",
+								len,
+								product_configuration.serial_number,
+								mac_string,
+								DEVICE_TYPE_HUB);
+
 				// Now we need to amend len to account for the %d\r\n\r\n at the beginning
-				if (len>95) // this is a hideous kludge. 95 is 99-strlen("\r\n\r\n")
+				if(len > 95) // this is a hideous kludge. 95 is 99-strlen("\r\n\r\n")
 				{
-					len+=7;
+					len += 7;
 				}
 				else
 				{
@@ -219,10 +234,12 @@ void label_task(void *pvParameters)
 					lbl_printf("Sent %s to printer\r\n",idstring);					
 					label_print_state = LABEL_WAIT_OKAY;
 				}
-				break;	
-			case LABEL_WAIT_OKAY:	// wait for the Label Printer to respond with "Okay"
+				break;
+
+			case LABEL_WAIT_OKAY:
+				// wait for the Label Printer to respond with "Okay"
 				len = recv(lblSocket, reply, sizeof(reply), 0);
-				if( strcmp(reply,"Okay")==0)
+				if(strcmp(reply,"Okay") == 0)
 				{
 					led_cycle_state = 0;
 					led_cycle_timer = get_microseconds_tick();
@@ -235,9 +252,11 @@ void label_task(void *pvParameters)
 					lbl_printf("Timeout waiting for OKAY\r\n");						
 					label_print_state = LABEL_FAIL;
 				}
-				break;	
+				break;
+
 			case LABEL_CYCLE_LEDS:
-				if( (get_microseconds_tick()-led_cycle_timer) > 250000)	// advance the LED
+				// advance the LED
+				if( (get_microseconds_tick()-led_cycle_timer) > 250000)
 				{
 					led_cycle_timer = get_microseconds_tick();
 
@@ -269,11 +288,13 @@ void label_task(void *pvParameters)
 					old_button_state = BUTTON_PRESSED;
 					button_timer = get_microseconds_tick();
 				}
-				if( BUTTON_PRESSED != READ_BUTTON() )
+
+				if(BUTTON_PRESSED != READ_BUTTON())
 				{
 					old_button_state = !BUTTON_PRESSED;
 				}
-				if( (250000<(get_microseconds_tick()-button_timer)) && (BUTTON_PRESSED == old_button_state) )
+
+				if( (250000<(get_microseconds_tick()-button_timer)) && (BUTTON_PRESSED == old_button_state))
 				{
 					product_configuration.product_state = PRODUCT_CONFIGURED;					
 					write_product_configuration();	
@@ -282,13 +303,15 @@ void label_task(void *pvParameters)
 					lbl_printf("Label printing done\r\n");							
 					label_print_state = LABEL_DONE;
 				}
-				break;	
+				break;
+
 			case LABEL_FAIL:
 				LED_Request_Pattern(LED_MODE_NORMAL, COLOUR_RED, LED_PATTERN_SOLID, 0);
 				lbl_printf("Test FAILED\r\n");					
 				label_print_state = LABEL_DONE;
 				break;
-			case LABEL_DONE:		
+
+			case LABEL_DONE:
 			default:	
 				// wait here for ever
 				break;

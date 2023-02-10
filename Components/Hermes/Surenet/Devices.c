@@ -52,6 +52,9 @@ DEVICE_STATUS_EXTRA device_status_extra[MAX_NUMBER_OF_DEVICES] DEVICE_STATUS_EXT
 extern QueueHandle_t xNvStoreMailboxSend;
 extern QueueHandle_t xNvStoreMailboxResp;
 
+DEVICE_STATUS* device_status_0;
+DEVICE_STATUS_EXTRA* device_status_extra_0;
+
 // Private functions
 bool remove_pairing_table_entry(uint64_t mac);
 /**************************************************************
@@ -73,7 +76,11 @@ void sn_devicetable_init(void)
 	uint8_t* 	mac_8;
 	uint32_t	notifyValue;
 	
-	memset(device_status_extra, 0, sizeof(device_status_extra)); // hose extra part of Device Statuses. Maybe should store this too?
+	device_status_0 = device_status;
+	device_status_extra_0 = device_status_extra;
+
+	// hose extra part of Device Statuses. Maybe should store this too?
+	memset(device_status_extra, 0, sizeof(device_status_extra));
 	/*
 	xQueueSend(xNvStoreMailboxSend, &notifyValue, 0); // get device table into RAM
 	
@@ -108,14 +115,20 @@ void sn_devicetable_init(void)
 		zprintf(HIGH_IMPORTANCE, "Failed to read Device Status from NVM\r\n");
 	}
 	*/
-	memset(device_status_extra, 0, sizeof(device_status_extra));	// clear the extra part always
+
+	// clear the extra part always
+	memset(device_status_extra, 0, sizeof(device_status_extra));
+
+	device_status[0].mac_address = 0x70B3D5F9CF036F90;
+	device_status[0].status.valid = true;
 	// apart from the SendSecurityKey because it's random and we have just started up, we must send it to the devices
 	// when they try and talk to us.
-	for( i=0; i<MAX_NUMBER_OF_DEVICES; i++ )
+	for(i = 0; i < MAX_NUMBER_OF_DEVICES; i++)
 	{
-		if( device_status[i].status.associated == 1 )
+		if(device_status[i].status.associated)
 		{
-			device_status_extra[i].SendSecurityKey = SECURITY_KEY_RENEW;	// send key to previously associated devices
+			// send key to previously associated devices
+			device_status_extra[i].SendSecurityKey = SECURITY_KEY_RENEW;
 		}
 	}
 }
@@ -123,11 +136,16 @@ void sn_devicetable_init(void)
 // looks up the index of an entry in the pairing table, given it's address
 bool convert_addr_to_index(uint64_t addr, uint8_t *index)
 {
-	if( NULL == index) {return false;}	// safety net
-	uint8_t i;
-	for( i = 0; i < MAX_NUMBER_OF_DEVICES; i++ )
+	// safety net
+	if(!index)
 	{
-		if( device_status[i].mac_address == addr )
+		return false;
+	}
+
+	uint8_t i;
+	for(i = 0; i < MAX_NUMBER_OF_DEVICES; i++)
+	{
+		if(device_status[i].mac_address == addr)
 		{
 			*index = i;
 			return true;
@@ -155,7 +173,7 @@ void device_table_dump(void)
 	
 	zprintf(CRITICAL_IMPORTANCE, "Pairing table:\r\n");
 	zprintf(CRITICAL_IMPORTANCE, "#\tValid Online Product Type  Web MAC Address             Dev RSSI Hub RSSI Last heard\r\n");
-	for( i = 0; i < MAX_NUMBER_OF_DEVICES; i++ )
+	for(i = 0; i < MAX_NUMBER_OF_DEVICES; i++)
 	{
 		if ((device_status[i].status.valid==1) && \
 			(device_status[i].mac_address!=0))		
@@ -207,34 +225,51 @@ bool add_mac_to_pairing_table(uint64_t mac)
 	uint8_t i = 0;
 	do
 	{
-		if( device_status[i].mac_address == mac )
-		{   // this mac is already here. Might need to think about nuances of an existing entry
+		if(device_status[i].mac_address == mac)
+		{
+			// this mac is already here. Might need to think about nuances of an existing entry
 			// that is valid vs one that is not valid.
-			device_status[i].status.valid = 1;	// mark this entry as valid
-			device_status[i].status.associated = 1;	// mark this entry as associated			   
-			device_status[i].last_heard_from = get_microseconds_tick();  // microsecond counter
+
+			// mark this entry as valid
+			device_status[i].status.valid = 1;
+			// mark this entry as associated
+			device_status[i].status.associated = 1;
+			// microsecond counter
+			device_status[i].last_heard_from = get_microseconds_tick();
 			surenet_update_device_table_line(&device_status[i], i, true, true);
 			sn_GenerateSecurityKey(i);
 			sn_CalculateSecretKey(i);
 			return true;
 		}
-	} while( ++i < MAX_NUMBER_OF_DEVICES ); 
+	}
+	while( ++i < MAX_NUMBER_OF_DEVICES);
+
 	i = 0;
-	do  // if we get here, the mac is new to us
+	// if we get here, the mac is new to us
+	do
 	{
-		if( device_status[i].status.valid == 0 )
-		{   // we have found a slot, so use it
-			device_status[i].status.valid = 1;	// mark this entry as valid
-			device_status[i].status.associated = 1;	// mark this entry as associated		  
-			device_status[i].mac_address = mac;   // store the mac address
-			device_status[i].last_heard_from = get_microseconds_tick();  // microsecond counter	
+		if(!device_status[i].status.valid)
+		{
+			// we have found a slot, so use it
+
+			// mark this entry as valid
+			device_status[i].status.valid = 1;
+			// mark this entry as associated
+			device_status[i].status.associated = 1;
+			// store the mac address
+			device_status[i].mac_address = mac;
+			// microsecond counter
+			device_status[i].last_heard_from = get_microseconds_tick();
 			sn_GenerateSecurityKey(i);
 			sn_CalculateSecretKey(i);
 			surenet_update_device_table_line(&device_status[i], i, false, true);
 			return true;
 		}
-	} while( ++i < MAX_NUMBER_OF_DEVICES );
+	}
+	while(++i < MAX_NUMBER_OF_DEVICES);
+
 	zprintf(HIGH_IMPORTANCE,"Device associated, but pairing table full.\r\n");
+
 	return false;
 }
 
@@ -247,28 +282,31 @@ bool remove_pairing_table_entry(uint64_t mac)
 	uint8_t found	= 0;
 	bool 	retval	= false;
 	
-	if( mac == 0 )
+	if(!mac)
 	{	  
 		zprintf(MEDIUM_IMPORTANCE, "Wiping all of the pairing table!\r\n");
 		memset(device_status, 0, sizeof(device_status));
 		store_device_table();
 		retval = true;
-	} else
+	}
+	else
 	{
 		zprintf(MEDIUM_IMPORTANCE,"Removing: %08x %08x\r\n",(uint32_t)(mac >> 32), (uint32_t)(mac & 0xffffffff));
 		do
 		{	  
-			if( device_status[i].mac_address == mac )
-			{   // we have found mac, so mark this entry as invalid
+			if(device_status[i].mac_address == mac)
+			{
+				// we have found mac, so mark this entry as invalid
 				zprintf(MEDIUM_IMPORTANCE,"Found MAC at line %d\r\n", i);
 				memset (&device_status[i], 0, sizeof (device_status[i]));
 				store_device_table ();
 				found++;
 				retval = true;
 			}   
-		} while( ++i < MAX_NUMBER_OF_DEVICES );
+		}
+		while(++i < MAX_NUMBER_OF_DEVICES);
 
-		if( 0 == found )
+		if(!found)
 		{
 			zprintf(HIGH_IMPORTANCE,"Could not find MAC in Pair table\r\n");
 			retval = false;
@@ -288,17 +326,21 @@ bool is_device_already_known(uint64_t addr, uint8_t dev_type)
 {
 	uint8_t index;
 	
-	if( convert_addr_to_index(addr,&index) == false )
+	if(!convert_addr_to_index(addr,&index))
 	{
-		return false;	// can't find MAC
+		// can't find MAC
+		return false;
 	}
 	
-	if( device_status[index].status.device_type != dev_type )
+	if(device_status[index].status.device_type != dev_type)
 	{
-		return false;	// device type doesn't match (which would be odd as it
-	}					// means the MAC has been re-used for a different device!
+		// device type doesn't match (which would be odd as it
+		return false;
+	}
 	
-	return true;	// mac address and device types match
+	// means the MAC has been re-used for a different device!
+	// mac address and device types match
+	return true;
 }
 
 // adds dev_type and dev_rssi to the pairing table entry determined by addr
@@ -308,7 +350,7 @@ bool add_device_characteristics_to_pairing_table(uint64_t addr, uint8_t dev_type
 {
 	uint8_t index;
 	
-	if( convert_addr_to_index(addr,&index) == false )
+	if(!convert_addr_to_index(addr, &index))
 	{
 		return false;
 	}
@@ -330,7 +372,7 @@ void trigger_key_send(uint64_t mac)
 {
 	uint8_t index;
 	
-	if( true == convert_addr_to_index(mac,&index) )
+	if(convert_addr_to_index(mac, &index))
 	{
 		device_status_extra[index].SendSecurityKey = SECURITY_KEY_RENEW;
 	}
@@ -347,14 +389,20 @@ int8_t convert_mac_to_index(uint64_t src_mac)
 {
   
 	uint8_t i = 0;
-	if( 0ull == src_mac ){ return -1; } // Do not respond to non-Sure beacon requests.
+	// Do not respond to non-Sure beacon requests.
+	if(!src_mac)
+	{
+		return -1;
+	}
 	do
 	{
-		if( (device_status[i].mac_address == src_mac ) && ( 1 == device_status[i].status.valid ))
+		if((device_status[i].mac_address == src_mac) && device_status[i].status.valid)
 		{
 			return i;
 		}
-	} while( ++i < MAX_NUMBER_OF_DEVICES );
+	}
+	while(++i < MAX_NUMBER_OF_DEVICES);
+
 	return -1;
 }
 
@@ -367,7 +415,7 @@ int8_t convert_mac_to_index(uint64_t src_mac)
  **************************************************************/
 bool are_we_paired_with_source(uint64_t src_mac)
 {
-	if( convert_mac_to_index(src_mac) == -1 )
+	if(convert_mac_to_index(src_mac) == -1)
 	{
 		return false;
 	}
@@ -428,12 +476,14 @@ bool store_device_table(void)
 uint8_t device_type_from_mac(uint64_t src_mac)
 {
 	int8_t index = convert_mac_to_index(src_mac);
-	if( index != -1 )
+	if(index != -1)
 	{
 		return device_status[index].status.device_type;
-	} else
+	}
+	else
 	{
-		return 0;	// SURE_PRODUCT_UNKNOWN
+		// SURE_PRODUCT_UNKNOWN
+		return 0;
 	}
 }
 
@@ -477,24 +527,23 @@ uint32_t last_heard_from(void)
 	uint32_t now 			= get_microseconds_tick();
 	uint32_t most_recent 	= 0xffffffff;
 	
-	for( i = 0; i < MAX_NUMBER_OF_DEVICES; i++ )
+	for(i = 0; i < MAX_NUMBER_OF_DEVICES; i++)
 	{
-		if( 1 == device_status[i].status.valid )
+		if(device_status[i].status.valid)
 		{
 			num_valid++;
-			if( (get_microseconds_tick() - device_status[i].last_heard_from) < most_recent )
+			if((get_microseconds_tick() - device_status[i].last_heard_from) < most_recent)
 			{
 				most_recent = get_microseconds_tick() - device_status[i].last_heard_from;
 			}
 		}
 	}
 	
-	if( 0 == num_valid )
+	if(!num_valid)
 	{
-		return 0;	// no paired devices
+		// no paired devices
+		return 0;
 	}
 	
 	return most_recent;	
 }
-
-

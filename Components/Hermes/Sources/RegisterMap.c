@@ -56,8 +56,10 @@ extern EventGroupHandle_t	xSurenet_EventGroup;
 extern QueueHandle_t		xLedMailbox;
 
 // Local #defines
-#define INITIAL_NUMBER_OF_EXPOSED_DEVICES	60	// this is how many entries of the DEVICE_TABLE
-												// are exposed to the server on reset.
+
+// this is how many entries of the DEVICE_TABLE
+// are exposed to the server on reset.
+#define INITIAL_NUMBER_OF_EXPOSED_DEVICES	60
 // Local variables
 uint8_t number_of_exposed_devices;
 

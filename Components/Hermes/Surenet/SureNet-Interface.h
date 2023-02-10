@@ -23,48 +23,68 @@
 *
 *
 **************************************************************************/
-
 #ifndef SURENET_INTERFACE_H
 #define	SURENET_INTERFACE_H
+
+#include "Hermes-compiller.h"
 #include "devices.h"
+
 // Public constants
 #define MAX_PAYLOAD_SIZE  256
 
 // public data structures
-typedef struct
+typedef HERMES__PACKED_PREFIX struct
 {
-  uint16_t  packet_length;  // including header and parity after payload
-  uint8_t   sequence_number;
-  uint8_t   packet_type;	// should be PACKET_TYPE?
-  uint64_t  source_address;
-  uint64_t  destination_address;
-  uint16_t  crc;
-  uint8_t   rss;    // received signal strength.
-  uint8_t   spare;	// sizeof = 24
-} HEADER;
+	// including header and parity after payload
+	uint16_t  packet_length;
 
-typedef struct
+	uint8_t   sequence_number;
+
+	// should be PACKET_TYPE?
+	uint8_t   packet_type;
+
+	uint64_t  source_address;
+	uint64_t  destination_address;
+	uint16_t  crc;
+
+	// received signal strength.
+	uint8_t   rss;
+
+	// sizeof = 24
+	uint8_t   spare;
+
+} HERMES__PACKED_POSTFIX HEADER;
+
+typedef HERMES__PACKED_PREFIX struct
 {
   HEADER header;
   uint8_t  payload[MAX_PAYLOAD_SIZE];
-} PACKET;
+
+} HERMES__PACKED_POSTFIX PACKET;
 
 typedef union
 {
-  uint8_t   buffer[MAX_PAYLOAD_SIZE+sizeof(HEADER)];
-  PACKET  packet;
+  uint8_t buffer[MAX_PAYLOAD_SIZE + sizeof(HEADER)];
+  PACKET packet;
+
 } RECEIVED_PACKET;
 
 //General message struct
-#define T_MESSAGE_PAYLOAD_SIZE 92    //88+4  88 should match MAX_RF_PAYLOAD in global.h, 4 is header size (address and count)
+//88 + 4 (88) should match MAX_RF_PAYLOAD in global.h, 4 is header size (address and count)
+#define T_MESSAGE_PAYLOAD_SIZE 92
 #define T_MESSAGE_HEADER_SIZE	4
 #define T_MESSAGE_PARITY_SIZE	1
 
 typedef struct
 {
-	int16_t command; // from DEVICE_COMMANDS in message_parser.h
-	int16_t length;   // total length, i.e. sizeof(command)+sizeof(length)+payload_length
-	uint8_t payload[T_MESSAGE_PAYLOAD_SIZE+T_MESSAGE_PARITY_SIZE];
+	// from DEVICE_COMMANDS in message_parser.h
+	int16_t command;
+
+	// total length, i.e. sizeof(command)+sizeof(length)+payload_length
+	int16_t length;
+
+	uint8_t payload[T_MESSAGE_PAYLOAD_SIZE + T_MESSAGE_PARITY_SIZE];
+
 }T_MESSAGE;
 
 typedef struct
@@ -72,9 +92,11 @@ typedef struct
     T_MESSAGE *ptr;
     bool new_message;
     uint32_t handle;
+
 } MESSAGE_PARAMS;
 
-typedef enum	// used to indicate where a pairing request came from
+// used to indicate where a pairing request came from
+typedef enum
 {
 	PAIRING_REQUEST_SOURCE_UNKNOWN,
 	PAIRING_REQUEST_SOURCE_SERVER,
@@ -82,6 +104,7 @@ typedef enum	// used to indicate where a pairing request came from
 	PAIRING_REQUEST_SOURCE_CLI,
 	PAIRING_REQUEST_SOURCE_TIMEOUT,
 	PAIRING_REQUEST_SOURCE_BEACON_REQUEST,
+
 } PAIRING_REQUEST_SOURCE;
 
 typedef struct
@@ -89,14 +112,19 @@ typedef struct
 	uint32_t timestamp;
 	bool enable;
 	PAIRING_REQUEST_SOURCE source;
+
 } PAIRING_REQUEST;
 
-typedef struct // used for the mailbox indicating a successful association
+// used for the mailbox indicating a successful association
+typedef struct
 {
     uint64_t association_addr;
     uint8_t association_dev_type;
     uint8_t association_dev_rssi;
-	PAIRING_REQUEST_SOURCE source;	// who put us in association mode in the first place
+
+    // who put us in association mode in the first place
+	PAIRING_REQUEST_SOURCE source;
+
 } ASSOCIATION_SUCCESS_INFORMATION;
 
 typedef enum
@@ -110,8 +138,13 @@ typedef enum
 typedef struct
 {
 	uint64_t mac_address;
-	bool found_ping;					// set when a ping has been received
-	bool report_ping;					// set when a ping should be reported
+
+	// set when a ping has been received
+	bool found_ping;
+
+	// set when a ping should be reported
+	bool report_ping;
+
 	uint32_t transmission_timestamp;
 	uint32_t reply_timestamp;
 	uint32_t ping_attempts;
@@ -129,6 +162,7 @@ typedef struct
 	DEVICE_STATUS	device_status;
 	uint32_t		line;
 	bool			limited;
+
 } DEVICE_STATUS_REQUEST;
 
 // These should come from the rest of the system, or be removed.

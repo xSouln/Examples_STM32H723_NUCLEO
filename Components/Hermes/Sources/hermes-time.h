@@ -28,6 +28,8 @@
 #ifndef __HERMES_TIME_H__
 #define __HERMES_TIME_H__
 
+#include "Hermes-compiller.h"
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
@@ -37,13 +39,14 @@
 #define usTICK_MINUTE		(usTICK_SECONDS * 60)
 #define usTICK_HOUR			(usTICK_MINUTE * 60)
 
-typedef struct
+typedef HERMES__PACKED_PREFIX struct
 {
 	uint8_t		day;
 	uint8_t		hour;
 	uint8_t		minute;
 	uint8_t		second;
-} HERMES_TIME_GMT;
+
+} HERMES__PACKED_POSTFIX HERMES_TIME_GMT;
 
 void set_utc_to_compile_time(void);
 void delay_us(uint32_t delay);

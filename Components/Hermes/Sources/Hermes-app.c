@@ -59,7 +59,7 @@
 #include "BuildNumber.h"
 #include "timer_interface.h"
 #include "HTTP_Helper.h"
-
+//==============================================================================
 // externs
 extern QueueHandle_t xNvStoreMailboxSend;
 
@@ -80,21 +80,21 @@ uint32_t blocking_test_failure_start;
 
 bool trigger_delayed_pairing_mode_disabled_event = false;
 uint32_t trigger_delayed_pairing_mode_disabled_event_timestamp;
-
+//==============================================================================
 // local functions
 static void send_hub_report(void);
 static void HermesApp_MaintainConnection(void);
 static void button_handler(void);
 void update_led_view(void);
 void surenet_blocking_test_watchdog();
-
+//==============================================================================
 // Mailboxes for inter task communication
 QueueHandle_t		xIncomingMQTTMessageMailbox;
 QueueHandle_t		xOutgoingMQTTMessageMailbox;
 QueueHandle_t		xBufferMessageMailbox;
 QueueHandle_t		xSystemStatusMailbox;
 EventGroupHandle_t	xConnectionStatus_EventGroup;
-
+//==============================================================================
 void hermes_app_init(void)
 {
     // set up our mailboxes
@@ -104,7 +104,7 @@ void hermes_app_init(void)
 	xSystemStatusMailbox			= xQueueCreate(5, sizeof(SYSTEM_STATUS_EVENTS));
 	xConnectionStatus_EventGroup	= xEventGroupCreate();
 }
-
+//------------------------------------------------------------------------------
 // We put these here to ensure that we don't have to allocate enough space in the
 // hermes_app_task() to provide for them
 static MQTT_MESSAGE mqtt_message;
@@ -132,7 +132,7 @@ void hermes_app_task(void *pvParameters)
 	// set BootRN to a non zero random value
 	do
 	{
-		HAL_RNG_GenerateRandomNumber(&hrng, &random_value);
+		HAL_RNG_GenerateRandomNumber(&hrng, &random_value); //!wrong
 
 		// Note this is not the same as Hub1. In Hub1, BootRN gets set to the low byte of
 		// current time when MQTT subscription is successful.
@@ -158,6 +158,8 @@ void hermes_app_task(void *pvParameters)
 
 		// Furthermore, the devices remain awake waiting for the reply, so
 		// the faster we can reply, the longer their batteries will last.
+    	DebugCounter.hermes_app_task_circle++;
+
         Surenet_Interface_Handler();
 
 		if(SNTP_IsTimeValid())
@@ -174,14 +176,14 @@ void hermes_app_task(void *pvParameters)
 
 		// check for messages arriving from MQTT interface
 		if((uxQueueMessagesWaiting(xIncomingMQTTMessageMailbox) > 0)
-		&& (pdPASS == xQueueReceive(xIncomingMQTTMessageMailbox,&mqtt_message,0)))
+		&& (xQueueReceive(xIncomingMQTTMessageMailbox, &mqtt_message,0)) == pdPASS)
         {
             process_MQTT_message_from_server(mqtt_message.message, mqtt_message.subtopic);
         }
 
 		// if there is a message waiting from the MQTT Connect function, the grab it and mark it as pending
 		if((uxQueueMessagesWaiting(xBufferMessageMailbox) > 0)
-		&& (pdPASS == xQueueReceive(xBufferMessageMailbox, &server_message, 0)))
+		&& (xQueueReceive(xBufferMessageMailbox, &server_message, 0)) == pdPASS)
 		{
 			mqtt_message_pending = true;
 		}
@@ -197,7 +199,7 @@ void hermes_app_task(void *pvParameters)
 		}
 
 		if((uxQueueMessagesWaiting(xSystemStatusMailbox) > 0)
-		&& (pdPASS == xQueueReceive(xSystemStatusMailbox, &system_event, 0)))
+		&& (xQueueReceive(xSystemStatusMailbox, &system_event, 0)) == pdPASS)
 		{
 			// something has happened in the system, so update LEDs
 			process_system_event(system_event);
@@ -221,25 +223,10 @@ void hermes_app_task(void *pvParameters)
 			}
         }
 
-		/*
-        if(!outgoing_message)
-		{
-			// See if there's a message to send.
-			outgoing_message = server_buffer_get_next_message();
-		}
-
-		if(outgoing_message)
-		{
-			// Note this will copy the full size of the structure
-			// which could be much more than the message.
-			xQueueSend(xOutgoingMQTTMessageMailbox, outgoing_message, 0);
-			outgoing_message = NULL;
-		}
-*/
 		button_handler();
 
 		// Check status of RF comms every 5 seconds, and issue a system event if it's changed.
-		if( (get_microseconds_tick() - last_heard_check_time) > 5 * usTICK_SECONDS )
+		if((get_microseconds_tick() - last_heard_check_time) > 5 * usTICK_SECONDS)
 		{
 			last_heard = surenet_get_last_heard_from();
 			if (last_heard > (RF_COMMS_TIMEOUT * usTICK_SECONDS))
@@ -284,7 +271,7 @@ void hermes_app_task(void *pvParameters)
 			{
 				// instantaneous PER is OK.
 				if((!blocking_test_ok)
-				&& ((get_microseconds_tick()-blocking_test_failure_start) > (2*usTICK_SECONDS)))
+				&& ((get_microseconds_tick() - blocking_test_failure_start) > (2 * usTICK_SECONDS)))
 				{
 					// we were previously indicating an error
 					process_system_event(STATUS_BLOCKING_TEST_GOOD);
@@ -323,7 +310,7 @@ void hermes_app_task(void *pvParameters)
 		vTaskDelay(pdMS_TO_TICKS( 1 ));
     }
 }
-
+//------------------------------------------------------------------------------
 static void HermesApp_MaintainConnection(void)
 {
 	static Timer		sntp_update_timer	= EMPTY_TIMER;
@@ -336,10 +323,10 @@ static void HermesApp_MaintainConnection(void)
 		if(ConnStatus & CONN_STATUS_FULL_CONNECTION)
 		{
 			//process_system_event(STATUS_CONNECTED_TO_CLOUD); //Moved to MQTT.c
-#ifdef UPLOAD_HUB_REGISTERS_ON_CLOUD_CONNECT
-//			zprintf(CRITICAL_IMPORTANCE,"Uploading Hub register map...\r\n");
+			#ifdef UPLOAD_HUB_REGISTERS_ON_CLOUD_CONNECT
+			//zprintf(CRITICAL_IMPORTANCE,"Uploading Hub register map...\r\n");
 			HubReg_Refresh_All();
-#endif
+			#endif
 		}
 		else if(ConnStatus & CONN_STATUS_NETWORK_UP)
 		{
@@ -524,8 +511,9 @@ typedef enum
 	BUTTON_HANDLER_WAIT_PAIRING,
 	BUTTON_HANDLER_START_RELEASE_TIMER,
 	BUTTON_HANDLER_WAIT_RELEASE,
-} BUTTON_HANDLER_STATE;
 
+} BUTTON_HANDLER_STATE;
+//------------------------------------------------------------------------------
 void button_handler(void)
 {
 	static uint32_t 			button_timer 			= 0u;
@@ -614,7 +602,6 @@ void button_handler(void)
  * current one. So they fall outside the priority system, and are sent to the
  * LED driver immediately (with a timeout)
  */
-
 typedef enum
 {
 	LEVEL_BASIC,
@@ -625,7 +612,7 @@ typedef enum
 	LEVEL_TEST,
 	LEVEL_BACKSTOP,
 } PRIORITY_LEVEL;
-
+//------------------------------------------------------------------------------
 typedef struct
 {
 	bool				active;
@@ -633,7 +620,7 @@ typedef struct
 	LED_PATTERN_TYPE	pattern;
 	uint32_t			duration;
 } LED_VIEW;
-
+//------------------------------------------------------------------------------
 LED_VIEW led_view[LEVEL_BACKSTOP] =  {  { true, COLOUR_GREEN, LED_PATTERN_SOLID , 0}, // should always be true!
 										{ false, COLOUR_RED, LED_PATTERN_SOLID , 0},
 										{ false, COLOUR_RED, LED_PATTERN_SOLID , 0},
@@ -641,7 +628,6 @@ LED_VIEW led_view[LEVEL_BACKSTOP] =  {  { true, COLOUR_GREEN, LED_PATTERN_SOLID 
 										{ false, COLOUR_RED, LED_PATTERN_SOLID , 0},
 										{ false, COLOUR_RED, LED_PATTERN_SOLID , 0}};
 LED_MODE brightness = LED_MODE_DIM; // This is the system brightness level
-
 /**************************************************************
  * Function Name   : update_led_view
  * Description     : Examines the priority list of LED states and
@@ -806,7 +792,7 @@ void set_led_brightness(LED_MODE value, bool store)
 {
 	brightness = value;
     if(true == store)
-    store_led_brightness(value);                                                // put the brightness setting in persistent store
+    store_led_brightness(value); // put the brightness setting in persistent store
 	update_led_view();	// assert any change in value
 }
 

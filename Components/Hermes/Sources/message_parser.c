@@ -19,7 +19,6 @@
 * Purpose:  Parses messages received from Server, and despatch them.
 *
 **************************************************************************/
-
 #include "hermes.h"
 
 /* Standard includes. */
@@ -43,6 +42,8 @@
 #include "devices.h"    // to get the max size of the Device Table.
 #include "HubFirmwareUpdate.h"
 #include "credentials.h"
+
+#include "Common/xConverter.h"
 
 // Main entry point is process_MQTT_message_from_server()
 
@@ -133,7 +134,7 @@ void process_MQTT_message_from_server(char *message,char *subtopic)
 		// If the Server has sent a repeated reflected message, we can detect this,
 		// because the oiir part of the message should take the form 0iir if
 		// the message is reflected (1iir for Hub sourced, and 2iir for Chevron sourced)
-		if('0' == message[9])
+		if(message[9] == '0')
 		{
 			// bail out - this is a message that was originally sourced by us!
 			return;
@@ -145,20 +146,26 @@ void process_MQTT_message_from_server(char *message,char *subtopic)
 		}
 
         // parse the message and convert it from a string to numbers.
-        msg_string_to_bytes(message,header,&command,&index,&address,&numValues,values,MAX_MESSAGE_BYTES);
+        msg_string_to_bytes(message,
+							header,
+							&command,
+							&index,
+							&address,
+							&numValues,
+							values,
+							MAX_MESSAGE_BYTES);
 
         // Decide what the destination of the message is
-        if (!strcmp(subtopic,"messages"))
+        if (!strcmp(subtopic, "messages"))
         {
-            message_destination=MESSAGE_FOR_HUB;
+            message_destination = MESSAGE_FOR_HUB;
         }
         else
         {
-            message_destination=MESSAGE_FOR_DEVICE;
+            message_destination = MESSAGE_FOR_DEVICE;
 
-			uint8_t* dMAC = (uint8_t*)&DeviceMAC;
-			sscanf(subtopic, "%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx",
-					dMAC, dMAC+1, dMAC+2, dMAC+3, dMAC+4, dMAC+5, dMAC+6, dMAC+7);
+            DeviceMAC = xConverterStrHexToUInt64(subtopic, -1);
+			DeviceMAC = xConverterSwapUInt64(DeviceMAC);
         }
 
         switch (message_destination)
@@ -207,10 +214,11 @@ void process_MQTT_message_from_server(char *message,char *subtopic)
                         zprintf(LOW_IMPORTANCE, "Received Ping request from Server\r\n");
 						DeviceMAC = 0;
 						ping_value = 0;
-						if (numValues==1)
+
+						if (numValues == 1)
 						{
 							ping_value = values[0];
-							surenet_ping_device(DeviceMAC,ping_value);
+							surenet_ping_device(DeviceMAC, ping_value);
 						}
 						// new feature to specify MAC address of Device.
 						else if (numValues == 9)
@@ -266,16 +274,17 @@ void process_MQTT_message_from_server(char *message,char *subtopic)
                 break;
 
             case MESSAGE_FOR_DEVICE:
+
                 switch(command)
                 {
                     case MSG_HUB_THALAMUS:
-                        TranslateToDevice(DeviceMAC,THALAMUS_DUMMY_REGISTER,values,false,numValues);
+                        TranslateToDevice(DeviceMAC, THALAMUS_DUMMY_REGISTER, values, false, numValues);
                         break;
 
                     case MSG_SET_ONE_REG:
                     case MSG_SET_REG_RANGE:
                         i = 0;
-                        while(numValues>0)
+                        while(numValues > 0)
                         {
 							numAdd = (numValues>MAX_REGISTERS_TO_DEVICE) ? MAX_REGISTERS_TO_DEVICE : numValues;
 							//TODO check how ID used mqtt_publishes[idx].message_id);
@@ -571,15 +580,16 @@ void TranslateToDevice(uint64_t mac, uint16_t address, uint8_t *values, bool sen
     else
     {
     	// Not THALAMUS message, so it is a register message for a Pet Door.
-        message_for_device.payload[0] = (address>>8) & 0xFF; // big endian
+        message_for_device.payload[0] = (address >> 8) & 0xFF; // big endian
         message_for_device.payload[1] = address & 0xFF;
         message_for_device.payload[2] = (numVals >> 8) & 0xFF; // big endian
         message_for_device.payload[3] = numVals & 0xFF;
-        if (sendGet == true)
+
+        if (sendGet)
         {
         	// Request is for the Device to send back a list of registers
             message_for_device.command = COMMAND_GET_REG;
-            message_for_device.length =  NT_HEADER + NT_REGISTER + NT_PARAMS + NT_COMPATIBILITY;  //10; //5;
+            message_for_device.length =  NT_HEADER + NT_REGISTER + NT_PARAMS + NT_COMPATIBILITY; //10; //5;
             message_for_device.payload[4] = 0; //values[0];
         }
         else
@@ -587,7 +597,7 @@ void TranslateToDevice(uint64_t mac, uint16_t address, uint8_t *values, bool sen
         	// This is a batch of register values to be sent to a device.
             // Special case to be detected - if a magic number 0xCC is written to
             // PRODUCT_TYPE register, then we trap that and trigger a device disconnect.
-            if ((address==HR_DEVICE_TYPE) && (values[0]==TRIGGER_DEVICE_DETACH))
+            if ((address == HR_DEVICE_TYPE) && (values[0] == TRIGGER_DEVICE_DETACH))
             {
                 surenet_unpair_device(mac);
                 return; // break out as we don't want to do any more processing of this message
@@ -611,13 +621,13 @@ void TranslateToDevice(uint64_t mac, uint16_t address, uint8_t *values, bool sen
 
     // Now add the parity to the end
     //set pointer to look at end of message ready for the parity
-	pM = (uint8_t*)(&message_for_device) + message_for_device.length-1;
+	pM = (uint8_t*)(&message_for_device) + message_for_device.length - 1;
 
 	//calculate parity and drop it in at the end of the array
 	*pM = GetParity((int8_t*)(&message_for_device), message_for_device.length-1);
 
 	// check for duplications before adding
-    if (device_message_is_new(mac,&message_for_device)==true)
+    if (device_message_is_new(mac, &message_for_device))
     {
     	// queue the message
         device_buffer_add(mac, &message_for_device);

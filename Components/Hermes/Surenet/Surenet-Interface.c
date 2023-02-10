@@ -102,59 +102,71 @@ void Surenet_Interface_Handler(void)
 	DEVICE_RCVD_SEGS_PARAMETERS_MAILBOX DeviceRcvdSegsParameters;
 
     // Receive Packet
-    if( (uxQueueMessagesWaiting(xRxMailbox) > 0) &&
-		(xQueueReceive(xRxMailbox, &rx_packet,0)==pdPASS) )
+    if((uxQueueMessagesWaiting(xRxMailbox) > 0)
+    && (xQueueReceive(xRxMailbox, &rx_packet, 0) == pdPASS))
     {
         result = surenet_data_received_cb(&rx_packet);
-        xQueueSend(xRxMailbox_resp,&result,0);
+        xQueueSend(xRxMailbox_resp, &result, 0);
     }
 
     // check for a successful association
-    if( (uxQueueMessagesWaiting(xAssociationSuccessfulMailbox) > 0) &&
-		(pdPASS == xQueueReceive(xAssociationSuccessfulMailbox,&assoc_info,0)) )
-    { // got successful association, so store in the pairing table
-        surenet_device_pairing_success_cb(&assoc_info);    // call back to say association successful
+    if((uxQueueMessagesWaiting(xAssociationSuccessfulMailbox) > 0)
+    && (xQueueReceive(xAssociationSuccessfulMailbox, &assoc_info, 0) == pdPASS))
+    {
+    	// got successful association, so store in the pairing table
+    	// call back to say association successful
+        surenet_device_pairing_success_cb(&assoc_info);
     }
 
     // check for pairing mode change
-    if( (uxQueueMessagesWaiting(xPairingModeHasChangedMailbox) > 0) &&
-		(pdPASS == xQueueReceive(xPairingModeHasChangedMailbox,&presult,0)) )
-    { // got a request, so service it
+    if((uxQueueMessagesWaiting(xPairingModeHasChangedMailbox) > 0)
+    && (xQueueReceive(xPairingModeHasChangedMailbox, &presult, 0) == pdPASS))
+    {
+    	// got a request, so service it
         surenet_pairing_mode_change_cb(presult);
     }
 
     // check for a request for the next message to send
-    if( (uxQueueMessagesWaiting(xGetNextMessageMailbox) > 0) &&
-		(pdPASS == xQueueReceive(xGetNextMessageMailbox,&mac_address,0)) )
-    { // got a request, so service it
-        message_params.new_message = surenet_get_next_message_cb(mac_address,&message_params.ptr, &message_params.handle);
-        xQueueSend(xGetNextMessageMailbox_resp,&message_params,0);
+    if((uxQueueMessagesWaiting(xGetNextMessageMailbox) > 0)
+    && (xQueueReceive(xGetNextMessageMailbox, &mac_address, 0) == pdPASS))
+    {
+    	// got a request, so service it
+        message_params.new_message = surenet_get_next_message_cb(mac_address, &message_params.ptr, &message_params.handle);
+
+        if (message_params.new_message)
+        {
+        	DebugCounter.message_device_to_server_add++;
+        }
+        xQueueSend(xGetNextMessageMailbox_resp, &message_params, 0);
     }
 
     // check for data from the most recent DEVICE_AWAKE message
-    if( (uxQueueMessagesWaiting(xDeviceAwakeMessageMailbox) > 0) &&
-		(pdPASS == xQueueReceive(xDeviceAwakeMessageMailbox,&device_awake_mailbox,0)) )
-    { // got a request, so service it
+    if((uxQueueMessagesWaiting(xDeviceAwakeMessageMailbox) > 0)
+    && (xQueueReceive(xDeviceAwakeMessageMailbox, &device_awake_mailbox, 0) == pdPASS))
+    {
+    	// got a request, so service it
         surenet_device_awake_notification_cb(&device_awake_mailbox);
     }
 
-	if( (uxQueueMessagesWaiting(xPingDeviceMailbox_resp) > 0) &&
-		(pdPASS == xQueueReceive(xPingDeviceMailbox_resp,&ping_result,0)) )
-	{	// SureNet has sent us a ping reply!
+	if((uxQueueMessagesWaiting(xPingDeviceMailbox_resp) > 0)
+	&& (xQueueReceive(xPingDeviceMailbox_resp, &ping_result, 0) == pdPASS))
+	{
+		// SureNet has sent us a ping reply!
 		surenet_ping_response_cb(&ping_result);
 	}
 
-	if (pdPASS == xQueueReceive(xDeviceRcvdSegsParametersMailbox,&DeviceRcvdSegsParameters,0))
+	if (xQueueReceive(xDeviceRcvdSegsParametersMailbox, &DeviceRcvdSegsParameters, 0) == pdPASS)
 	{
 		surenet_device_rcvd_segs_cb(&DeviceRcvdSegsParameters);
 	}
 
-	if( pdPASS == xQueueReceive(xBlockingTestMailbox,&blocking_test_value,0))
+	if(xQueueReceive(xBlockingTestMailbox, &blocking_test_value, 0) == pdPASS)
 	{
 		surenet_blocking_test_cb(blocking_test_value);
 	}
 
-	HubReg_Handle_Messages();	// Check for register updates.
+	// Check for register updates.
+	HubReg_Handle_Messages();
 
 }
 
@@ -194,13 +206,15 @@ void surenet_send_firmware_chunk(DEVICE_FIRMWARE_CHUNK *device_firmware_chunk)
 bool surenet_is_device_online(uint64_t mac_addr)
 {
     bool result;
-    xQueueSend(xIsDeviceOnlineMailbox,&mac_addr,0);
-    if( pdPASS == xQueueReceive(xIsDeviceOnlineMailbox_resp,&result,pdMS_TO_TICKS(100)) )
-    { // got result, so return it
+    xQueueSend(xIsDeviceOnlineMailbox, &mac_addr, 0);
+    if(xQueueReceive(xIsDeviceOnlineMailbox_resp, &result, pdMS_TO_TICKS(100)) == pdPASS)
+    {
+    	// got result, so return it
         return result;
     }
-    return false;   // slightly dodgy - we should return 'unknown' here instead.
 
+    // slightly dodgy - we should return 'unknown' here instead.
+    return false;
 }
 
 /**************************************************************
@@ -227,7 +241,7 @@ void surenet_ping_device(uint64_t mac_address, uint8_t value)
  **************************************************************/
 void surenet_unpair_device(uint64_t mac_addr)
 {
-    xQueueSend(xUnpairDeviceMailbox,&mac_addr,0);
+    xQueueSend(xUnpairDeviceMailbox, &mac_addr, 0);
 }
 
 /**************************************************************
@@ -239,7 +253,7 @@ void surenet_unpair_device(uint64_t mac_addr)
  **************************************************************/
 void surenet_unpair_device_by_index(uint8_t index)
 {
-    xQueueSend(xUnpairDeviceByIndexMailbox,&index,0);
+    xQueueSend(xUnpairDeviceByIndexMailbox, &index, 0);
 }
 
 /**************************************************************
@@ -266,8 +280,9 @@ void surenet_set_hub_pairing_mode(PAIRING_REQUEST mode)
 PAIRING_REQUEST surenet_get_hub_pairing_mode(void)
 {
 	PAIRING_REQUEST result;
-	xEventGroupSetBits(xSurenet_EventGroup,SURENET_GET_PAIRMODE);    // and set flag
-	xQueueReceive(xGetPairmodeMailbox_resp,&result,pdMS_TO_TICKS(100));
+	// and set flag
+	xEventGroupSetBits(xSurenet_EventGroup, SURENET_GET_PAIRMODE);
+	xQueueReceive(xGetPairmodeMailbox_resp, &result, pdMS_TO_TICKS(100));
 	return result;
 }
 
@@ -281,9 +296,11 @@ PAIRING_REQUEST surenet_get_hub_pairing_mode(void)
 uint32_t surenet_get_last_heard_from(void)
 {
     uint32_t result;
-    xEventGroupSetBits(xSurenet_EventGroup,SURENET_GET_LAST_HEARD_FROM);    // and set request
-    if( pdPASS == xQueueReceive(xGetLastHeardFromMailbox_resp,&result,pdMS_TO_TICKS(100)) )
-    { // got pairing_mode, so return it
+    // and set request
+    xEventGroupSetBits(xSurenet_EventGroup, SURENET_GET_LAST_HEARD_FROM);
+    if(xQueueReceive(xGetLastHeardFromMailbox_resp, &result, pdMS_TO_TICKS(100)) == pdPASS)
+    {
+    	// got pairing_mode, so return it
         return result;
     }
     return 0xffffffff;
@@ -299,12 +316,16 @@ uint32_t surenet_get_last_heard_from(void)
 uint8_t surenet_get_channel(void)
 {
     uint8_t result;
-    xEventGroupSetBits(xSurenet_EventGroup,SURENET_GET_CHANNEL);    // and set flag
-    if( pdPASS == xQueueReceive(xGetChannelMailbox_resp,&result,pdMS_TO_TICKS(100)) )
-    { // got pairing_mode, so return it
+    // and set flag
+    xEventGroupSetBits(xSurenet_EventGroup, SURENET_GET_CHANNEL);
+    if(xQueueReceive(xGetChannelMailbox_resp, &result, pdMS_TO_TICKS(100)) == pdPASS)
+    {
+    	// got pairing_mode, so return it
         return result;
     }
-    return 0xff;   // slightly dodgy - we should return 'unknown' here instead.
+
+    // slightly dodgy - we should return 'unknown' here instead.
+    return 0xff;
 }
 
 /**************************************************************
@@ -317,12 +338,18 @@ uint8_t surenet_get_channel(void)
 uint8_t surenet_set_channel(uint8_t channel)
 {
 	//Force channel number to one RF module will recognise
-	if(channel<=RF_CHANNEL1)
+	if(channel <= RF_CHANNEL1)
+	{
 		channel = RF_CHANNEL1;
-	else if(channel<=RF_CHANNEL2)
+	}
+	else if(channel <= RF_CHANNEL2)
+	{
 	  	channel = RF_CHANNEL2;
+	}
 	else
+	{
 	  	channel = RF_CHANNEL3;
+	}
 
     xQueueSend(xSetChannelMailbox,&channel,0);
 	return channel;
@@ -338,12 +365,16 @@ uint8_t surenet_set_channel(uint8_t channel)
 uint8_t surenet_how_many_pairs(void)
 {
     uint8_t result;
-    xEventGroupSetBits(xSurenet_EventGroup,SURENET_GET_NUM_PAIRS);    // and set flag
-    if( pdPASS == xQueueReceive(xGetNumPairsMailbox_resp,&result,pdMS_TO_TICKS(100)) )
-    { // got pairing_mode, so return it
+    // and set flag
+    xEventGroupSetBits(xSurenet_EventGroup, SURENET_GET_NUM_PAIRS);
+    if(xQueueReceive(xGetNumPairsMailbox_resp, &result, pdMS_TO_TICKS(100)) == pdPASS)
+    {
+    	// got pairing_mode, so return it
         return result;
     }
-    return false;   // slightly dodgy - we should return 'unknown' here instead.
+
+    // slightly dodgy - we should return 'unknown' here instead.
+    return false;
 }
 
 /**************************************************************
@@ -355,7 +386,8 @@ uint8_t surenet_how_many_pairs(void)
  **************************************************************/
 void surenet_hub_clear_pairing_table(void)
 {
-    xEventGroupSetBits(xSurenet_EventGroup,SURENET_CLEAR_PAIRING_TABLE);    // and set flag
+	// and set flag
+    xEventGroupSetBits(xSurenet_EventGroup, SURENET_CLEAR_PAIRING_TABLE);
 }
 
 /**************************************************************
@@ -367,7 +399,8 @@ void surenet_hub_clear_pairing_table(void)
  **************************************************************/
 void surenet_trigger_channel_hop(void)
 {
-    xEventGroupSetBits(xSurenet_EventGroup,SURENET_TRIGGER_CHANNEL_HOP);    // and set flag
+	// and set flag
+    xEventGroupSetBits(xSurenet_EventGroup, SURENET_TRIGGER_CHANNEL_HOP);
 }
 
 /**************************************************************
@@ -382,13 +415,14 @@ BaseType_t surenet_update_device_table_line(DEVICE_STATUS* status, uint32_t line
 	request.line = line;
 	request.limited = limited;
 
-	if( true == wait)
+	if(wait)
 	{
 		wait_period = pdMS_TO_TICKS(10000);
 	}
 	else
 	{
-		wait_period = 0;	// some callers don't want to wait, they want to retry
+		// some callers don't want to wait, they want to retry
+		wait_period = 0;
 	}
 
 	return xQueueSend(xSendDeviceStatusMailbox, &request, wait_period);
@@ -424,7 +458,8 @@ __weak void surenet_device_rcvd_segs_cb(DEVICE_RCVD_SEGS_PARAMETERS_MAILBOX *par
  **************************************************************/
 __weak bool surenet_get_next_message_cb(uint64_t mac, T_MESSAGE **current_request_ptr, uint32_t *current_request_handle)
 {
-    return false;   // no new message at the moment.
+	// no new message at the moment.
+    return false;
 }
 
 /**************************************************************
@@ -448,10 +483,10 @@ __weak void surenet_clear_message_cb(uint32_t current_request_handle)
  **************************************************************/
 __weak SN_DATA_RECEIVED_RESPONSE surenet_data_received_cb(RECEIVED_PACKET *rx_packet)
 {
-// We could do some additional sanity checking to be sure that the data is not corrupted. For example:
-// if((rx_packet.packet.header.packet_length-24)!=rx_packet.packet.payload[2])  //24 = IEEE header length
-// which is valid for T_MESSAGE formats is an additional check. If this fails, we should return SN_CORRUPTED
-// which will eventually cause the stack to renegotiate the security key.
+	// We could do some additional sanity checking to be sure that the data is not corrupted. For example:
+	// if((rx_packet.packet.header.packet_length-24)!=rx_packet.packet.payload[2])  //24 = IEEE header length
+	// which is valid for T_MESSAGE formats is an additional check. If this fails, we should return SN_CORRUPTED
+	// which will eventually cause the stack to renegotiate the security key.
     zprintf(LOW_IMPORTANCE, "surenet_data_received_cb():\r\n");
     return SN_ACCEPTED;
 }
@@ -507,34 +542,43 @@ __weak void surenet_device_awake_notification_cb(DEVICE_AWAKE_MAILBOX *device_aw
 		{"[segs complete]"},
 	};
 
-	if( (false == SDAN_QUIET_MODE) ) //|| (DEVICE_HAS_NO_DATA != device_awake_mailbox->payload.device_data_status) )
+	if(SDAN_QUIET_MODE) //|| (DEVICE_HAS_NO_DATA != device_awake_mailbox->payload.device_data_status))
 	{
-		zprintf(LOW_IMPORTANCE,"surenet_device_awake_notification_cb() from %08x", (uint32_t)((device_awake_mailbox->src_addr & 0xffffffff00000000) >> 32));
+		zprintf(LOW_IMPORTANCE,"surenet_device_awake_notification_cb() from %08x",
+				(uint32_t)((device_awake_mailbox->src_addr & 0xffffffff00000000) >> 32));
+
 		zprintf(LOW_IMPORTANCE,"%08x ", (uint32_t)(device_awake_mailbox->src_addr & 0xffffffff));
+
 		// if the minutes count has bit 7 set, then it wants a time update from the server
 		// which it's not going to get, but we'll lose the top bit anyway
-		zprintf(LOW_IMPORTANCE,"time: %02d:%02d voltage=%dmV rssi=%d ",device_awake_mailbox->payload.device_hours, \
-															device_awake_mailbox->payload.device_minutes & 0x7f, \
-															device_awake_mailbox->payload.battery_voltage*32, \
-															device_awake_mailbox->payload.device_rssi);
+		zprintf(LOW_IMPORTANCE,"time: %02d:%02d voltage=%dmV rssi=%d ",
+				device_awake_mailbox->payload.device_hours,
+				device_awake_mailbox->payload.device_minutes & 0x7f,
+				device_awake_mailbox->payload.battery_voltage*32,
+				device_awake_mailbox->payload.device_rssi);
+
 		zprintf(LOW_IMPORTANCE,"%s\r\n", data_status[device_awake_mailbox->payload.device_data_status]);
-	} else
+	}
+	else
 	{
-		if( false == SDAN_VERY_QUIET_MODE )
+		if(!SDAN_VERY_QUIET_MODE)
 		{
 			// to try and keep track of what's going on, we print a different character for each of the entries:
 			// 0-9, a-z, A-X in order; ? if no entry
 			int8_t k = convert_mac_to_index(device_awake_mailbox->src_addr);
-			if( -1 == k )
+			if(k == -1)
 			{
 				zprintf(LOW_IMPORTANCE, "?");
-			} else if( k < 10 )
+			}
+			else if( k < 10 )
 			{
 				zprintf(LOW_IMPORTANCE, "%c", '0' + k);
-			} else if( k < 36 )
+			}
+			else if(k < 36)
 			{
 				zprintf(LOW_IMPORTANCE, "%c", 'a' + (k - 10));
-			} else
+			}
+			else
 			{
 				zprintf(LOW_IMPORTANCE, "%c", 'A' + (k - 36));
 			}
@@ -552,7 +596,8 @@ __weak void surenet_device_awake_notification_cb(DEVICE_AWAKE_MAILBOX *device_aw
 __weak void surenet_ping_response_cb(PING_STATS *ping_result)
 {
 	uint64_t mac_address = ping_result->mac_address;
-	zprintf(MEDIUM_IMPORTANCE, "Ping response from Device: %08X%08X\r\n",(uint32_t)((mac_address&0xffffffff00000000)>>32),	mac_address&0xffffffff);
+	zprintf(MEDIUM_IMPORTANCE, "Ping response from Device: %08X%08X\r\n",
+			(uint32_t)((mac_address&0xffffffff00000000)>>32),	mac_address&0xffffffff);
 }
 
 /**************************************************************
@@ -565,5 +610,6 @@ __weak void surenet_ping_response_cb(PING_STATS *ping_result)
  **************************************************************/
 __weak void surenet_blocking_test_cb(uint32_t blocking_test_value)
 {
-	zprintf(LOW_IMPORTANCE,"Blocking test sequence number = 0x%08x\r\n",blocking_test_value);
+	zprintf(LOW_IMPORTANCE,"Blocking test sequence number = 0x%08x\r\n",
+			blocking_test_value);
 }

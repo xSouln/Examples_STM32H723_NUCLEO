@@ -21,6 +21,10 @@
 *             
 *
 **************************************************************************/
+#ifndef __HERMES_BANC_MANAGER_H__
+#define __HERMES_BANC_MANAGER_H__
+
+#include "Hermes-compiller.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -47,6 +51,7 @@ typedef enum
 	BANK_MARK_UPDATING		= -1,
 	BANK_MARK_UNINITIALISED = 0,
 	BANK_MARK_DEFAULT		= 1,
+
 	BANK_MARK_MAX = 0x7FFFFFFF
 } BANK_MARK;
 
@@ -55,20 +60,38 @@ typedef enum
 	BM_BANK_UNKONWN,
 	BM_BANK_A,
 	BM_BANK_B
+
 } BM_BANK;
 
-typedef struct
+typedef HERMES__PACKED_PREFIX struct
 {
-	uint32_t			descriptor_hash;		// Bit-wise XOR of descriptor.
-	BANK_MARK			bank_mark;				// Incrementing count for deciding between banks.
-	uint32_t			vector_table_offset;	// Offset from bank start for vector table address.
-	uint32_t			image_size;				// Size of the image in the bank.
-	void*				opposite;				// Points to the address of the opposite bank.
-	uint32_t			watchdog_resets;		// Incremented when reset was caused by watchdog.
-	bool				encrypted;				// Whether encryption is enabled on this bank.
+	// Bit-wise XOR of descriptor.
+	uint32_t			descriptor_hash;
+
+	// Incrementing count for deciding between banks.
+	BANK_MARK			bank_mark;
+
+	// Offset from bank start for vector table address.
+	uint32_t			vector_table_offset;
+
+	// Size of the image in the bank.
+	uint32_t			image_size;
+
+	// Points to the address of the opposite bank.
+	void*				opposite;
+
+	// Incremented when reset was caused by watchdog.
+	uint32_t			watchdog_resets;
+
+	bool				encrypted;
+
+	// Whether encryption is enabled on this bank.
 	BM_BANK				bank;
-	uint8_t				garble[2];					// Padding, that also ensures non-zeroness.
-} BANK_DESCRIPTOR;
+
+	// Padding, that also ensures non-zeroness.
+	uint8_t				garble[2];
+
+} HERMES__PACKED_POSTFIX BANK_DESCRIPTOR;
 
 bool	BM_Init(void);	// Required before encryption.
 BM_BANK	BM_GetCurrentBank(void);
@@ -81,3 +104,5 @@ void	BM_ResolveBankUse(void);
 void	BM_ConfirmBank(bool force_encrypted);
 void	BM_BankSwitch(bool bank_b, bool encrypted);	// Sits in STARTUP.
 void 	BM_SetBankMark(BANK_MARK new_mark);
+
+#endif //__HERMES_BANC_MANAGER_H__
