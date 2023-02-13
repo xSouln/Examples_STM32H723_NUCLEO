@@ -38,6 +38,7 @@
 // Other includes
 #include "SureNet-interface.h"
 #include "hermes-app.h"
+#include "flashManager.h"
 #include "../MQTT/MQTT.h"
 #include "SNTP.h"
 #include "leds.h"
@@ -111,13 +112,7 @@ static const char SERIAL_NUMBER[] = "H201-0859935";
 
 extern void LWIP_UpdateLinkState();
 
-// Declare mutex
-osMutexDef(rand_mutex);
-
-// Mutex ID
-osMutexId(rand_mutex_id);
-
-SemaphoreHandle_t randMutex = 0;
+SemaphoreHandle_t RandMutex = 0;
 
 DebugCounterT DebugCounter;
 /*******************************************************************************
@@ -125,30 +120,45 @@ DebugCounterT DebugCounter;
  ******************************************************************************/
 void HermesComponentInit()
 {
+	// Register the command line commands with the CLI
+	vRegisterBasicCLICommands();
+
 	osDelay(pdMS_TO_TICKS(1000));
 
-	randMutex = xSemaphoreCreateMutex();
+	HermesFlashInit();
+
+	HermesFlashReadData();
+
+	RandMutex = xSemaphoreCreateMutex();
 
 	wolfSSL_Init();
 	wc_SetTimeCb(wc_time);
 
-	product_configuration.rf_pan_id = SUREFLAP_PAN_ID;
+	HermesFlashReadProductConfig(&product_configuration);
 
-	product_configuration.ethernet_mac[0] = heth.Init.MACAddr[0];
-	product_configuration.ethernet_mac[1] = heth.Init.MACAddr[1];
-	product_configuration.ethernet_mac[2] = heth.Init.MACAddr[2];
-	product_configuration.ethernet_mac[3] = heth.Init.MACAddr[3];
-	product_configuration.ethernet_mac[4] = heth.Init.MACAddr[4];
-	product_configuration.ethernet_mac[5] = heth.Init.MACAddr[5];
+	if(product_configuration.rf_pan_id == 0xff
+	|| product_configuration.rf_mac == 0xffffffffffffffff
+	|| product_configuration.ethernet_mac[0] == 0xff)
+	{
+		product_configuration.rf_pan_id = SUREFLAP_PAN_ID;
+		product_configuration.rf_mac = 0x982782e01fdc;
 
-	product_configuration.rf_mac = 0x982782e01fdc;
+		product_configuration.ethernet_mac[0] = heth.Init.MACAddr[0];
+		product_configuration.ethernet_mac[1] = heth.Init.MACAddr[1];
+		product_configuration.ethernet_mac[2] = heth.Init.MACAddr[2];
+		product_configuration.ethernet_mac[3] = heth.Init.MACAddr[3];
+		product_configuration.ethernet_mac[4] = heth.Init.MACAddr[4];
+		product_configuration.ethernet_mac[5] = heth.Init.MACAddr[5];
 
-	memcpy(product_configuration.serial_number, SERIAL_NUMBER, sizeof(SERIAL_NUMBER));
-	memcpy(product_configuration.secret_serial, mySecretSerial, sizeof(mySecretSerial));
-	memset(product_configuration.DerivedKey, 0xff, sizeof(product_configuration.DerivedKey));
+		memcpy(product_configuration.serial_number, SERIAL_NUMBER, sizeof(SERIAL_NUMBER));
+		memcpy(product_configuration.secret_serial, mySecretSerial, sizeof(mySecretSerial));
 
-	product_configuration.sanity_state = PRODUCT_CONFIGURED;
-	product_configuration.product_state = PRODUCT_CONFIGURED;
+		product_configuration.sanity_state = PRODUCT_CONFIGURED;
+		product_configuration.product_state = PRODUCT_CONFIGURED;
+
+		HermesFlashSetProductConfig(&product_configuration);
+		HermesFlashSaveData();
+	}
 
 	// generate a truly random Shared Secret to be shared with the Server
 	GenerateSharedSecret(SHARED_SECRET_CURRENT);
@@ -160,8 +170,8 @@ void HermesComponentInit()
 	HTTPPostTask_init();
 	SNTP_Init();
 
-	BABEL_set_aes_key(product_configuration.serial_number);
-	BABEL_aes_encrypt_init();
+	//BABEL_set_aes_key(product_configuration.serial_number);
+	//BABEL_aes_encrypt_init();
 
 	shouldIPackageFlag = SHOULD_I_PACKAGE;
 	//true for AES Encryption
@@ -260,7 +270,7 @@ static void StartUpTask(void *pvParameters)
 	}
 */
 	// we mangle it by putting 0xfffe in the middle, and use the 6 byte Ethernet one around it
-	if( true == product_configuration.rf_mac_mangle)
+	if(product_configuration.rf_mac_mangle)
 	{
 	// This is because Pet Doors reject Hub MAC addresses that do not have 0xfffe in the middle
 		((uint8_t *)&rfmac)[7] = product_configuration.ethernet_mac[0];
@@ -325,7 +335,7 @@ static void StartUpTask(void *pvParameters)
 
 			shouldICryptFlag = false;
 			shouldIPackageFlag = false;
-        	printLevel = MEDIUM_IMPORTANCE;                                     // Limit the CLI messages when communicating with Programmer
+        	printLevel = MEDIUM_IMPORTANCE; // Limit the CLI messages when communicating with Programmer
 			if( xTaskCreate(shell_task, "Shell_task", SHELL_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
 			{
 				zprintf(CRITICAL_IMPORTANCE,"Shell task creation failed!\r\n");
@@ -503,7 +513,9 @@ static void StartUpTask(void *pvParameters)
 				HFU_trigger(true);
 			}
 			break;
-		default:	// Not sure what to do here - something's gone wrong with Flash
+
+		default:
+			// Not sure what to do here - something's gone wrong with Flash
         	printLevel = LOW_IMPORTANCE;
         	zprintf(MEDIUM_IMPORTANCE,"\r\n\r\nSure Petcare Hub - 'Hermes'\r\n---------------------------\r\n");
 			zprintf(MEDIUM_IMPORTANCE,"CONFIGURATION CORRUPTED\r\n");
@@ -580,46 +592,8 @@ void sanitise_product_config(void)
  **************************************************************/
 void write_product_configuration(void)
 {
-	/*
-	SEND_TO_FM_MSG nvNvmMessage;    // Outgoing message
-    uint32_t notifyValue;
-	uint8_t i;
-	uint8_t *rfmac = (uint8_t *)&product_configuration.rf_mac;
-
-	zprintf(LOW_IMPORTANCE,"Writing product configuration:\r\n");
-	zprintf(LOW_IMPORTANCE,"RF MAC : ");
-	for( i=0; i<8; i++ )
-		zprintf(LOW_IMPORTANCE,"%02X ",rfmac[i]);
-	zprintf(LOW_IMPORTANCE,"\r\nPANID :%04X\r\n",product_configuration.rf_pan_id);
-	zprintf(LOW_IMPORTANCE,"Serial number : %s\r\n",product_configuration.serial_number);
-	zprintf(LOW_IMPORTANCE,"Ethernet MAC : ");
-	for( i=0; i<6; i++ )
-		zprintf(LOW_IMPORTANCE,"%02X ",product_configuration.ethernet_mac[i]);
-	zprintf(LOW_IMPORTANCE,"\r\n");
-
-	nvNvmMessage.ptrToBuf = (uint8_t *)&product_configuration;
-	nvNvmMessage.dataLength = sizeof(PRODUCT_CONFIGURATION);
-	nvNvmMessage.type = FM_PRODUCT_CONFIG;
-	nvNvmMessage.action = FM_PUT;
-	nvNvmMessage.xClientTaskHandle = xTaskGetCurrentTaskHandle();
-
-	xQueueSend(xNvStoreMailboxSend, &nvNvmMessage, 0);	// Write product configuration
-
-	if( xTaskNotifyWait(0, 0, &notifyValue, portMAX_DELAY ) == pdTRUE )
-	{
-		if( notifyValue == FM_ACK )
-		{
-			zprintf(MEDIUM_IMPORTANCE,"Product configuration written\r\n");
-		} else
-		{
-			zprintf(HIGH_IMPORTANCE,"Product configuration write failed\r\n");
-		}
-	} else
-	{
-		zprintf(HIGH_IMPORTANCE,"Notification of Product configuration Write did not arrive\r\n");
-	}
-	DbgConsole_Flush();
-	*/
+	HermesFlashSetProductConfig(&product_configuration);
+	HermesFlashSaveData();
 }
 
 // quick and dirty task written by Chris to give a shell-like Debug interface.
@@ -699,7 +673,7 @@ static void watchdog_task(void *pvParameters)
 			}
 		}
 				
-        vTaskDelay(pdMS_TO_TICKS( 5000 ));   // give up CPU for 5 seconds
+        vTaskDelay(pdMS_TO_TICKS(5000));   // give up CPU for 5 seconds
     }
 }
 
@@ -957,16 +931,16 @@ int hermes_rand(void)
 	//that is used by the function HAL_RNG_GenerateRandomNumber()
 	//portENTER_CRITICAL();
 
-	if (!randMutex)
+	if (!RandMutex)
 	{
 		HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&result);
 		return result;
 	}
 
-	if (xSemaphoreTake(randMutex, portMAX_DELAY) == pdTRUE)
+	if (xSemaphoreTake(RandMutex, portMAX_DELAY) == pdTRUE)
 	{
 		HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&result);
-		xSemaphoreGive(randMutex);
+		xSemaphoreGive(RandMutex);
 	}
 
 	//portEXIT_CRITICAL()

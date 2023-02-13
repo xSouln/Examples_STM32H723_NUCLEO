@@ -44,6 +44,7 @@
 #include "Server_Buffer.h"
 #include "BuildNumber.h"
 #include "Hermes-app.h"
+#include "Hermes/Sources/SNTP.h"
 
 #include "wolfssl/wolfcrypt/sha256.h"
 
@@ -151,8 +152,8 @@ void MQTT_Task(void *pvParameters)
 					else
 					{
 						// Failed to get the time, which we need for TLS, so come back later.
-						uint32_t rand;
-						HAL_RNG_GenerateRandomNumber(&hrng, &rand);
+						uint32_t rand = hermes_rand();
+
 						// randomise it a bit to hopefully avoid NTP kiss of death
 						vTaskDelay(pdMS_TO_TICKS(3000 + (rand & 0xfff)));
 					}
@@ -303,8 +304,8 @@ uint32_t MQTT_Unpack_Credentials(SUREFLAP_CREDENTIALS* credentials)
 			return credentials->decode_result;
 		}
 
-		credentials->decode_result = wc_d2i_PKCS12(credentials->certificate,
-													credentials->unpacked_cert_length,
+		credentials->decode_result = wc_d2i_PKCS12((byte*)credentials->certificate,
+													(word32)credentials->unpacked_cert_length,
 													pkcs);
 
 		if(!credentials->decode_result)

@@ -19,7 +19,6 @@
 * Purpose:  Handles retrieving SNTP from an internet Time Server.
 *
 **************************************************************************/
-
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
 #include "list.h"
@@ -39,10 +38,10 @@
 #include "netdb.h"
 #include "api.h"
 #include "dns.h"
-
+//------------------------------------------------------------------------------
 //static bool	SNTP_GetTime(void);
 EventGroupHandle_t	xSNTP_EventGroup;
-
+//------------------------------------------------------------------------------
 void SNTP_Task(void *pvParameters)
 {
     EventBits_t xEventBits;
@@ -57,22 +56,22 @@ void SNTP_Task(void *pvParameters)
 		}
 	};
 }
-
+//------------------------------------------------------------------------------
 void SNTP_Init(void)
 {
 	xSNTP_EventGroup = xEventGroupCreate();
 }
-
+//------------------------------------------------------------------------------
 bool SNTP_IsTimeValid(void)
 {
 	return (SNTP_EVENT_TIME_VALID & xEventGroupGetBits(xSNTP_EventGroup)) != 0;
 }
-
+//------------------------------------------------------------------------------
 bool SNTP_DidUpdateFail(void)
 {
 	return (SNTP_EVENT_UPDATE_FAILED & xEventGroupGetBits(xSNTP_EventGroup)) != 0;
 }
-
+//------------------------------------------------------------------------------
 bool SNTP_AwaitUpdate(bool MakeRequest, uint32_t TimeToWait)
 {
 	EventBits_t xEventBits = xEventGroupGetBits(xSNTP_EventGroup);
@@ -91,7 +90,7 @@ bool SNTP_AwaitUpdate(bool MakeRequest, uint32_t TimeToWait)
 
 	return false;
 }
-
+//------------------------------------------------------------------------------
 bool SNTP_GetTime(void)
 {
 	int sntpSocket;

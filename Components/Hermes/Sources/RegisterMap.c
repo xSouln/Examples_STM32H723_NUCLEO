@@ -185,24 +185,30 @@ void HubReg_Handle_Messages(void)
  **************************************************************/
 void get_device_table(bool trigger)
 {
-	bool dummy = true;
 	uint32_t i;
 	uint8_t dev_table[sizeof(DEVICE_STATUS) * MAX_NUMBER_OF_DEVICES];
 
-	xQueueReceive(xSendDeviceTableMailbox, &dev_table, 0); // ensure mailbox is empty
+	// ensure mailbox is empty
+	xQueueReceive(xSendDeviceTableMailbox, &dev_table, 0);
 
 	// send a message to SureNet to get a message back with the Device Table in it
-	if( true == trigger ){ xEventGroupSetBits(xSurenet_EventGroup, SURENET_GET_DEVICE_TABLE); }
+	if(trigger)
+	{
+		xEventGroupSetBits(xSurenet_EventGroup, SURENET_GET_DEVICE_TABLE);
+	}
 
 	// Give it plenty of time as SureNet may be busy (e.g. after power-up with a large fleet of Devices)
-    if( pdPASS == xQueueReceive(xSendDeviceTableMailbox, &dev_table, pdMS_TO_TICKS(10000)) )
-	{	// a copy of the DEVICE_TABLE is now in dev_table, so we copy it into the register map
+    if(xQueueReceive(xSendDeviceTableMailbox, &dev_table, pdMS_TO_TICKS(10000)) == pdPASS)
+	{
+    	// a copy of the DEVICE_TABLE is now in dev_table, so we copy it into the register map
 		for (i = 0; i < (sizeof(DEVICE_STATUS)*MAX_NUMBER_OF_DEVICES); i++)
 		{
 			hubRegisterBank[i + HR_DEVICE_TABLE].value = dev_table[i];
 		}
-	} else
-	{ // This might happen if SureNet is too busy to deal with the request above.
+	}
+    else
+	{
+    	// This might happen if SureNet is too busy to deal with the request above.
 		zprintf(MEDIUM_IMPORTANCE, "Device Table Read Failed.\r\n");
 	}
 }
@@ -416,7 +422,11 @@ static void Hub_Registers_Send_Range(uint32_t start_index, uint32_t count)
 	if( count == 0 ){ return; }
 
 	pos = snprintf((char*)outgoing_message, sizeof(outgoing_message),
-			"%d %d %d %d", MSG_REG_VALUES_INDEX_ADDED, server_set_reg_count, start_index, count);
+					"%d %d %d %d",
+					MSG_REG_VALUES_INDEX_ADDED,
+					server_set_reg_count,
+					start_index, count);
+
 	server_set_reg_count++;
 
 	for( i = 0; i < count; i++ )
@@ -495,16 +505,16 @@ extern uint32_t		m_bank_a_start;
 extern uint32_t		m_bank_a_size;
 uint8_t checksum_read(uint16_t address)
 {
-  	uint32_t 			i;
-	static uint16_t 	crc=0;
-/*
+	/*
+  	uint32_t i;
+	static uint16_t crc = 0;
+
 	if( HR_HUB_FIRMWARE_CHECKSUM_LOW == address)
   {
 		crc = CRC16((uint8_t *)&m_bank_a_start, (uint32_t)&m_bank_a_size, 0xcccc);
   }
 
 	if( address == HR_HUB_FIRMWARE_CHECKSUM_LOW ) return crc & 0xFF;
-	return (crc >> 8) & 0xFF;
 	*/
 	return 0;
 }

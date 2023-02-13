@@ -1,31 +1,10 @@
-/*****************************************************************************
-*
-* SUREFLAP CONFIDENTIALITY & COPYRIGHT NOTICE
-*
-* Copyright � 2013-2021 Sureflap Limited.
-* All Rights Reserved.
-*
-* All information contained herein is, and remains the property of Sureflap 
-* Limited.
-* The intellectual and technical concepts contained herein are proprietary to
-* Sureflap Limited. and may be covered by U.S. / EU and other Patents, patents 
-* in process, and are protected by copyright law.
-* Dissemination of this information or reproduction of this material is 
-* strictly forbidden unless prior written permission is obtained from Sureflap 
-* Limited.
-*
-* Filename: flashManager.h   
-* Author:   Tony Thurgood
-* Purpose:  19/9/2019  
-*   
-* Flash Manager methods to handle qSPI flash memory and NV Store
-*            
-**************************************************************************/
+//==============================================================================
 #ifndef FLASH_MANAGER_H
 #define FLASH_MANAGER_H
 //==============================================================================
 #include "task.h"
 #include "leds.h"
+#include "Devices.h"
 //------------------------------------------------------------------------------
 // Hermes Flash Memory Map
 
@@ -178,29 +157,17 @@ typedef enum
 typedef int FlashOperationResultT;
 //------------------------------------------------------------------------------
 // Prototypes
-FlashOperationResultT FM_hermesFlashInit(void);
-void FM_hermesFlashTask(void *pvParameters);
-void FM_hermesFlashResponseMsg(FlashOperationResultT status, uint32_t dataLength, FM_STORE_ACTION action);
-FlashOperationResultT FM_hermesFlashCrcElementModify(uint8_t* p_incomingMsg, uint32_t elementAddr, uint16_t dataLength);
-void FM_hermesFlashUpdateDevStats(SEND_TO_FM_MSG* p_incomingMsg, uint32_t elementAddr);
-void FM_hermesFlashElementRead(uint8_t* p_incomingMsg, uint32_t elementAddr, uint16_t dataLength, TaskHandle_t xClientTaskHandle);
-void FM_hermesFlashReadDevStats(SEND_TO_FM_MSG* p_nvmIncomingMsg, uint32_t elementAddr);
-void FM_hermesFlashCopyPage(uint8_t* nvPageData, uint8_t* p_nvReadAddr);
-FlashOperationResultT FM_hermesFlashPageWrite(uint32_t pageAddr, uint8_t *p_ramSinglePageData);
-FlashOperationResultT FM_hermesFlashPageRead(uint32_t pageAddr, uint8_t *p_ramSinglePageData);
-FlashOperationResultT FM_hermesFlashSectorWrite(uint32_t sectorAddr, uint8_t *p_fwData);
-FlashOperationResultT FM_hermesFlashEraseSector(uint32_t sector_num);
-uint16_t FM_crcCalcAreaCode(CRC_DATA_AREA dataArea);
-FlashOperationResultT FM_crcUpdateAreaCode(CRC_DATA_AREA dataArea);
-FlashOperationResultT FM_crcIntegrityCheck(void);
-void FM_hermesFlashNotifyResponse(FlashOperationResultT status, TaskHandle_t p_ClientTaskHandle);
-FlashOperationResultT FM_hermesFlashPageUpdate(SEND_TO_FM_MSG* p_incomingMsg, uint32_t pageAddr);
-void FM_store_persistent_data(PERSISTENT_STORE_INDEX index, uint32_t param);
-//------------------------------------------------------------------------------
-// External Exposure
-bool	hermesFlashRequestErase(uint8_t* target, uint32_t size, bool await);
-bool	hermesFlashRequestWrite(uint8_t* to_write, uint8_t* target, uint32_t size, bool await);
-bool	hermesFlashRequestCredentialWrite(uint8_t* credential, void* target, uint32_t data_size);
+
+int HermesFlashInit(void);
+
+int HermesFlashSetProductConfig(PRODUCT_CONFIGURATION* in);
+int HermesFlashReadProductConfig(PRODUCT_CONFIGURATION* out);
+
+int HermesFlashSetDeviceTable(DEVICE_STATUS* in);
+int HermesFlashReadDeviceTable(DEVICE_STATUS* out);
+
+int HermesFlashReadData();
+int HermesFlashSaveData();
 //==============================================================================
 #endif  // FLASH_MANAGER_H
 

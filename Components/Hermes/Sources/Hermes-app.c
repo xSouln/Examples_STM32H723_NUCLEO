@@ -132,7 +132,7 @@ void hermes_app_task(void *pvParameters)
 	// set BootRN to a non zero random value
 	do
 	{
-		HAL_RNG_GenerateRandomNumber(&hrng, &random_value); //!wrong
+		random_value = hermes_rand();
 
 		// Note this is not the same as Hub1. In Hub1, BootRN gets set to the low byte of
 		// current time when MQTT subscription is successful.

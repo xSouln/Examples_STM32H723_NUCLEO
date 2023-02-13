@@ -70,14 +70,11 @@ BACKOFF_RESULT Backoff_Progress(BACKOFF* backoff)
 		backoff->retry_delay_ms *= backoff->specs->retry_mult_base;
 	}
 
-	int32_t retry_jitter = 0;
-
-	//TRNG_GetRandomData(TRNG, &retry_jitter, sizeof(retry_jitter));
-	HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&retry_jitter);
+	uint32_t retry_jitter = hermes_rand();
 
 	backoff->retry_delay_ms += retry_jitter % backoff->specs->retry_jitter_max_ms;
 
-	if( backoff->specs->max_retries > backoff->retries )
+	if(backoff->specs->max_retries > backoff->retries)
 	{
 		backoff->retries++;
 	}

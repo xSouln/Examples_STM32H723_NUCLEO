@@ -24,33 +24,20 @@
 * This is because there is a lot of interaction, and handler functions would be cumbersome.
 *           
 **************************************************************************/
-
 #ifndef __DEVICES_H__
 #define __DEVICES_H__
-
+//==============================================================================
 #include "Hermes-compiller.h"
 
 #include <stdint.h>
 #include <stdbool.h>
-
+//==============================================================================
 #define xstrfy(x)	strfy(x)
 #define strfy(x)	#x
-#define MAX_NUMBER_OF_DEVICES   60  // maximum number of devices that can pair with the hub. Limited by sizeof(DEVICE_STATUS) and size of storage area in NVM for table
-                                    // Also by width of DETACH_ALL_MASK which is currently a uint64_t
 
-
-typedef enum {
-	DEVICE_TYPE_UNKNOWN = 0,
-	DEVICE_TYPE_HUB,			// iHB - Hub
-	DEVICE_TYPE_REPEATER,		// Never implemented
-	DEVICE_TYPE_CAT_FLAP,		// iMPD - Pet Door Connect
-	DEVICE_TYPE_FEEDER,			// iMPF - Microchip Pet Feeder Connect
-	DEVICE_TYPE_PROGRAMMER,		// Production Programmer
-	DEVICE_TYPE_DUALSCAN,		// iDSCF - Cat Flap Connect
-    DEVICE_TYPE_FEEDER_LITE,	// MPF2 - not connect
-    DEVICE_TYPE_POSEIDON,		// iCWS - Felaqua
-	DEVICE_TYPE_BACKSTOP		// Should always be last.
-}T_DEVICE_TYPE;	
+// maximum number of devices that can pair with the hub. Limited by sizeof(DEVICE_STATUS) and size of storage area in NVM for table
+// Also by width of DETACH_ALL_MASK which is currently a uint64_t
+#define MAX_NUMBER_OF_DEVICES   60
 
 #define OFFLINE_TIMEOUT (usTICK_SECONDS * 180)
 
@@ -61,7 +48,26 @@ typedef enum {
 #define UID_2 0xB3
 #define UID_3 0xD5
 #define UID_4 0xF9
-#define UID_5 0xC0  //NB only top nibble is valid
+#define UID_5 0xC0 //NB only top nibble is valid
+
+#define DEVICE_STATUS_LAST_HEARD_POS	12
+//==============================================================================
+
+typedef enum
+{
+	DEVICE_TYPE_UNKNOWN = 0,
+	DEVICE_TYPE_HUB,			// iHB - Hub
+	DEVICE_TYPE_REPEATER,		// Never implemented
+	DEVICE_TYPE_CAT_FLAP,		// iMPD - Pet Door Connect
+	DEVICE_TYPE_FEEDER,			// iMPF - Microchip Pet Feeder Connect
+	DEVICE_TYPE_PROGRAMMER,		// Production Programmer
+	DEVICE_TYPE_DUALSCAN,		// iDSCF - Cat Flap Connect
+    DEVICE_TYPE_FEEDER_LITE,	// MPF2 - not connect
+    DEVICE_TYPE_POSEIDON,		// iCWS - Felaqua
+	DEVICE_TYPE_BACKSTOP		// Should always be last.
+
+} T_DEVICE_TYPE;
+//------------------------------------------------------------------------------
 
 typedef enum
 {
@@ -72,32 +78,44 @@ typedef enum
     DEVICE_DONT_SEND_KEY,
     DEVICE_RCVD_SEGS,
     DEVICE_SEGS_COMPLETE,
+
 } DEVICE_DATA_STATUS;
+
+//------------------------------------------------------------------------------
 
 typedef enum
 {
 	SURENET_CRYPT_BLOCK_XTEA,
 	SURENET_CRYPT_CHACHA,
 	SURENET_CRYPT_AES128,
+
 } SURENET_ENCRYPTION_TYPE;
+//------------------------------------------------------------------------------
 
 typedef enum
 {
     DEVICE_ASLEEP,
     DEVICE_AWAKE,
+
 } DEVICE_SLEEP_STATUS;
+//------------------------------------------------------------------------------
 
 typedef struct
 {
     DEVICE_SLEEP_STATUS awake;
     DEVICE_DATA_STATUS data;
+
 } DEVICE_AWAKE_STATUS;
+
+//------------------------------------------------------------------------------
 
 typedef enum
 {
 	SECURITY_KEY_OK,
 	SECURITY_KEY_RENEW,
+
 } SECURITY_KEY_ACTION;
+//------------------------------------------------------------------------------
 
 typedef HERMES__PACKED_PREFIX struct
 {
@@ -107,6 +125,7 @@ typedef HERMES__PACKED_PREFIX struct
     uint8_t associated :1;
 
 } HERMES__PACKED_POSTFIX DEVICE_STATUS_BITS;
+//------------------------------------------------------------------------------
 
 typedef HERMES__PACKED_PREFIX struct
 {
@@ -130,9 +149,7 @@ typedef HERMES__PACKED_PREFIX struct
     uint32_t last_heard_from;
 
 } HERMES__PACKED_POSTFIX DEVICE_STATUS;
-
-
-#define DEVICE_STATUS_LAST_HEARD_POS	12
+//------------------------------------------------------------------------------
 
 typedef HERMES__PACKED_PREFIX struct
 {
@@ -155,6 +172,7 @@ typedef HERMES__PACKED_PREFIX struct
 	SURENET_ENCRYPTION_TYPE	encryption_type;
 
 } HERMES__PACKED_POSTFIX DEVICE_STATUS_EXTRA;
+//------------------------------------------------------------------------------
 
 typedef enum
 {
@@ -166,7 +184,7 @@ typedef enum
     TX_STAT_BACKSTOP
 
 } TX_STAT_INDICES;
-
+//------------------------------------------------------------------------------
 // parameters used as part of DEVICE_RCVD_SEGS message
 typedef HERMES__PACKED_PREFIX struct
 {
@@ -176,11 +194,10 @@ typedef HERMES__PACKED_PREFIX struct
     uint8_t received_segments[9];
 
 } HERMES__PACKED_POSTFIX DEVICE_RCVD_SEGS_PARAMETERS;
-
+//------------------------------------------------------------------------------
 // This would be more logically located in SureNet.h, however, it needs DEVICE_DATA_STATUS
 // which is used in two orthogonal ways, as a parameter in PACKET_DEVICE_AWAKE, and
 // to manage the HUB_CONVERSATION. Perhaps they should be separated.
-
 typedef HERMES__PACKED_PREFIX struct
 {
     DEVICE_DATA_STATUS device_data_status;
@@ -211,6 +228,7 @@ typedef HERMES__PACKED_PREFIX struct
 	SURENET_ENCRYPTION_TYPE encryption_type_extended;
 
 } HERMES__PACKED_POSTFIX PACKET_DEVICE_AWAKE_PAYLOAD;
+//------------------------------------------------------------------------------
 
 typedef HERMES__PACKED_PREFIX struct
 {
@@ -218,7 +236,7 @@ typedef HERMES__PACKED_PREFIX struct
 	SURENET_ENCRYPTION_TYPE	encryption_type;
 
 } HERMES__PACKED_POSTFIX DEVICE_TX_PAYLOAD;
-
+//------------------------------------------------------------------------------
 // used to send rcvd segs params into the application
 typedef HERMES__PACKED_PREFIX struct
 {
@@ -226,6 +244,7 @@ typedef HERMES__PACKED_PREFIX struct
 	uint64_t device_mac;
 
 } HERMES__PACKED_POSTFIX DEVICE_RCVD_SEGS_PARAMETERS_MAILBOX;
+//------------------------------------------------------------------------------
 
 typedef HERMES__PACKED_PREFIX struct
 {
@@ -233,6 +252,7 @@ typedef HERMES__PACKED_PREFIX struct
     PACKET_DEVICE_AWAKE_PAYLOAD payload;
 
 } HERMES__PACKED_POSTFIX DEVICE_AWAKE_MAILBOX;
+//------------------------------------------------------------------------------
 
 typedef HERMES__PACKED_PREFIX struct
 {
@@ -246,6 +266,7 @@ typedef HERMES__PACKED_PREFIX struct
 	uint8_t chunk_data[136];
 
 } HERMES__PACKED_POSTFIX DEVICE_FIRMWARE_CHUNK;
+//------------------------------------------------------------------------------
 
 typedef HERMES__PACKED_PREFIX struct
 {
@@ -253,6 +274,7 @@ typedef HERMES__PACKED_PREFIX struct
 	uint8_t value;
 
 } HERMES__PACKED_POSTFIX PING_REQUEST_MAILBOX;
+//==============================================================================
 
 void sn_devicetable_init(void);
 void device_table_dump(void);
@@ -269,5 +291,5 @@ T_DEVICE_TYPE device_type_from_index (uint8_t index);
 uint64_t get_mac_from_index (uint8_t index);
 bool store_device_table(void);
 uint32_t last_heard_from(void);
-
+//==============================================================================
 #endif //__PAIRING_H__

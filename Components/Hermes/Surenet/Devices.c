@@ -45,6 +45,7 @@
 #include "devices.h"
 #include "SureNet.h"
 #include "hermes-time.h"
+#include "flashManager.h"
 
 // Shared variables
 DEVICE_STATUS device_status[MAX_NUMBER_OF_DEVICES] DEVICE_STATUS_MEM_SECTION;
@@ -71,65 +72,58 @@ bool remove_pairing_table_entry(uint64_t mac);
  **************************************************************/
 void sn_devicetable_init(void)
 {	
-	int			i;
-	bool		sane = true;
-	uint8_t* 	mac_8;
-	uint32_t	notifyValue;
+	int i;
+	bool changed = false;
+	uint8_t* mac_8;
 	
 	device_status_0 = device_status;
 	device_status_extra_0 = device_status_extra;
 
-	// hose extra part of Device Statuses. Maybe should store this too?
-	memset(device_status_extra, 0, sizeof(device_status_extra));
-	/*
-	xQueueSend(xNvStoreMailboxSend, &notifyValue, 0); // get device table into RAM
-	
-	if( xTaskNotifyWait(0, 0, &notifyValue, 100 ) == pdTRUE ) // nominal time to wait for notification, or use portMAX_DELAY if blocking
-	{
-		if( notifyValue == 0)
-		{
-			for( i=0; i<MAX_NUMBER_OF_DEVICES; i++ )
-			{
-				mac_8 = (uint8_t *)&device_status[i].mac_address;
-				//check first for old style extended address
-				if ((device_status[i].status.valid==1) && (mac_8[3]!=MAC_BYTE_4) && (mac_8[4]!=MAC_BYTE_4)) //cope with device address in either endian
-				{  //now check for SureFlap UID
-				  if( mac_8[7] != UID_1 ) sane = false;
-				  if( mac_8[6] != UID_2 ) sane = false;
-				  if( mac_8[5] != UID_3 ) sane = false;
-				  if( mac_8[4] != UID_4 ) sane = false;
-				  if( (0xf0 & mac_8[3]) != UID_5 ) sane = false;
-				}
-			}
-			if( sane == false )
-			{
-				memset(device_status,0,sizeof(device_status)); // hose Device Statuses.
-				store_device_table();			
-			}
-		} else
-		{
-			zprintf(HIGH_IMPORTANCE, "\r\nUnable to retrieve Device Table from NVM\r\n");
-		}
-	} else
-	{	// couldn't read from NVM
-		zprintf(HIGH_IMPORTANCE, "Failed to read Device Status from NVM\r\n");
-	}
-	*/
-
 	// clear the extra part always
 	memset(device_status_extra, 0, sizeof(device_status_extra));
 
-	device_status[0].mac_address = 0x70B3D5F9CF036F90;
-	device_status[0].status.valid = true;
-	// apart from the SendSecurityKey because it's random and we have just started up, we must send it to the devices
-	// when they try and talk to us.
+	HermesFlashReadDeviceTable(device_status);
+
+	if (device_status[0].mac_address != 0x70B3D5F9CF036F90)
+	{
+		device_status[0].mac_address = 0x70B3D5F9CF036F90;
+		device_status[0].status.valid = true;
+
+		HermesFlashSetDeviceTable(device_status);
+		HermesFlashSaveData();
+	}
+
 	for(i = 0; i < MAX_NUMBER_OF_DEVICES; i++)
 	{
+		mac_8 = (uint8_t*)&device_status[i].mac_address;
+
+		if (device_status[i].status.valid && (mac_8[3] != MAC_BYTE_4) && (mac_8[4] != MAC_BYTE_4))
+		{
+			//now check for SureFlap UID
+			if(mac_8[7] != UID_1
+			|| mac_8[6] != UID_2
+			|| mac_8[5] != UID_3
+			|| mac_8[4] != UID_4
+			|| (mac_8[3] & 0xf0) != UID_5)
+			{
+				changed = true;
+				memset(&device_status[i], 0, sizeof(device_status[i]));
+			}
+		}
+
+		// apart from the SendSecurityKey because it's random and we have just started up, we must send it to the devices
+		// when they try and talk to us.
 		if(device_status[i].status.associated)
 		{
 			// send key to previously associated devices
 			device_status_extra[i].SendSecurityKey = SECURITY_KEY_RENEW;
 		}
+	}
+
+	if (changed)
+	{
+		HermesFlashSetDeviceTable(device_status);
+		HermesFlashSaveData();
 	}
 }
 
@@ -299,7 +293,7 @@ bool remove_pairing_table_entry(uint64_t mac)
 				// we have found mac, so mark this entry as invalid
 				zprintf(MEDIUM_IMPORTANCE,"Found MAC at line %d\r\n", i);
 				memset (&device_status[i], 0, sizeof (device_status[i]));
-				store_device_table ();
+				store_device_table();
 				found++;
 				retval = true;
 			}   
@@ -431,35 +425,9 @@ bool are_we_paired_with_source(uint64_t src_mac)
  **************************************************************/
 bool store_device_table(void)
 {
-	/*
-	SEND_TO_FM_MSG	nvNvmMessage;	// Outgoing message	
-	uint32_t		notifyValue;
-	
-	nvNvmMessage.ptrToBuf	= (uint8_t*)device_status;
-	nvNvmMessage.dataLength = sizeof(device_status);
-	nvNvmMessage.type		= FM_DEVICE_STATS;
-	nvNvmMessage.action		= FM_PUT;
-	nvNvmMessage.xClientTaskHandle = xTaskGetCurrentTaskHandle();
-	
-	xQueueSend(xNvStoreMailboxSend, &nvNvmMessage, 0);	// get device table into RAM
-	
-	if( xTaskNotifyWait(0, 0, &notifyValue, 100 ) == pdTRUE )	// nominal time to wait for notification, or use portMAX_DELAY if blocking
-	{
-		if( notifyValue == FM_ACK )
-		{
-			zprintf(LOW_IMPORTANCE,"Device Table written\r\n");
-			return true;
-		} else
-		{
-			zprintf(CRITICAL_IMPORTANCE,"Device Table write failed\r\n");
-			return false;
-		}
-	} else
-	{
-		zprintf(HIGH_IMPORTANCE,"Notification of Device Table Write did not arrive\r\n");
-		return false;
-	}
-	*/
+	HermesFlashSetDeviceTable(device_status);
+	HermesFlashSaveData();
+
 	return true;
 }
 
