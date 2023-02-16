@@ -21,7 +21,6 @@
 *
 *
 **************************************************************************/
-
 #include "hermes.h"
 
 /* Standard includes. */
@@ -53,12 +52,16 @@
 #include "mac_internal.h"
 
 #include "cmsis_os.h"
+//==============================================================================
 
-#define PET_DOOR_DELAY		true	// This introduces a 50ms delay for Pet Doors between 
-									// PACKET_DEVICE_AWAKE and the sending of PACKET_END_SESSION
+// This introduces a 50ms delay for Pet Doors between
+#define PET_DOOR_DELAY		true
 
+// PACKET_DEVICE_AWAKE and the sending of PACKET_END_SESSION
 #define PRINT_SURENET_ACK	false
-#define PRINT_SURENET		false // gets SureNet to emit some useful debug messages.
+
+// gets SureNet to emit some useful debug messages.
+#define PRINT_SURENET		false
 
 #if SURENET_ACTIVITY_LOG
 #define surenet_log_add(a, b) snla(a,b)
@@ -78,16 +81,15 @@
 #define surenet_ack_printf(...)
 #endif
 
-#define	TIMEOUT_SECURITY_ACK		(usTICK_MILLISECONDS * 100)	// Although the Device should respond in 5.5ms, it actually takes it over 60ms...
+// Although the Device should respond in 5.5ms, it actually takes it over 60ms...
+#define	TIMEOUT_SECURITY_ACK		(usTICK_MILLISECONDS * 100)
+
 #define	TIMEOUT_WAIT_FOR_DATA_ACK	(usTICK_MILLISECONDS * 25)
 #define	TIMEOUT_DEVICE_STAYS_AWAKE	(usTICK_MILLISECONDS * 100)
+
 // temporary logging stuff to see how the timing goes with lots of Devices attached.
 #if SURENET_ACTIVITY_LOG
 #define NUM_SURENET_LOG_ENTRIES	75
-SURENET_LOG_ENTRY surenet_log_entry[NUM_SURENET_LOG_ENTRIES];
-uint8_t	surenet_log_entry_in = 0;
-void dump_surenet_log(void);
-void snla(SURENET_LOG_ACTIVITY activity, uint8_t parameter);
 #endif
 
 // Private defines
@@ -95,8 +97,12 @@ void snla(SURENET_LOG_ACTIVITY activity, uint8_t parameter);
 #define NUMBER_OF_CHANNELS 			16
 #define ACKNOWLEDGE_QUEUE_SIZE 		16
 #define DATA_ACKNOWLEDGE_QUEUE_SIZE	16
-#define ACKNOWLEDGE_LIFETIME  		25    // lifetime of acknowledges in 100ms increments (about!)
-#define DATA_ACKNOWLEDGE_LIFETIME  	25    // lifetime of acknowledges in 100ms increments (about!)
+
+// lifetime of acknowledges in 100ms increments (about!)
+#define ACKNOWLEDGE_LIFETIME  		25
+
+// lifetime of acknowledges in 100ms increments (about!)
+#define DATA_ACKNOWLEDGE_LIFETIME  	25
 
 #define SECURITY_KEY_SIZE	16
 #define SECURITY_KEY_00 0x45  // E
@@ -118,22 +124,34 @@ void snla(SURENET_LOG_ACTIVITY activity, uint8_t parameter);
 
 #define MAX_SECURITY_KEY_USES	16
 
-#define MAX_DETACH_RETRIES  5   // number of times the hub tries to send PACKET_DETACH to a device before giving up on it
-                                 //need to be patient, RF module is asleep most of the time
-                                 // Note this is multiplied by the HUB_TX_MAX_RETRIES constant as that is how many times
-                                 // a packet is sent if the ACK does not arrive.
-#define HUB_TX_MAX_RETRIES  5   // number of times the hub tries to send PACKET_DATA to a device before giving up on it
+// number of times the hub tries to send PACKET_DETACH to a device before giving up on it
+//need to be patient, RF module is asleep most of the time
+// Note this is multiplied by the HUB_TX_MAX_RETRIES constant as that is how many times
+// a packet is sent if the ACK does not arrive.
+#define MAX_DETACH_RETRIES  5
+
+// number of times the hub tries to send PACKET_DATA to a device before giving up on it
+#define HUB_TX_MAX_RETRIES  5
+
 #define DETACH_ALL_MASK ((2^MAX_NUMBER_OF_DEVICES)-1);
 #define MAX_BAD_KEY 8
 
 // handle aging of received packets (stores their sequence number for a short period of time so we can check for duplicates)
 #define RX_SEQ_BUFFER_SIZE 64
 
-#define SEQUENCE_STORE_LIFETIME 20    // number of 100ms periods that a received packet sequence / mac is stored for
-                                      // to enable repeat packets to be dropped.
-#define SEQUENCE_STORE_LIFETIME_LONG 250    // longer wait for data messages
+// number of 100ms periods that a received packet sequence / mac is stored for
+// to enable repeat packets to be dropped.
+#define SEQUENCE_STORE_LIFETIME 20
 
-// Private enumerations
+// longer wait for data messages
+#define SEQUENCE_STORE_LIFETIME_LONG 250
+
+// Check with Tom as to why this lot was required / and he has put the #defines in the chacha.h header, i.e. modifying WolfSSL?
+#define CHACHA_CONST_WORDS	4
+#define CHACHA_CONST_BYTES	(CHACHA_CONST_WORDS * sizeof(word32))
+//==============================================================================
+//types:
+
 typedef enum
 {
     PACKET_UNKNOWN,
@@ -159,9 +177,10 @@ typedef enum
     PACKET_DEVICE_CONFIRM,  //20
     PACKET_DATA_SEGMENT,
 	PACKET_BLOCKING_TEST,
-	PACKET_DATA_ALT_ENCRYPTED,		
-} PACKET_TYPE;
+	PACKET_DATA_ALT_ENCRYPTED,
 
+} PACKET_TYPE;
+//------------------------------------------------------------------------------
 typedef enum
 {
     DETACH_IDLE,
@@ -169,126 +188,164 @@ typedef enum
     DETACH_SEND_DETACH_COMMAND,
     DETACH_WAIT_FOR_ACK,
     DETACH_FINISH,
-} DETACH_STATE;
 
+} DETACH_STATE;
+//------------------------------------------------------------------------------
 typedef struct
 {
     uint8_t seq_acknowledged;
     uint8_t ack_nack;
     uint8_t valid;
-} ACKNOWLEDGE_QUEUE;
 
+} ACKNOWLEDGE_QUEUE;
+//------------------------------------------------------------------------------
 typedef enum
 {
     ACK_NOT_ARRIVED,
     ACK_ARRIVED,
     NACK_ARRIVED
-} ACK_STATUS;
 
-typedef struct	// used to store information about a received message, and if it were a PACKET_DATA, the response sent
+} ACK_STATUS;
+//------------------------------------------------------------------------------
+// used to store information about a received message, and if it were a PACKET_DATA, the response sent
+typedef struct
 {
     uint8_t sequence_number;
     uint8_t valid;
     uint64_t src_mac;
 	uint8_t ack_response;
-} RECEIVED_SEQUENCE_NUMBER;
 
+} RECEIVED_SEQUENCE_NUMBER;
+//------------------------------------------------------------------------------
 typedef struct
 {
-	uint32_t	timestamp;
-	uint8_t 	data[CHUNK_SIZE];
-	uint8_t len;	// 0 means no data.
+	uint32_t timestamp;
+	uint8_t data[CHUNK_SIZE];
+	uint8_t len; // 0 means no data.
 	uint16_t chunk_address;
 	bool has_data;
-	uint8_t 	device_index;
-} FIRMWARE_CHUNK;
+	uint8_t device_index;
 
+} FIRMWARE_CHUNK;
+//------------------------------------------------------------------------------
 typedef enum
 {
-	CAN_SLEEP 	= 0,	// Functions that return this value have their answers OR'd together
-	BUSY 		= 1,	// to get an aggregate. Therefore if any are BUSY, the aggregate will also be BUSY.
+	// Functions that return this value have their answers OR'd together
+	CAN_SLEEP = 0,
+
+	// to get an aggregate. Therefore if any are BUSY, the aggregate will also be BUSY.
+	BUSY = 1,
+
 } BUSY_STATE;
-
+//------------------------------------------------------------------------------
 // Some debug data
-char *packet_names[] = {"PACKET_UNKNOWN",
-                        "PACKET_DATA",
-                        "PACKET_DATA_ACK",
-                        "PACKET_ACK",
-                        "PACKET_BEACON",
-                        "PACKET_PAIRING_REQUEST",
-                        "PACKET_PAIRING_CONFIRM",
-                        "PACKET_CHANNEL_HOP",
-                        "PACKET_DEVICE_AWAKE",
-                        "PACKET_DEVICE_TX",
-                        "PACKET_END_SESSION",
-                        "PACKET_DETACH",
-                        "PACKET_DEVICE_SLEEP",
-                        "PACKET_DEVICE_P2P",
-                        "PACKET_ENCRYPTION_KEY",
-                        "PACKET_REPEATER_PING",
-                        "PACKET_PING",
-                        "PACKET_PING_R",
-                        "PACKET_REFUSE_AWAKE",
-                        "PACKET_DEVICE_STATUS",
-                        "PACKET_DEVICE_CONFIRM",
-                        "PACKET_DATA_SEGMENT",
-						"PACKET_BLOCKING_TEST",
-						"PACKET_DATA_ALT_ENCRYPTED"};
-
-// Check with Tom as to why this lot was required / and he has put the #defines in the chacha.h header, i.e. modifying WolfSSL?
-#define CHACHA_CONST_WORDS	4
-#define CHACHA_CONST_BYTES	(CHACHA_CONST_WORDS * sizeof(word32))
+char *packet_names[] =
+{
+	"PACKET_UNKNOWN",
+	"PACKET_DATA",
+	"PACKET_DATA_ACK",
+	"PACKET_ACK",
+	"PACKET_BEACON",
+	"PACKET_PAIRING_REQUEST",
+	"PACKET_PAIRING_CONFIRM",
+	"PACKET_CHANNEL_HOP",
+	"PACKET_DEVICE_AWAKE",
+	"PACKET_DEVICE_TX",
+	"PACKET_END_SESSION",
+	"PACKET_DETACH",
+	"PACKET_DEVICE_SLEEP",
+	"PACKET_DEVICE_P2P",
+	"PACKET_ENCRYPTION_KEY",
+	"PACKET_REPEATER_PING",
+	"PACKET_PING",
+	"PACKET_PING_R",
+	"PACKET_REFUSE_AWAKE",
+	"PACKET_DEVICE_STATUS",
+	"PACKET_DEVICE_CONFIRM",
+	"PACKET_DATA_SEGMENT",
+	"PACKET_BLOCKING_TEST",
+	"PACKET_DATA_ALT_ENCRYPTED"
+};
+//------------------------------------------------------------------------------
 typedef union 
 {
-	uint32_t	words[CHACHA_CHUNK_WORDS];
-	ChaCha		WolfStruct;
+	uint32_t words[CHACHA_CHUNK_WORDS];
+	ChaCha WolfStruct;
+
 	struct 
 	{
-		uint8_t		constant[CHACHA_CONST_BYTES];
-		uint8_t		key[CHACHA_MAX_KEY_SZ];
-		uint32_t	position;
-		uint8_t		IV[CHACHA_IV_WORDS];
+		uint8_t constant[CHACHA_CONST_BYTES];
+		uint8_t key[CHACHA_MAX_KEY_SZ];
+		uint32_t position;
+		uint8_t IV[CHACHA_IV_WORDS];
 	};
+
 } CHACHA_CONTEXT;
+//==============================================================================
+//externs:
 
-// Private variables
-uint64_t *rf_mac;   // range 0x08 0x00 to 0x08 0xff is for Hub2 development
-static uint8_t SecurityKeys[MAX_NUMBER_OF_DEVICES][SECURITY_KEY_SIZE] SECURITY_KEYS_MEM_SECTION;
-static uint8_t SecretKeys[MAX_NUMBER_OF_DEVICES][CHACHA_MAX_KEY_SZ] SECRET_KEYS_MEM_SECTION;
-TaskHandle_t surenet_task_handle = NULL;
+// Hub uptime - used for once-per-hour Pet Door messages
+extern uint8_t uptime_min_count;
 
-static ACKNOWLEDGE_QUEUE acknowledge_queue[ACKNOWLEDGE_QUEUE_SIZE] ACKNOWLEDGE_QUEUE_MEM_SECTION;
-static ACKNOWLEDGE_QUEUE data_acknowledge_queue[DATA_ACKNOWLEDGE_QUEUE_SIZE] DATA_ACKNOWLEDGE_QUEUE_MEM_SECTION;
-static RECEIVED_SEQUENCE_NUMBER received_sequence_numbers[RX_SEQ_BUFFER_SIZE] RECEIVED_SEQUENCE_NUMBERS_MEM_SECTION;
-
-static uint32_t most_recent_rx_time;  // set when a PACKET_DATA is received by surenet_data_received()
-static PAIRING_REQUEST pairing_mode;   // Note that this variable is set by calls to sn_set_hub_pairing_mode(), and is read by calls to sn_get_hub_pairing_mode()
-static bool trigger_channel_hop=false;
-static bool conv_end_session_flag=false;   // set when a PACKET_END_SESSION is received
-static bool sn_transmission_complete=false;
-static int current_conversee = 0;
-// Detach handler
-static uint64_t detach_device_bits = 0;    // sizeof this is one determinant of the max number of pairs.
-static DETACH_STATE detach_state = DETACH_IDLE;
-
-// Ping related
-PING_STATS ping_stats;
-uint8_t ping_seq = 0; // Ping sequence number.
-
-// Device Firmware Update
-FIRMWARE_CHUNK firmware_chunk[DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES] DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES_MEM_SECTION;
-//0x00 is when both segments of a chunk are needed, 0x01 when only the 2nd segment.
-uint8_t device_rcvd_segs[MAX_NUMBER_OF_DEVICES];
-
-// Externals
-extern uint8_t uptime_min_count;	// Hub uptime - used for once-per-hour Pet Door messages
 extern DEVICE_STATUS device_status[MAX_NUMBER_OF_DEVICES];
 extern DEVICE_STATUS_EXTRA device_status_extra[MAX_NUMBER_OF_DEVICES];
 extern bool remove_pairing_table_entry(uint64_t mac);
 extern uint8_t hub_debug_mode;
+//==============================================================================
+//variables:
 
-// Mailboxes to communicate with SureNet-Interface
-QueueHandle_t xAssociationSuccessfulMailbox;        // comes with data ASSOCIATION_SUCCESS_INFORMATION describing the new device
+#if SURENET_ACTIVITY_LOG
+SURENET_LOG_ENTRY surenet_log_entry[NUM_SURENET_LOG_ENTRIES];
+uint8_t	surenet_log_entry_in = 0;
+#endif
+//------------------------------------------------------------------------------
+static uint8_t SecurityKeys[MAX_NUMBER_OF_DEVICES][SECURITY_KEY_SIZE] SECURITY_KEYS_MEM_SECTION;
+static uint8_t SecretKeys[MAX_NUMBER_OF_DEVICES][CHACHA_MAX_KEY_SZ] SECRET_KEYS_MEM_SECTION;
+//------------------------------------------------------------------------------
+static ACKNOWLEDGE_QUEUE acknowledge_queue[ACKNOWLEDGE_QUEUE_SIZE] ACKNOWLEDGE_QUEUE_MEM_SECTION;
+static ACKNOWLEDGE_QUEUE data_acknowledge_queue[DATA_ACKNOWLEDGE_QUEUE_SIZE] DATA_ACKNOWLEDGE_QUEUE_MEM_SECTION;
+static RECEIVED_SEQUENCE_NUMBER received_sequence_numbers[RX_SEQ_BUFFER_SIZE] RECEIVED_SEQUENCE_NUMBERS_MEM_SECTION;
+//------------------------------------------------------------------------------
+// set when a PACKET_DATA is received by surenet_data_received()
+static uint32_t most_recent_rx_time;
+
+// Note that this variable is set by calls to sn_set_hub_pairing_mode(), and is read by calls to sn_get_hub_pairing_mode()
+static PAIRING_REQUEST pairing_mode;
+
+static volatile bool trigger_channel_hop = false;
+
+// set when a PACKET_END_SESSION is received
+static volatile bool conv_end_session_flag = false;
+
+static volatile bool sn_transmission_complete = false;
+static volatile int current_conversee = 0;
+
+// Detach handler
+static volatile uint64_t detach_device_bits = 0;
+static volatile DETACH_STATE detach_state = DETACH_IDLE;
+//------------------------------------------------------------------------------
+// range 0x08 0x00 to 0x08 0xff is for Hub2 development
+uint64_t *rf_mac;
+
+TaskHandle_t surenet_task_handle = NULL;
+
+// Ping related
+PING_STATS ping_stats;
+
+// Ping sequence number.
+uint8_t ping_seq = 0;
+
+// Device Firmware Update
+FIRMWARE_CHUNK firmware_chunk[DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES] DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES_MEM_SECTION;
+
+//0x00 is when both segments of a chunk are needed, 0x01 when only the 2nd segment.
+uint8_t device_rcvd_segs[MAX_NUMBER_OF_DEVICES];
+
+//------------------------------------------------------------------------------
+//Mailboxes to communicate with SureNet-Interface
+
+// comes with data ASSOCIATION_SUCCESS_INFORMATION describing the new device
+QueueHandle_t xAssociationSuccessfulMailbox;
 QueueHandle_t xRxMailbox;
 QueueHandle_t xRxMailbox_resp;
 QueueHandle_t xGetNumPairsMailbox_resp;
@@ -316,7 +373,16 @@ QueueHandle_t xBlockingTestMailbox;
 // EventGroup to communicate with SureNet-Interface
 EventGroupHandle_t xSurenet_EventGroup;
 
-// Private Functions
+StaticTask_t surenet_task_buffer SURENET_TASK_STACK_MEM_SECTION;
+StackType_t surenet_task_stack[SURENET_TASK_STACK_SIZE] SURENET_TASK_STACK_MEM_SECTION;
+//==============================================================================
+//prototypes:
+
+#if SURENET_ACTIVITY_LOG
+void dump_surenet_log(void);
+void snla(SURENET_LOG_ACTIVITY activity, uint8_t parameter);
+#endif
+
 void sn_task(void *pvParameters);
 ACK_STATUS has_ack_arrived(int16_t);
 ACK_STATUS has_data_ack_arrived(int16_t);
@@ -342,10 +408,9 @@ int is_there_a_firmware_chunk(uint8_t conversee);
 void ChaCha_Encrypt(uint8_t* data, uint32_t length, uint32_t position, uint8_t pair_index);
 PACKET_TYPE	sn_Encrypt(uint8_t* data, uint32_t length, uint32_t position, uint8_t dest_index);
 void sn_Decrypt(uint8_t* data, uint32_t length, uint32_t pair_index, uint32_t position);
+//==============================================================================
+//functions:
 
-//////////////////////
-// Interfacing and Task functions
-//////////////////////
 /**************************************************************
  * Function Name   : sn_init
  * Description     : Called before scheduler starts to initialise SureNet.
@@ -356,50 +421,6 @@ void sn_Decrypt(uint8_t* data, uint32_t length, uint32_t pair_index, uint32_t po
  **************************************************************/
 BaseType_t sn_init(uint64_t *mac, uint16_t panid, uint8_t channel)
 {
-    int i;
-
-    // Create ISR task first
-    if (snd_init(mac, panid, channel) != pdPASS)
-    {
-        return pdFAIL;
-    }
-    rf_mac = mac;
-
-    rx_seq_init();
-    for(i = 0; i < ACKNOWLEDGE_QUEUE_SIZE; i++)
-    {
-        acknowledge_queue[i].valid=0;
-    }
-
-    for(i = 0; i < DATA_ACKNOWLEDGE_QUEUE_SIZE; i++)
-    {
-        data_acknowledge_queue[i].valid=0;
-    }
-
-    for(i = 0; i < RX_SEQ_BUFFER_SIZE; i++)
-    {
-        received_sequence_numbers[i].valid = 0;
-    }
-
-    for(i = 0; i < MAX_NUMBER_OF_DEVICES; i++)
-    {
-        device_status_extra[i].send_detach = 0;
-        device_status_extra[i].device_awake_status.awake = DEVICE_ASLEEP;
-        device_status_extra[i].device_awake_status.data = DEVICE_HAS_NO_DATA;
-        device_status_extra[i].device_web_connected = false;
-        device_status_extra[i].SendSecurityKey=SECURITY_KEY_OK;
-		device_status_extra[i].SecurityKeyUses = 0;
-		device_status_extra[i].encryption_type = SURENET_CRYPT_BLOCK_XTEA;
-    }
-
-	for(i = 0; i < DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES; i++)
-	{
-		firmware_chunk[i].has_data = false;
-		firmware_chunk[i].device_index = 0;
-		firmware_chunk[i].timestamp = 0;
-    }
-
-
     // Now set up some mailboxes and an Event Group to allow data to be sent between SureNet and the outside world
     // We will extern them from SureNet.
     xAssociationSuccessfulMailbox = xQueueCreate(1, sizeof(ASSOCIATION_SUCCESS_INFORMATION));
@@ -429,6 +450,47 @@ BaseType_t sn_init(uint64_t *mac, uint16_t panid, uint8_t channel)
 
 	xSurenet_EventGroup = xEventGroupCreate();
 
+	 // Create ISR task first
+	if (snd_init(mac, panid, channel) != pdPASS)
+	{
+		return pdFAIL;
+	}
+	rf_mac = mac;
+
+	rx_seq_init();
+	for(uint8_t i = 0; i < ACKNOWLEDGE_QUEUE_SIZE; i++)
+	{
+		acknowledge_queue[i].valid=0;
+	}
+
+	for(uint8_t i = 0; i < DATA_ACKNOWLEDGE_QUEUE_SIZE; i++)
+	{
+		data_acknowledge_queue[i].valid=0;
+	}
+
+	for(uint8_t i = 0; i < RX_SEQ_BUFFER_SIZE; i++)
+	{
+		received_sequence_numbers[i].valid = 0;
+	}
+
+	for(uint8_t i = 0; i < MAX_NUMBER_OF_DEVICES; i++)
+	{
+		device_status_extra[i].send_detach = 0;
+		device_status_extra[i].device_awake_status.awake = DEVICE_ASLEEP;
+		device_status_extra[i].device_awake_status.data = DEVICE_HAS_NO_DATA;
+		device_status_extra[i].device_web_connected = false;
+		device_status_extra[i].SendSecurityKey=SECURITY_KEY_OK;
+		device_status_extra[i].SecurityKeyUses = 0;
+		device_status_extra[i].encryption_type = SURENET_CRYPT_BLOCK_XTEA;
+	}
+
+	for(uint8_t i = 0; i < DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES; i++)
+	{
+		firmware_chunk[i].has_data = false;
+		firmware_chunk[i].device_index = 0;
+		firmware_chunk[i].timestamp = 0;
+	}
+
 	//xQueueSend(xSendDeviceTableMailbox, &device_status, 0);	// Send all device statuses to Register Map.
 	// This was a waste of time as this mailbox is only checked after an SURENET_GET_DEVICE_TABLE is received.
 	// Now set up Security Keys for each device
@@ -443,7 +505,7 @@ BaseType_t sn_init(uint64_t *mac, uint16_t panid, uint8_t channel)
 		SECURITY_KEY_12, SECURITY_KEY_13, SECURITY_KEY_14, SECURITY_KEY_15
 	};
 	#endif
-	for(i = 0; i < MAX_NUMBER_OF_DEVICES; i++)
+	for(uint8_t i = 0; i < MAX_NUMBER_OF_DEVICES; i++)
 	{
 		#if USE_RANDOM_KEY
 		sn_GenerateSecurityKey(i);
@@ -452,12 +514,14 @@ BaseType_t sn_init(uint64_t *mac, uint16_t panid, uint8_t channel)
 		#endif
 	}
 
-	// now start the SureNet task
-    if (xTaskCreate(sn_task, "SureNet", SURENET_TASK_STACK_SIZE, NULL, osPriorityNormal, &surenet_task_handle) != pdPASS)
-    {
-        zprintf(CRITICAL_IMPORTANCE, "SureNet task creation failed!.\r\n");
-        return pdFAIL;
-    }
+    // now start the SureNet task
+    surenet_task_handle = xTaskCreateStatic(sn_task, // Function that implements the task.
+											"SureNet", // Text name for the task.
+											SURENET_TASK_STACK_SIZE, // Number of indexes in the xStack array.
+											NULL, // Parameter passed into the task.
+											osPriorityNormal, // Priority at which the task is created.
+											surenet_task_stack, // Array to use as the task's stack.
+											&surenet_task_buffer);
 
     return pdPASS;
 }
@@ -530,7 +594,7 @@ void sn_task(void *pvParameters)
         {
             bresult = sn_is_device_online(u64result);
             // put result in mailbox for Surenet-Interface
-            xQueueSend(xIsDeviceOnlineMailbox_resp,&bresult,0);
+            xQueueSend(xIsDeviceOnlineMailbox_resp, &bresult, 0);
         }
 
         if((uxQueueMessagesWaiting(xSetChannelMailbox) > 0)
@@ -569,7 +633,7 @@ void sn_task(void *pvParameters)
             resp = sn_get_hub_pairing_mode();
 
             // put result in mailbox for Surenet-Interface
-            xQueueSend(xGetPairmodeMailbox_resp,&resp,0);
+            xQueueSend(xGetPairmodeMailbox_resp, &resp, 0);
         }
 
         xEventBits = xEventGroupWaitBits(xSurenet_EventGroup,
@@ -634,7 +698,7 @@ void sn_task(void *pvParameters)
         if(xEventBits & SURENET_GET_DEVICE_TABLE)
         {
         	// Register Map wants to update its Device Table.
-            xQueueSend(xSendDeviceTableMailbox, &device_status, 0);
+            xQueueSend(xSendDeviceTableMailbox, &device_status, 5);
         }
 
 		xEventBits = xEventGroupWaitBits(xSurenet_EventGroup,
@@ -754,6 +818,10 @@ void sn_device_pairing_success(ASSOCIATION_SUCCESS_INFORMATION *assoc_info)
  * Outputs         :
  * Returns         : -1 if the transmit failed, or the sequence number if the message was successfully queued.
  **************************************************************/
+static uint32_t sn_transmit_packet_errors;
+static uint32_t sn_transmission_complete_errors;
+static uint32_t sn_transmit_packet_length_errors;
+static uint32_t sn_transmission_accept;
 int16_t sn_transmit_packet(PACKET_TYPE type,
 		uint64_t dest,
 		uint8_t *payload_ptr,
@@ -784,7 +852,9 @@ int16_t sn_transmit_packet(PACKET_TYPE type,
     if(length > (sizeof(PayLoad) - 2))
     {
       surenet_printf("payload too long\r\n");
-      return -1;
+      seq = -1;
+      sn_transmit_packet_length_errors++;
+      goto end;
     }
 
     for(i = 0; i < length; i++)
@@ -806,20 +876,24 @@ int16_t sn_transmit_packet(PACKET_TYPE type,
     pcTxBuffer.uiDestAddr = dest;
     pcTxBuffer.xRequestAck = request_ack;
 
-    sn_transmission_complete=false;
-    timestamp = get_microseconds_tick();
+    sn_transmission_complete = false;
 
     if (!snd_transmit_packet(&pcTxBuffer))
     {
 		surenet_printf("TX Fail #1\r\n");
 		// bail out early - couldn't queue the message for transmission
-        return -1;
+		sn_transmit_packet_errors++;
+		seq = -1;
+		goto end;
     }
+
+    timestamp = get_microseconds_tick();
 
     do
     {
     	// This is slightly hokey but as we are in the same task, we can't spin until the transmission has completed.
         snd_stack_task(); // run the stack to facilitate the transmission
+        osDelay(1);
     }
     while((sn_transmission_complete == false) && ((get_microseconds_tick() - timestamp) < (usTICK_MILLISECONDS * 100)));
 
@@ -828,10 +902,18 @@ int16_t sn_transmit_packet(PACKET_TYPE type,
     	// have had this one
 		surenet_printf( "TX Fail #2\r\n");
 		// transmission failed
-        return -1;
+		seq = -1;
+		sn_transmission_complete_errors++;
+		goto end;
     }
 
-        return seq;
+    end:
+	if(seq != -1)
+	{
+		sn_transmission_accept++;
+	}
+
+    return seq;
 }
 
 /**************************************************************

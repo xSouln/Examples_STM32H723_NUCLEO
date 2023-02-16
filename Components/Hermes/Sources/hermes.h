@@ -18,19 +18,14 @@
 * Author:   Chris Cowdery
 * Purpose:   
 *   
-*            
 **************************************************************************/
 #ifndef __HERMES_H__
 #define __HERMES_H__
 //==============================================================================
 #include "Hermes-compiller.h"
 
-#include "Components_Config.h"
-#include "Components_Types.h"
-
-#include <stdint.h>
 #include "Signing.h"
-//------------------------------------------------------------------------------
+//==============================================================================
 #define SHOULD_I_PACKAGE	true
 
 // Number of watchdog resets required to cause a bank switch
@@ -44,11 +39,13 @@
 
 #define MYUSERNAME ""
 //------------------------------------------------------------------------------
-//user sections:
+//memories sections:
 
 #define MQTT_STORED_CERTIFICATE_MEM_SECTION __attribute__((section("._user_ram3_ram")))
 #define MQTT_STORED_PRIVATE_KEY_MEM_SECTION __attribute__((section("._user_ram3_ram")))
-#define MQTT_SUREFLAP_CREDENTIALS __attribute__((section("._user_ram3_ram")))
+#define MQTT_SUREFLAP_CREDENTIALS_MEM_SECTION __attribute__((section("._user_ram3_ram")))
+#define MQTT_CERTIFICATE_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define MQTT_AWS_CLIENT_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
 
 #define DEVICE_STATUS_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
 #define DEVICE_STATUS_EXTRA_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
@@ -57,7 +54,7 @@
 #define SECRET_KEYS_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
 
 #define SERVER_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define SERVER_BUFFER_MESSAGE_MEM_SECTION //__attribute__((section("._user_dtcmram_ram")))
+#define SERVER_BUFFER_MESSAGE_MEM_SECTION// __attribute__((section("._user_dtcmram_ram")))
 
 #define DEVICE_LIST_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
 #define HFU_RECEIVED_PAGE_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
@@ -76,71 +73,44 @@
 
 #define HERMES_FLASH_OPERATION_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
 //------------------------------------------------------------------------------
-// Stringification!
-#define XSTR(s)	STR(s)
-#define STR(s)	#s
-#define GREETING_STRING "cjctamzjvc"
+// Task stack sizes in words:
+
+//#define ipISR_TASK_STACK_SIZE_WORDS	(0x400/4) //(0x800/4)
+//#define	NETWORK_WATCHDOG_TASK_STACK_SIZE (0x200/4) //(0x400/4)
+//#define STARTUP_TASK_STACK_SIZE (0x400/4)
+//#define FLASH_MANAGER_TASK_STACK_SIZE (0x400/4) //(0x800/4)
+
+#define WATCHDOG_TASK_STACK_SIZE (0x200/4) //(0x400/4)
+#define LABEL_PRINTER_TASK_STACK_SIZE (0x800/4)
+#define TEST_TASK_STACK_SIZE (0x400/4) //(0x800/4)
+
+#define SHELL_TASK_STACK_SIZE (0x800/4) //(0x1000/4)
+
+#define LED_TASK_STACK_SIZE (0x400/4) //(0x800/4)
+#define LED_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+
+#define SNTP_TASK_STACK_SIZE (0x400/4) //(0x400/4)
+#define SNTP_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+
+#define MQTT_TASK_STACK_SIZE (0x4000/4) //(0x2000/4)
+#define MQTT_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+
+#define HTTP_POST_TASK_STACK_SIZE (0x2000/4) //(0x800/4)
+#define HTTP_POST_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+
+#define HFU_TASK_STACK_SIZE (0x400/4) //(0x800/4)
+
+#define HERMES_APPLICATION_TASK_STACK_SIZE (0x3000/4) //(0x800/4)
+#define HERMES_APPLICATION_TASK_STACK_MEM_SECTION __attribute__((section("._user_itcmram_stack")))
+
+#define SURENET_TASK_STACK_SIZE (0x2000/4) //(0x800/4)
+#define SURENET_TASK_STACK_MEM_SECTION __attribute__((section("._user_itcmram_stack")))
+
+#define HUB_SEND_TIME_UPDATES_FROM_DEVICES_EVERY_MINUTE	0x01 // default is every hour
+#define HUB_SEND_HUB_STATUS_UPDATES_EVERY_MINUTE 		0x02 // default is every hour
+#define HUB_SEND_TIME_UPDATES_FROM_DEVICES				0x04
 //------------------------------------------------------------------------------
-#define __MEMORY_BARRIER()\
-do\
-{\
-	__DSB();\
-	if (SCB->CCR & SCB_CCR_DC_Msk)\
-	{\
-		SCB_CleanDCache();\
-	}\
-	__ISB();\
-} while(0)
-//------------------------------------------------------------------------------
-typedef struct
-{
-	uint32_t r0;
-	uint32_t r1;
-	uint32_t r2;
-	uint32_t r3;
-	uint32_t r12;
-	uint32_t lr;
-	uint32_t pc;
-	uint32_t psr;
-} CONTEXT;
-//------------------------------------------------------------------------------
-typedef enum
-{
-	// Unit has default values in PRODUCT_CONFIGURATION
-	PRODUCT_BLANK,
-	// Unit programmed and tested in the Programmer, but not seen the Label Printer yet
-	PRODUCT_TESTED,
-	// Unit been interrogated by the Label Printer and is now ready for shipping.
-	PRODUCT_CONFIGURED,
-	// used to indicate a non-configured unit, so some interrogation by the production equipment is allowed.
-	PRODUCT_NOT_CONFIGURED = 0xff,
 
-} PRODUCT_STATE;
-//------------------------------------------------------------------------------
-typedef struct
-{
-	uint8_t			ethernet_mac[6];
-	uint64_t		rf_mac;
-	uint16_t		rf_pan_id;
-
-	// H001-0000000\0
-	uint8_t			serial_number[13];
-
-	PRODUCT_STATE	product_state;
-
-	// used to detect an uninitialised flash
-	PRODUCT_STATE	sanity_state;
-
-	uint8_t			secret_serial[33];
-	bool			rf_mac_mangle;
-	uint8_t			spare1;
-	uint8_t			spare2;
-	uint8_t			spare3;
-
-	uint8_t			DerivedKey[DERIVED_KEY_LENGTH];
-
-} PRODUCT_CONFIGURATION;
-//------------------------------------------------------------------------------
 #define SUREFLAP_PAN_ID	0x3421
 
 /* Default IP address configuration.  Used in ipconfigUSE_DNS is set to 0, or
@@ -189,6 +159,76 @@ ipconfigUSE_DNS is set to 1 but a DNS server cannot be contacted. */
 
 #define TERMINAL_PRINT_ENABLED	false
 //------------------------------------------------------------------------------
+// Stringification!
+#define XSTR(s)	STR(s)
+#define STR(s)	#s
+#define GREETING_STRING "cjctamzjvc"
+//------------------------------------------------------------------------------
+#define __MEMORY_BARRIER()\
+do\
+{\
+	__DSB();\
+	if (SCB->CCR & SCB_CCR_DC_Msk)\
+	{\
+		SCB_CleanDCache();\
+	}\
+	__ISB();\
+} while(0)
+//==============================================================================
+//types:
+
+typedef struct
+{
+	uint32_t r0;
+	uint32_t r1;
+	uint32_t r2;
+	uint32_t r3;
+	uint32_t r12;
+	uint32_t lr;
+	uint32_t pc;
+	uint32_t psr;
+} CONTEXT;
+//------------------------------------------------------------------------------
+
+typedef enum
+{
+	// Unit has default values in PRODUCT_CONFIGURATION
+	PRODUCT_BLANK,
+	// Unit programmed and tested in the Programmer, but not seen the Label Printer yet
+	PRODUCT_TESTED,
+	// Unit been interrogated by the Label Printer and is now ready for shipping.
+	PRODUCT_CONFIGURED,
+	// used to indicate a non-configured unit, so some interrogation by the production equipment is allowed.
+	PRODUCT_NOT_CONFIGURED = 0xff,
+
+} PRODUCT_STATE;
+//------------------------------------------------------------------------------
+
+typedef struct
+{
+	uint8_t ethernet_mac[6];
+	uint64_t rf_mac;
+	uint16_t rf_pan_id;
+
+	// H001-0000000\0
+	uint8_t serial_number[13];
+
+	PRODUCT_STATE product_state;
+
+	// used to detect an uninitialised flash
+	PRODUCT_STATE sanity_state;
+
+	uint8_t secret_serial[33];
+	bool rf_mac_mangle;
+	uint8_t spare1;
+	uint8_t spare2;
+	uint8_t spare3;
+
+	uint8_t DerivedKey[DERIVED_KEY_LENGTH];
+
+} PRODUCT_CONFIGURATION;
+
+//------------------------------------------------------------------------------
 typedef HERMES__PACKED_PREFIX enum
 {
 	LOW_IMPORTANCE	= 2,
@@ -220,37 +260,40 @@ typedef HERMES__PACKED_PREFIX enum
 
 } HERMES__PACKED_POSTFIX HERMES_MESSAGE_TYPE;
 //------------------------------------------------------------------------------
+
 typedef HERMES__PACKED_PREFIX struct
 {
 	//zach
-	uint32_t				sync_word;
+	uint32_t sync_word;
 
-	HERMES_MESSAGE_TYPE		type;
+	HERMES_MESSAGE_TYPE type;
 
 	//inverse of first two bytes
-	uint8_t					check;
+	uint8_t check;
 
-  	uint16_t				padding;
+  	uint16_t padding;
 
   	//length of the package in bytes
-	uint32_t				size;
+	uint32_t size;
 
 	//quando (ms count)
-	uint32_t                timestamp;
+	uint32_t timestamp;
 
-	uint32_t				correlation_ID; 
+	uint32_t correlation_ID;
 	
 } HERMES__PACKED_POSTFIX HERMES_UART_HEADER;
 //------------------------------------------------------------------------------
+
 typedef HERMES__PACKED_PREFIX struct
 {
-	HERMES_UART_HEADER 	header_in;
+	HERMES_UART_HEADER header_in;
 
 	//being naughty like chris. Coded by Thom
-	char  				payload[256];
+	char payload[256];
 
 } HERMES__PACKED_POSTFIX HERMES_MESSAGE_RECEIVED;
 //------------------------------------------------------------------------------
+
 typedef HERMES__PACKED_PREFIX enum
 {
 	DEAL_NOT_ENOUGH_BYTES,
@@ -258,6 +301,7 @@ typedef HERMES__PACKED_PREFIX enum
 
 } HERMES__PACKED_POSTFIX MESSAGE_DEAL_RESULT;
 //------------------------------------------------------------------------------
+
 typedef struct
 {
 	int device_buffer_add;
@@ -285,43 +329,22 @@ typedef struct
 	int message_server_to_device;
 
 } DebugCounterT;
-//------------------------------------------------------------------------------
-extern DebugCounterT DebugCounter;
-//------------------------------------------------------------------------------
-// Task stack sizes in words
-#define ipISR_TASK_STACK_SIZE_WORDS	(0x400/4) //(0x800/4)
-#define	NETWORK_WATCHDOG_TASK_STACK_SIZE (0x200/4) //(0x400/4)
-#define STARTUP_TASK_STACK_SIZE (0x400/4)
-#define FLASH_MANAGER_TASK_STACK_SIZE (0x400/4) //(0x800/4)
-#define SHELL_TASK_STACK_SIZE (0x800/4) //(0x1000/4)
-#define WATCHDOG_TASK_STACK_SIZE (0x200/4) //(0x400/4)
-#define LED_TASK_STACK_SIZE (0x300/4) //(0x800/4)
-#define LABEL_PRINTER_TASK_STACK_SIZE (0x800/4)
-#define TEST_TASK_STACK_SIZE (0x400/4) //(0x800/4)
-#define SNTP_TASK_STACK_SIZE (1024) //(0x400/4)
-#define MQTT_TASK_STACK_SIZE (0x4000/4) //(0x2000/4)
-#define HTTP_POST_TASK_STACK_SIZE (0x800/4) //
-#define HFU_TASK_STACK_SIZE (0x400/4) //(0x800/4)
-#define HERMES_APPLICATION_TASK_STACK_SIZE (0x1000/4) //
-#define rfISR_TASK_STACK_SIZE (0x600/4) //(0x800/4)
-#define SURENET_TASK_STACK_SIZE (0x1600/4) //(0x2000/4)
+//==============================================================================
+//externs:
 
-#define HUB_SEND_TIME_UPDATES_FROM_DEVICES_EVERY_MINUTE	0x01 // default is every hour
-#define HUB_SEND_HUB_STATUS_UPDATES_EVERY_MINUTE 		0x02 // default is every hour
-#define HUB_SEND_TIME_UPDATES_FROM_DEVICES				0x04
-//------------------------------------------------------------------------------
+extern DebugCounterT DebugCounter;
+//==============================================================================
+//functions:
+
 int hermes_app_start(void);
 void mem_dump(uint8_t *addr, uint32_t len);	// utility function
 void zprintf(ZPRINTF_IMPORTANCE test, const char *_Restrict, ...);
 void set_product_state(PRODUCT_STATE state);
 void sanitise_product_config(void);
 void write_product_configuration(void);
-void hermes_srand(int seed);	// thread safe
-int hermes_rand(void);			// thread safe
+void hermes_srand(int seed); // thread safe
+int hermes_rand(void); // thread safe
 void initSureNetByProgrammer(void);
 void connectToServer(void);
 //==============================================================================
 #endif //__HERMES_H__
-
-
-

@@ -2,7 +2,7 @@
 *
 * SUREFLAP CONFIDENTIALITY & COPYRIGHT NOTICE
 *
-* Copyright © 2013-2021 Sureflap Limited.
+* Copyright ï¿½ 2013-2021 Sureflap Limited.
 * All Rights Reserved.
 *
 * All information contained herein is, and remains the property of Sureflap 
@@ -21,11 +21,8 @@
 *             
 *
 **************************************************************************/
-
-
 #ifndef __DEVICE_BUFFER_H__
 #define __DEVICE_BUFFER_H__
-
 
 void device_buffer_init(void);  // initialise our buffer
 void device_buffer_add(uint64_t mac, T_MESSAGE *message);   // store a message in the buffer

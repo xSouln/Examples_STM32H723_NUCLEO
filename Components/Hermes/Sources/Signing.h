@@ -22,9 +22,12 @@
 #ifndef __SIGNING_H__
 #define __SIGNING_H__
 //==============================================================================
-#include "Components_Config.h"
-#include "Components_Types.h"
-//------------------------------------------------------------------------------
+//includes:
+
+#include "Hermes-compiller.h"
+//==============================================================================
+//defines:
+
 #define SHARED_SECRET_LENGTH	16
 #define DERIVED_KEY_LENGTH		32 // 256bits
 #define	SIGNATURE_LENGTH		32 // 256bits, because of SHA256
@@ -34,7 +37,9 @@
 // Maximum amount of time between now and a server message
 // being sent before it's rejected (stops replay attacks)
 #define	MAX_TIME_DISCREPANCY_MS	300000
-//------------------------------------------------------------------------------
+//==============================================================================
+//types:
+
 typedef enum
 {
 	// Don't use a key
@@ -63,7 +68,9 @@ typedef enum
 	SHARED_SECRET_PENDING,
 
 } SHARED_SECRET_SOURCE;
-//------------------------------------------------------------------------------
+//==============================================================================
+//functions:
+
 // Generates a new Shared Secret. Returns a pointer to it
 uint8_t *GenerateSharedSecret(SHARED_SECRET_SOURCE src);
 
@@ -104,6 +111,3 @@ void send_shared_secret(void);
 bool check_recd_mqtt_signature( char *message,char *subtopic);
 //==============================================================================
 #endif
-
-
-

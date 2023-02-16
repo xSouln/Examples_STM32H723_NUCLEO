@@ -33,6 +33,9 @@
 #include "compiler.h"
 #include "conf_common_sw_timer.h"
 #include "common_sw_timer.h"
+
+#include "Hermes-compiller.h"
+
 #if SAMD || SAMR21 || SAML21
 #include "system.h"
 #endif /* SAMD || SAMR21 || SAML21*/
@@ -48,7 +51,12 @@ volatile uint16_t sys_time;
 extern void wakeup_cb(void *parameter);
 
 extern bool sys_sleep;
+//==============================================================================
+//externs:
 
+extern REG_TIM_T* Timer4;
+extern REG_TIM_T* Timer2;
+//==============================================================================
 /*
  * This is the timer array.
  *
@@ -87,18 +95,41 @@ static inline uint32_t gettime(void);
 static void internal_timer_handler(void);
 static inline bool compare_time(uint32_t t1, uint32_t t2);
 static void load_hw_timer(uint8_t timer_id);
-
 //==============================================================================
 //modify:
 
-static void common_tc_delay(uint32_t ms)
+//used in "stm32h7xx_it.c"
+void common_tc_timer_irq()
 {
-	HAL_Delay(ms);
+	Timer4->DMAOrInterrupts.UpdateInterruptEnable = false;
+
+	if (running_timers > 0)
+	{
+		// this is collected in internal_timer_handler()
+		// which is called by sw_timer_service() amongst other places.
+		timer_trigger = true;
+	}
+}
+
+static void common_tc_delay(uint32_t microseconds)
+{
+	Timer4->Control1.CounterEnable = false;
+
+	Timer4->Counter = 0;
+	Timer4->Period = microseconds;
+
+	Timer4->DMAOrInterrupts.UpdateInterruptEnable = true;
+	Timer4->Control1.CounterEnable = true;
 }
 
 static void common_tc_compare_stop()
 {
+	Timer4->DMAOrInterrupts.UpdateInterruptEnable = false;
+}
 
+static inline uint32_t gettime(void)
+{
+	return Timer2->Counter;
 }
 //==============================================================================
 
@@ -189,7 +220,7 @@ static void start_absolute_timer(uint8_t timer_id,
 		void *parameter)
 {
 	//! is modified
-	//uint8_t flags = cpu_irq_save();
+	ENTER_SW_TIMER_CRITICAL_REGION();
 
 	/* Check is done to see if any timer has expired */
 	internal_timer_handler();
@@ -258,7 +289,7 @@ static void start_absolute_timer(uint8_t timer_id,
 	}
 
 	//! is modified
-	//cpu_irq_restore(flags);
+	LEAVE_SW_TIMER_CRITICAL_REGION();
 }
 //==============================================================================
 static void load_hw_timer(uint8_t timer_id)
@@ -266,15 +297,15 @@ static void load_hw_timer(uint8_t timer_id)
 	if (NO_TIMER != timer_id) {
 		uint32_t now = gettime();
 		uint32_t point_in_time = timer_array[timer_id].abs_exp_timer;
-		if (compare_time(now, point_in_time)) {
-			if (!timer_array[timer_id].loaded) {
+		if (compare_time(now, point_in_time))
+		{
+			if (!timer_array[timer_id].loaded)
+			{
 				uint32_t timediff = point_in_time - now;
-
-				if (timediff <= UINT16_MAX) {
+				if (!timer_array[timer_id].loaded)
+				{
 					common_tc_delay(timediff);
 					timer_array[timer_id].loaded = true;
-				} else {
-					timer_array[timer_id].loaded = false;
 				}
 			}
 		} else {
@@ -465,11 +496,6 @@ uint32_t sw_timer_get_time(void)
 static inline bool compare_time(uint32_t t1, uint32_t t2)
 {
 	return ((t2 - t1) < INT32_MAX);
-}
-
-static inline uint32_t gettime(void)
-{
-	return HAL_GetTick();
 }
 
 static void prog_ocr(void)

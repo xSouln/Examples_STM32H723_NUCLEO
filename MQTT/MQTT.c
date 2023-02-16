@@ -61,9 +61,10 @@ extern EventGroupHandle_t	xConnectionStatus_EventGroup;
 STORED_CREDENTIAL MQTT_Stored_Certificate MQTT_STORED_CERTIFICATE_MEM_SECTION;
 STORED_CREDENTIAL MQTT_Stored_Private_Key MQTT_STORED_PRIVATE_KEY_MEM_SECTION;
 
-static AWS_IoT_Client 			aws_client;
-SUREFLAP_CREDENTIALS			aws_credentials MQTT_SUREFLAP_CREDENTIALS;
+static AWS_IoT_Client 			aws_client MQTT_AWS_CLIENT_MEM_SECTION;
+SUREFLAP_CREDENTIALS			aws_credentials MQTT_SUREFLAP_CREDENTIALS_MEM_SECTION;
 static MQTT_CONNECTION_STATE	mqtt_connection_state = MQTT_STATE_INITIAL;
+static char aws_certificat[CERTIFICATE_MAX_SIZE] MQTT_CERTIFICATE_MEM_SECTION;
 static bool no_creds = false;
 //==============================================================================
 static void MQTT_Hash_It_Up(SUREFLAP_CREDENTIALS* creds);
@@ -298,7 +299,7 @@ uint32_t MQTT_Unpack_Credentials(SUREFLAP_CREDENTIALS* credentials)
 		if (credentials->decode_result != 0)
 		{
 			wc_PKCS12_free(pkcs);
-			vPortFree(credentials->certificate);
+			//vPortFree(credentials->certificate);
 			credentials->certificate = NULL;
 
 			return credentials->decode_result;
@@ -320,7 +321,7 @@ uint32_t MQTT_Unpack_Credentials(SUREFLAP_CREDENTIALS* credentials)
 		}
 
 		wc_PKCS12_free(pkcs);
-		vPortFree(credentials->certificate);
+		//vPortFree(credentials->certificate);
 		credentials->certificate = NULL;
 
 		if(credentials->decode_result == 0)
@@ -460,7 +461,7 @@ static bool MQTT_Interpret_Credentials(SUREFLAP_CREDENTIALS* creds, char* respon
 
 	if(valid_creds)
 	{
-		creds->certificate = pvPortMalloc(CERTIFICATE_MAX_SIZE);
+		creds->certificate = aws_certificat;//pvPortMalloc(CERTIFICATE_MAX_SIZE);
 		if(!creds->certificate)
 		{
 			valid_creds = false;
@@ -594,9 +595,16 @@ static bool MQTT_Send_Credential_Request(SUREFLAP_CREDENTIALS* creds)
 		// To get this far, we have used the Derived Key to check the signature on the credentials
 		// from the Server, and also used it to decrypt them. So it must be OK.
 		zprintf(LOW_IMPORTANCE,"Storing Derived Key in Flash\r\n");
-		StoreDerivedKey();
+
+		if (key != DERIVED_KEY_FLASH)
+		{
+			StoreDerivedKey();
+		}
+
 		cred_req_key_type = CRED_REQ_USE_FLASH_KEY;
-		retval = true;	// AWS_SUCCESS
+
+		// AWS_SUCCESS
+		retval = true;
 	}
 	else
 	{	// we got a response, but the parser failed to parse it. This probably means the server did not like the
@@ -778,7 +786,7 @@ static bool MQTT_Poll(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials)
 		return false;
 	}
 
-	if(pending_message || (pdPASS == xQueueReceive(xOutgoingMQTTMessageMailbox, &outgoing_message, 0)))
+	if(pending_message || (pdPASS == xQueueReceive(xOutgoingMQTTMessageMailbox, &outgoing_message, 50)))
 	{
 		// We now need to sign the outgoing message in accordance with the current
 		// value of the Derived Key.

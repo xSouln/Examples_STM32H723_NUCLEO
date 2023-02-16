@@ -24,20 +24,23 @@
 * Systick is used to drive UTC as we get a regular interrupt.
 *            
 **************************************************************************/
-
 #ifndef __HERMES_TIME_H__
 #define __HERMES_TIME_H__
+//==============================================================================
+//includes:
 
 #include "Hermes-compiller.h"
 
-#include <stdint.h>
-#include <stdbool.h>
 #include <time.h>
+//==============================================================================
+//defines:
 
 #define usTICK_SECONDS 		1000000
 #define usTICK_MILLISECONDS	1000
 #define usTICK_MINUTE		(usTICK_SECONDS * 60)
 #define usTICK_HOUR			(usTICK_MINUTE * 60)
+//==============================================================================
+//types:
 
 typedef HERMES__PACKED_PREFIX struct
 {
@@ -47,6 +50,8 @@ typedef HERMES__PACKED_PREFIX struct
 	uint8_t		second;
 
 } HERMES__PACKED_POSTFIX HERMES_TIME_GMT;
+//==============================================================================
+//functions:
 
 void set_utc_to_compile_time(void);
 void delay_us(uint32_t delay);
@@ -60,5 +65,5 @@ bool get_gmt(uint32_t utc_secs, HERMES_TIME_GMT* out);
 struct tm *hermes_gmtime(time_t *tod);
 int time_string(char *str);
 time_t wc_time(time_t* t);
-
+//==============================================================================
 #endif

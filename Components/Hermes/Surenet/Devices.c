@@ -24,7 +24,6 @@
 * This is because there is a lot of interaction, and handler functions would be cumbersome.
 *           
 **************************************************************************/
-
 #include "hermes.h"
 
 /* Standard includes. */
@@ -46,18 +45,23 @@
 #include "SureNet.h"
 #include "hermes-time.h"
 #include "flashManager.h"
+//==============================================================================
+//externs:
 
-// Shared variables
-DEVICE_STATUS device_status[MAX_NUMBER_OF_DEVICES] DEVICE_STATUS_MEM_SECTION;
-DEVICE_STATUS_EXTRA device_status_extra[MAX_NUMBER_OF_DEVICES] DEVICE_STATUS_EXTRA_MEM_SECTION;
 extern QueueHandle_t xNvStoreMailboxSend;
 extern QueueHandle_t xNvStoreMailboxResp;
+//==============================================================================
+//variables:
 
-DEVICE_STATUS* device_status_0;
-DEVICE_STATUS_EXTRA* device_status_extra_0;
+DEVICE_STATUS device_status[MAX_NUMBER_OF_DEVICES] DEVICE_STATUS_MEM_SECTION;
+DEVICE_STATUS_EXTRA device_status_extra[MAX_NUMBER_OF_DEVICES] DEVICE_STATUS_EXTRA_MEM_SECTION;
+//==============================================================================
+// prototypes:
 
-// Private functions
 bool remove_pairing_table_entry(uint64_t mac);
+//==============================================================================
+//functions:
+
 /**************************************************************
  * Function Name : sn_devicetable_init
  * Description	 : Read device table from NVM, and check it's sane.
@@ -75,9 +79,6 @@ void sn_devicetable_init(void)
 	int i;
 	bool changed = false;
 	uint8_t* mac_8;
-	
-	device_status_0 = device_status;
-	device_status_extra_0 = device_status_extra;
 
 	// clear the extra part always
 	memset(device_status_extra, 0, sizeof(device_status_extra));
@@ -126,7 +127,7 @@ void sn_devicetable_init(void)
 		HermesFlashSaveData();
 	}
 }
-
+//------------------------------------------------------------------------------
 // looks up the index of an entry in the pairing table, given it's address
 bool convert_addr_to_index(uint64_t addr, uint8_t *index)
 {
@@ -147,7 +148,7 @@ bool convert_addr_to_index(uint64_t addr, uint8_t *index)
 	}
 	return false;
 }
-
+//------------------------------------------------------------------------------
 // handy utility to output the full pairing table to the console
 void device_table_dump(void)
 {
@@ -208,7 +209,7 @@ void device_table_dump(void)
 	
 	zprintf(CRITICAL_IMPORTANCE,"END OF PAIRTABLE\r\n");
 }
-
+//------------------------------------------------------------------------------
 // adds an entry to the pairing table
 // returns true if successful, or false if the table is full
 // Scans the table looking for the first entry where valid==0, or
@@ -266,7 +267,7 @@ bool add_mac_to_pairing_table(uint64_t mac)
 
 	return false;
 }
-
+//------------------------------------------------------------------------------
 // remove a pairing table entry, using the mac as a lookup
 // returns true if it found it and removed it (by setting valid to 0)
 // returns false if it couldn't be found
@@ -308,7 +309,6 @@ bool remove_pairing_table_entry(uint64_t mac)
 	}   
 	return retval;
 }
-
 /**************************************************************
  * Function Name   : is_device_already_known
  * Description	 : Check to see if this device is already in the pairing table
@@ -336,7 +336,7 @@ bool is_device_already_known(uint64_t addr, uint8_t dev_type)
 	// mac address and device types match
 	return true;
 }
-
+//------------------------------------------------------------------------------
 // adds dev_type and dev_rssi to the pairing table entry determined by addr
 // Returns true if it could find a matching entry in the table.
 // Returns false if it could not find a matching entry.
@@ -515,3 +515,4 @@ uint32_t last_heard_from(void)
 	
 	return most_recent;	
 }
+//==============================================================================

@@ -161,7 +161,7 @@ typedef union
     volatile uint32_t HalfWord : 16;
   };
 	
-  uint32_t Word;
+	volatile uint32_t Word;
   
 } REG_SPI_TXDR_T;
 //==============================================================================

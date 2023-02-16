@@ -21,14 +21,12 @@
 * Provides blocking and non-blocking interface to HTTP Post request function.
 *
 **************************************************************************/
-
 #ifndef __HTTP_HELPER_H_
 #define __HTTP_HELPER_H_
+//==============================================================================
+//includes:
 
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
+#include "Hermes-compiller.h"
 
 #include "hermes.h"
 
@@ -36,6 +34,8 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "cmsis_os.h"
+//==============================================================================
+//defines:
 
 #define PRINT_HTTP	false
 #define HTTP_LINE	"\t+ "
@@ -47,7 +47,13 @@
 #define http_printf(...)
 #endif
 
-typedef struct	// struct for making HTTP Post Requests
+#define DEFAULT_HTTP_RESPONSE_DATA	{NULL, 0, -1, 0, 0, {0}, {0}, false, false, false, false, false, false, -1}
+#define DEFAULT_HTTP_CONNECTION	{NULL, NULL, 0, 0, 0}
+//==============================================================================
+//types:
+
+// struct for making HTTP Post Requests
+typedef struct
 {
 	char*				URL;
 	char*				resource;
@@ -57,15 +63,23 @@ typedef struct	// struct for making HTTP Post Requests
 	TaskHandle_t		xClientTaskHandle;
 	DERIVED_KEY_SOURCE	tx_key_source;
 	DERIVED_KEY_SOURCE	rx_key_source;
-	int32_t*			encrypted_data;	// indicates if x-enc was present, and it's value
-	uint32_t*			bytes_read;		// how many bytes were actually read back, excluding the header
-} HTTP_POST_Request_params;
 
+	// indicates if x-enc was present, and it's value
+	int32_t*			encrypted_data;
+
+	// how many bytes were actually read back, excluding the header
+	uint32_t*			bytes_read;
+
+} HTTP_POST_Request_params;
+//------------------------------------------------------------------------------
 typedef struct
 {
 	char*		buffer;
 	uint32_t	buffer_length;
-	int32_t		content_length;	// -1 means no content length was found in the header
+
+	// -1 means no content length was found in the header
+	int32_t		content_length;
+
 	int64_t		message_time;
 	uint32_t	activity_timestamp;
 	char		signature[SIGNATURE_LENGTH_ASCII + 1];
@@ -77,9 +91,9 @@ typedef struct
 	bool		got_update;
 	bool		server_error;
 	int32_t		encrypted_data;
-} HTTP_RESPONSE_DATA;
-#define DEFAULT_HTTP_RESPONSE_DATA	{NULL, 0, -1, 0, 0, {0}, {0}, false, false, false, false, false, false, -1}
 
+} HTTP_RESPONSE_DATA;
+//------------------------------------------------------------------------------
 typedef struct
 {
 	WOLFSSL_CTX*	context;
@@ -88,12 +102,20 @@ typedef struct
 	int32_t			result;
 	uint32_t		bytes_read;
 } HTTP_CONNECTION;
-#define DEFAULT_HTTP_CONNECTION	{NULL, NULL, 0, 0, 0}
+//==============================================================================
+//functions:
 
 void HTTPPostTask(void *pvParameters);
 void HTTPPostTask_init(void);
-bool HTTP_POST_Request(char* URL, char* resource, char* contents, char* response_buffer,
-	uint32_t response_size, bool wait, DERIVED_KEY_SOURCE tx_key, DERIVED_KEY_SOURCE rx_key,
-	int32_t *encrypted_data, uint32_t *bytes_read);
-
-#endif
+bool HTTP_POST_Request(char* URL,
+						char* resource,
+						char* contents,
+						char* response_buffer,
+						uint32_t response_size,
+						bool wait,
+						DERIVED_KEY_SOURCE tx_key,
+						DERIVED_KEY_SOURCE rx_key,
+						int32_t *encrypted_data,
+						uint32_t *bytes_read);
+//==============================================================================
+#endif //__HTTP_HELPER_H_

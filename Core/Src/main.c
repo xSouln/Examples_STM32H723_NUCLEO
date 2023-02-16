@@ -41,6 +41,7 @@ uint8_t ucHeap[configTOTAL_HEAP_SIZE];// __attribute__((section("._user_ram2_ram
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+REG_SPI_T *RF_SPI = SPI3;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -105,7 +106,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART3_UART_Init();
-  MX_USB_OTG_HS_USB_Init();
+  //MX_USB_OTG_HS_USB_Init();
   //MX_DMA_Init();
   MX_SPI3_Init();
   MX_TIM4_Init();
@@ -119,6 +120,9 @@ int main(void)
   HAL_TIM_Base_Start(&htim2);
   HAL_TIM_PWM_Start(&htim12, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
+
+  Timer4->Control1.CounterEnable = true;
+
   ComponentsInit(main);
   /* USER CODE END 2 */
 

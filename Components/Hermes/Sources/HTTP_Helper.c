@@ -21,7 +21,6 @@
 * Provides blocking and non-blocking interface to HTTP Post request function.
 *
 **************************************************************************/
-
 /* Standard includes. */
 
 /* FreeRTOS includes. */
@@ -42,6 +41,7 @@
 #include "netdb.h"
 #include "api.h"
 #include "dns.h"
+//==============================================================================
 
 static bool HTTP_Open_Connection(HTTP_CONNECTION* connection, char* URL);
 static void HTTP_Kill_Connection(HTTP_CONNECTION* connection);
@@ -49,7 +49,7 @@ static bool HTTP_Read_Content(HTTP_CONNECTION* connection, HTTP_RESPONSE_DATA* r
 static bool HTTP_Transmit_Message(WOLFSSL* ssl, char* URL, char* resource, char* contents, char* signature, DERIVED_KEY_SOURCE tx_key);
 static bool HTTP_Process_Header(WOLFSSL* ssl, HTTP_RESPONSE_DATA* response_data);
 static bool HTTP_Calculate_Signature(HTTP_CONNECTION* connection, HTTP_RESPONSE_DATA* response_data, DERIVED_KEY_SOURCE rx_key);
-
+//==============================================================================
 // Mutex to prevent re-entry of HTTP Post function
 SemaphoreHandle_t xHTTPPostSemaphoreHandle;
 
@@ -297,7 +297,7 @@ bool HTTP_POST_Request(char* URL,
 }
 
 static int result_open_connection;
-
+//------------------------------------------------------------------------------
 static bool HTTP_Open_Connection(HTTP_CONNECTION* connection, char* URL)
 {
 	extern const char* 	starfield_fixed_ca_cert;
@@ -375,7 +375,7 @@ static bool HTTP_Open_Connection(HTTP_CONNECTION* connection, char* URL)
 
 	return true;
 }
-
+//------------------------------------------------------------------------------
 static void HTTP_Kill_Connection(HTTP_CONNECTION* connection)
 {
 	wolfSSL_shutdown(connection->session);
@@ -387,7 +387,7 @@ static void HTTP_Kill_Connection(HTTP_CONNECTION* connection)
 	shutdown(connection->socket, SHUT_RDWR);
 	close(connection->socket);
 }
-
+//------------------------------------------------------------------------------
 static bool HTTP_Read_Content(HTTP_CONNECTION* connection, HTTP_RESPONSE_DATA* response_data)
 {
 	uint32_t local_bytes_read;
@@ -592,7 +592,6 @@ static bool HTTP_Process_Header(WOLFSSL* ssl, HTTP_RESPONSE_DATA* response_data)
 	uint8_t		c;
 	uint32_t	line_ptr;
 	uint8_t		eol_detect;
-	uint32_t	timestamp	= get_microseconds_tick();
 	bool		end_of_header_reached = false;
 	uint64_t	time_now;
 	int i = 0;
@@ -726,7 +725,10 @@ static bool HTTP_Process_Header(WOLFSSL* ssl, HTTP_RESPONSE_DATA* response_data)
 	}
 	while(!end_of_header_reached && ((get_microseconds_tick() - response_data->activity_timestamp) < HTTP_POST_TIMEOUT));
 
-	vPortFree(line_buffer);
+	if (line_buffer)
+	{
+		vPortFree(line_buffer);
+	}
 
 	return end_of_header_reached;
 }

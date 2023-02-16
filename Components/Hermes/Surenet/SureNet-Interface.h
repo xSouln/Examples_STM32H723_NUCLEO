@@ -25,12 +25,38 @@
 **************************************************************************/
 #ifndef SURENET_INTERFACE_H
 #define	SURENET_INTERFACE_H
+//==============================================================================
+//includes:
 
 #include "Hermes-compiller.h"
 #include "devices.h"
+//==============================================================================
+//defines:
 
 // Public constants
 #define MAX_PAYLOAD_SIZE  256
+//------------------------------------------------------------------------------
+// Surenet->Surenet-Interface EventGroup flags
+#define SURENET_GET_PAIRMODE        (1<<0)
+#define SURENET_GET_NUM_PAIRS       (1<<1)
+#define SURENET_CLEAR_PAIRING_TABLE (1<<2)
+#define SURENET_TRIGGER_CHANNEL_HOP (1<<3)
+#define SURENET_GET_CHANNEL			(1<<4)
+#define SURENET_GET_DEVICE_TABLE	(1<<5)
+
+#define SURENET_UNASSIGNED_MAC	0x0ull
+//------------------------------------------------------------------------------
+//General message struct
+//88 + 4 (88) should match MAX_RF_PAYLOAD in global.h, 4 is header size (address and count)
+#define T_MESSAGE_PAYLOAD_SIZE 92
+#define T_MESSAGE_HEADER_SIZE	4
+#define T_MESSAGE_PARITY_SIZE	1
+//------------------------------------------------------------------------------
+// These should come from the rest of the system, or be removed.
+typedef uint16_t T_ERROR_CODE;
+#define ERROR_NONE					0
+//==============================================================================
+//types:
 
 // public data structures
 typedef HERMES__PACKED_PREFIX struct
@@ -54,6 +80,7 @@ typedef HERMES__PACKED_PREFIX struct
 	uint8_t   spare;
 
 } HERMES__PACKED_POSTFIX HEADER;
+//------------------------------------------------------------------------------
 
 typedef HERMES__PACKED_PREFIX struct
 {
@@ -61,6 +88,7 @@ typedef HERMES__PACKED_PREFIX struct
   uint8_t  payload[MAX_PAYLOAD_SIZE];
 
 } HERMES__PACKED_POSTFIX PACKET;
+//------------------------------------------------------------------------------
 
 typedef union
 {
@@ -68,12 +96,7 @@ typedef union
   PACKET packet;
 
 } RECEIVED_PACKET;
-
-//General message struct
-//88 + 4 (88) should match MAX_RF_PAYLOAD in global.h, 4 is header size (address and count)
-#define T_MESSAGE_PAYLOAD_SIZE 92
-#define T_MESSAGE_HEADER_SIZE	4
-#define T_MESSAGE_PARITY_SIZE	1
+//------------------------------------------------------------------------------
 
 typedef struct
 {
@@ -85,7 +108,8 @@ typedef struct
 
 	uint8_t payload[T_MESSAGE_PAYLOAD_SIZE + T_MESSAGE_PARITY_SIZE];
 
-}T_MESSAGE;
+} T_MESSAGE;
+//------------------------------------------------------------------------------
 
 typedef struct
 {
@@ -94,7 +118,7 @@ typedef struct
     uint32_t handle;
 
 } MESSAGE_PARAMS;
-
+//------------------------------------------------------------------------------
 // used to indicate where a pairing request came from
 typedef enum
 {
@@ -106,6 +130,7 @@ typedef enum
 	PAIRING_REQUEST_SOURCE_BEACON_REQUEST,
 
 } PAIRING_REQUEST_SOURCE;
+//------------------------------------------------------------------------------
 
 typedef struct
 {
@@ -114,7 +139,7 @@ typedef struct
 	PAIRING_REQUEST_SOURCE source;
 
 } PAIRING_REQUEST;
-
+//------------------------------------------------------------------------------
 // used for the mailbox indicating a successful association
 typedef struct
 {
@@ -126,6 +151,7 @@ typedef struct
 	PAIRING_REQUEST_SOURCE source;
 
 } ASSOCIATION_SUCCESS_INFORMATION;
+//------------------------------------------------------------------------------
 
 typedef enum
 {
@@ -133,7 +159,9 @@ typedef enum
     SN_REJECTED,
     SN_CORRUPTED,
     SN_TIMEOUT,
+
 } SN_DATA_RECEIVED_RESPONSE;
+//------------------------------------------------------------------------------
 
 typedef struct
 {
@@ -155,7 +183,9 @@ typedef struct
 	uint8_t ping_value;
 	uint32_t hub_rssi_sum;
 	uint32_t device_rssi_sum;
+
 } PING_STATS;
+//------------------------------------------------------------------------------
 
 typedef struct
 {
@@ -164,28 +194,26 @@ typedef struct
 	bool			limited;
 
 } DEVICE_STATUS_REQUEST;
-
-// These should come from the rest of the system, or be removed.
-typedef uint16_t T_ERROR_CODE;
-#define ERROR_NONE					0
-
-// Surenet->Surenet-Interface EventGroup flags
-#define SURENET_GET_PAIRMODE        (1<<0)
-#define SURENET_GET_NUM_PAIRS       (1<<1)
-#define SURENET_CLEAR_PAIRING_TABLE (1<<2)
-#define SURENET_TRIGGER_CHANNEL_HOP (1<<3)
-#define SURENET_GET_CHANNEL			(1<<4)
-#define SURENET_GET_DEVICE_TABLE	(1<<5)
-
-#define SURENET_UNASSIGNED_MAC	0x0ull
+//==============================================================================
+//functions:
 
 // The following are interface calls to / from SureNet
-BaseType_t surenet_init(uint64_t *mac, uint16_t panid, uint8_t channel);  // initialises SureNet, SureNet Driver and the RF Stack.
+// initialises SureNet, SureNet Driver and the RF Stack.
+BaseType_t surenet_init(uint64_t *mac, uint16_t panid, uint8_t channel);
+
 void surenet_send_firmware_chunk(DEVICE_FIRMWARE_CHUNK *device_firmware_chunk);
-void Surenet_Interface_Handler(); // must be called of the order of every 10ms at the slowest to ensure comms is quick with devices.
+
+// must be called of the order of every 10ms at the slowest to ensure comms is quick with devices.
+void Surenet_Interface_Handler();
+
 bool surenet_is_device_online(uint64_t mac_addr);
-void surenet_unpair_device(uint64_t mac_addr);    // tell that device to clear off
-void surenet_unpair_device_by_index(uint8_t index);    // tell that device to clear off
+
+// tell that device to clear off
+void surenet_unpair_device(uint64_t mac_addr);
+
+// tell that device to clear off
+void surenet_unpair_device_by_index(uint8_t index);
+
 void surenet_set_hub_pairing_mode(PAIRING_REQUEST mode);
 PAIRING_REQUEST surenet_get_hub_pairing_mode(void);
 uint8_t surenet_how_many_pairs(void);
@@ -203,9 +231,12 @@ bool surenet_get_next_message_cb(uint64_t mac, T_MESSAGE **current_request_ptr, 
 void surenet_clear_message_cb(uint32_t current_message_handle);
 SN_DATA_RECEIVED_RESPONSE surenet_data_received_cb(RECEIVED_PACKET *rx_packet);
 void surenet_pairing_mode_change_cb(PAIRING_REQUEST);
-void surenet_device_pairing_success_cb(ASSOCIATION_SUCCESS_INFORMATION *assoc_info);    // call back to say association successful
+
+// call back to say association successful
+void surenet_device_pairing_success_cb(ASSOCIATION_SUCCESS_INFORMATION *assoc_info);
+
 void surenet_device_awake_notification_cb(DEVICE_AWAKE_MAILBOX *device_awake_mailbox);
 void surenet_ping_response_cb(PING_STATS *ping_result);
 void surenet_blocking_test_cb(uint32_t blocking_test_value);
-#endif	/* SURENET_H */
-
+//==============================================================================
+#endif //SURENET_H

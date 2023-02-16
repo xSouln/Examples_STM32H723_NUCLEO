@@ -1,28 +1,32 @@
 //==============================================================================
-#ifndef _HERMES_COMPILLER_H
-#define _HERMES_COMPILLER_H
+#ifndef _HERMES_CONSOL_H_
+#define _HERMES_CONSOL_H_
 //------------------------------------------------------------------------------
 #ifdef __cplusplus
 extern "C" {
-#endif 
+#endif
 //==============================================================================
 //includes:
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "Components_Config.h"
-#include "Components_Types.h"
+#include "Hermes-compiller.h"
 //==============================================================================
 //defines:
 
-#define HERMES__PACKED_PREFIX
-#define HERMES__PACKED_POSTFIX __packed
+
+//==============================================================================
+//types:
+
+
+//==============================================================================
+//functions:
+
+void HermesConsoleInit();
+
+int HermesConsoleWrite(void* data, uint16_t size, uint8_t mode);
+int HermesConsoleRead(uint8_t* data, uint16_t size, uint8_t mode);
 //==============================================================================
 #ifdef __cplusplus
 }
 #endif
 //------------------------------------------------------------------------------
-#endif //_HERMES_COMPILLER_H
+#endif

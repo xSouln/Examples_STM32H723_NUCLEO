@@ -27,11 +27,15 @@
 #ifndef __DEVICES_H__
 #define __DEVICES_H__
 //==============================================================================
+//includes:
+
 #include "Hermes-compiller.h"
 
 #include <stdint.h>
 #include <stdbool.h>
 //==============================================================================
+//defines:
+
 #define xstrfy(x)	strfy(x)
 #define strfy(x)	#x
 
@@ -52,6 +56,7 @@
 
 #define DEVICE_STATUS_LAST_HEARD_POS	12
 //==============================================================================
+//types:
 
 typedef enum
 {
@@ -117,14 +122,14 @@ typedef enum
 } SECURITY_KEY_ACTION;
 //------------------------------------------------------------------------------
 
-typedef HERMES__PACKED_PREFIX struct
+typedef struct
 {
     uint8_t valid :1;
     uint8_t online :1;
     uint8_t device_type :5; //one of T_DEVICE_TYPE
     uint8_t associated :1;
 
-} HERMES__PACKED_POSTFIX DEVICE_STATUS_BITS;
+} DEVICE_STATUS_BITS;
 //------------------------------------------------------------------------------
 
 typedef HERMES__PACKED_PREFIX struct
@@ -275,6 +280,7 @@ typedef HERMES__PACKED_PREFIX struct
 
 } HERMES__PACKED_POSTFIX PING_REQUEST_MAILBOX;
 //==============================================================================
+//functions:
 
 void sn_devicetable_init(void);
 void device_table_dump(void);

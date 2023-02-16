@@ -23,7 +23,7 @@
 * interface.
 *
 **************************************************************************/
-#include "Components.h"
+#include "Hermes-compiller.h"
 
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
@@ -59,23 +59,33 @@
 #include "BuildNumber.h"
 #include "timer_interface.h"
 #include "HTTP_Helper.h"
-//==============================================================================
-// externs
-extern QueueHandle_t xNvStoreMailboxSend;
 
-// global variables
+#include "Hermes/Console/Hermes-console.h"
+//==============================================================================
+//externs:
+
+extern QueueHandle_t xNvStoreMailboxSend;
+extern EventGroupHandle_t xConnectionStatus_EventGroup;
+//==============================================================================
+//variables:
+
 uint8_t uptime_min_count = 0;
+
 // Random number assigned on boot. Supposed to be different every time to allow
 // the server to distinguish when the hub has restarted. when not 0, has been initialised
 uint8_t bootRN = 0;
+
 // flag set when MSG_HUB_VERSION_INFO is received to trigger the sending of MSG_HUB_VERSION_INFO
 bool trigger_send_version_info = false;
+
 // %age packet loss
 uint32_t blocking_test_per = 0;
+
 // becomes true on reception of first PACKET_BLOCKING_TEST
 // and remains true for 5 mins after last packet.
 // Then reverts back to false so normal operation can resume
 bool blocking_test_active = false;
+
 uint32_t blocking_test_failure_start;
 
 bool trigger_delayed_pairing_mode_disabled_event = false;
@@ -93,21 +103,37 @@ QueueHandle_t		xIncomingMQTTMessageMailbox;
 QueueHandle_t		xOutgoingMQTTMessageMailbox;
 QueueHandle_t		xBufferMessageMailbox;
 QueueHandle_t		xSystemStatusMailbox;
-EventGroupHandle_t	xConnectionStatus_EventGroup;
+
+static StaticQueue_t xStaticIncomingMQTTMessageMailbox;
+uint8_t ucIncomingMQTTMessageMailboxStorageArea[INCOMING_MQTT_MESSAGE_QUEUE_DEPTH_SMALL * sizeof(MQTT_MESSAGE)] __attribute__((section("._user_dtcmram_ram")));
+
+static StaticQueue_t xStaticOutgoingMQTTMessageMailbox;
+uint8_t ucOutgoingMQTTMessageMailboxStorageArea[1 * sizeof(MQTT_MESSAGE)] __attribute__((section("._user_dtcmram_ram")));
+
+// We put these here to ensure that we don't have to allocate enough space in the
+// hermes_app_task() to provide for them
+static MQTT_MESSAGE mqtt_message;
 //==============================================================================
 void hermes_app_init(void)
 {
     // set up our mailboxes
-    xIncomingMQTTMessageMailbox 	= xQueueCreate(INCOMING_MQTT_MESSAGE_QUEUE_DEPTH_SMALL, sizeof(MQTT_MESSAGE));
-    xOutgoingMQTTMessageMailbox 	= xQueueCreate(1, sizeof(MQTT_MESSAGE));
-	xBufferMessageMailbox			= xQueueCreate(1, sizeof(SERVER_MESSAGE));
-	xSystemStatusMailbox			= xQueueCreate(5, sizeof(SYSTEM_STATUS_EVENTS));
-	xConnectionStatus_EventGroup	= xEventGroupCreate();
+    //xIncomingMQTTMessageMailbox 	= xQueueCreate(INCOMING_MQTT_MESSAGE_QUEUE_DEPTH_SMALL, sizeof(MQTT_MESSAGE));
+    //xOutgoingMQTTMessageMailbox 	= xQueueCreate(1, sizeof(MQTT_MESSAGE));
+
+	xIncomingMQTTMessageMailbox = xQueueCreateStatic(INCOMING_MQTT_MESSAGE_QUEUE_DEPTH_SMALL,
+									sizeof(MQTT_MESSAGE),
+									ucIncomingMQTTMessageMailboxStorageArea,
+									&xStaticIncomingMQTTMessageMailbox);
+
+	xOutgoingMQTTMessageMailbox = xQueueCreateStatic(1,
+										sizeof(MQTT_MESSAGE),
+										ucOutgoingMQTTMessageMailboxStorageArea,
+										&xStaticOutgoingMQTTMessageMailbox);
+
+	xBufferMessageMailbox = xQueueCreate(1, sizeof(SERVER_MESSAGE));
+	xSystemStatusMailbox = xQueueCreate(5, sizeof(SYSTEM_STATUS_EVENTS));
 }
 //------------------------------------------------------------------------------
-// We put these here to ensure that we don't have to allocate enough space in the
-// hermes_app_task() to provide for them
-static MQTT_MESSAGE mqtt_message;
 // This is the main Hermes Application task
 void hermes_app_task(void *pvParameters)
 {
@@ -145,6 +171,8 @@ void hermes_app_task(void *pvParameters)
 
 	signature_change_timestamp = get_UpTime();
 
+	static uint32_t time_stamp_1000ms;
+
     while(1)
     {
     	// this polls the SureNet mailboxes and events, and calls back
@@ -168,6 +196,13 @@ void hermes_app_task(void *pvParameters)
 			////DFU_Handler();
 		}
 
+		if ((get_UTC() - time_stamp_1000ms) > 1)
+		{
+			time_stamp_1000ms = get_UTC();
+
+			HermesConsoleWrite("qwerty\r", strlen("qwerty\r"), 0);
+		}
+
 		// Check for any registers whose values need to be sent to the Server
 		HubReg_Check_Full();
 
@@ -176,14 +211,14 @@ void hermes_app_task(void *pvParameters)
 
 		// check for messages arriving from MQTT interface
 		if((uxQueueMessagesWaiting(xIncomingMQTTMessageMailbox) > 0)
-		&& (xQueueReceive(xIncomingMQTTMessageMailbox, &mqtt_message,0)) == pdPASS)
+		&& (xQueueReceive(xIncomingMQTTMessageMailbox, &mqtt_message, 10)) == pdPASS)
         {
             process_MQTT_message_from_server(mqtt_message.message, mqtt_message.subtopic);
         }
 
 		// if there is a message waiting from the MQTT Connect function, the grab it and mark it as pending
 		if((uxQueueMessagesWaiting(xBufferMessageMailbox) > 0)
-		&& (xQueueReceive(xBufferMessageMailbox, &server_message, 0)) == pdPASS)
+		&& (xQueueReceive(xBufferMessageMailbox, &server_message, 10)) == pdPASS)
 		{
 			mqtt_message_pending = true;
 		}
@@ -199,7 +234,7 @@ void hermes_app_task(void *pvParameters)
 		}
 
 		if((uxQueueMessagesWaiting(xSystemStatusMailbox) > 0)
-		&& (xQueueReceive(xSystemStatusMailbox, &system_event, 0)) == pdPASS)
+		&& (xQueueReceive(xSystemStatusMailbox, &system_event, 10)) == pdPASS)
 		{
 			// something has happened in the system, so update LEDs
 			process_system_event(system_event);
@@ -218,7 +253,7 @@ void hermes_app_task(void *pvParameters)
 			{
 				// Note this will copy the full size of the structure
 				// which could be much more than the message.
-				xQueueSend(xOutgoingMQTTMessageMailbox, outgoing_message, 0);
+				xQueueSend(xOutgoingMQTTMessageMailbox, outgoing_message, 10);
 				outgoing_message = NULL;
 			}
         }
@@ -307,7 +342,7 @@ void hermes_app_task(void *pvParameters)
 			send_shared_secret();
 		}
 
-		vTaskDelay(pdMS_TO_TICKS( 1 ));
+		vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
 //------------------------------------------------------------------------------
@@ -409,9 +444,10 @@ static void send_hub_report(void)
 		sprintf((char *)&msg[0], "%d 0 5 %02x %02x %02x %02x %02x", MSG_HUB_VERSION_INFO, (unsigned int)bootRN, (unsigned int)ver[3], (unsigned int)ver[2], (unsigned int)ver[1], (unsigned int)ver[0]);
 
 	   	if( true == server_buffer_add(&message))   // Add this message and topic
-		{	// message successfully queued, so clear flag requesting it.
-        trigger_send_version_info = false;
-   }
+		{
+	   		// message successfully queued, so clear flag requesting it.
+	   		trigger_send_version_info = false;
+		}
    }
 
    if( (get_microseconds_tick() - last_message_time) >= usTICK_MINUTE )
@@ -434,7 +470,7 @@ static void send_hub_report(void)
 		if( true == server_buffer_add(&message))
 		{
 			send_time_to_server = false; // message successfully sent.
-       }
+		}
    }
 }
 

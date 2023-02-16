@@ -33,6 +33,18 @@
 #include "time.h"
 #include "hermes-time.h"
 #include "tim.h"
+//==============================================================================
+//variables:
+
+volatile uint64_t UTC_ms = 0;
+
+// Counts once per second. When server is connected, will be set to seconds since Unix Epoch
+volatile uint32_t UTC = 0;
+
+// Counts once per second. Epoch is when the unit was last reset.
+volatile uint32_t UpTime = 0;
+//==============================================================================
+//functions:
 
 // no longer used now we have SNTP to set the time.
 void set_utc_to_compile_time(void)
@@ -79,13 +91,7 @@ void set_utc_to_compile_time(void)
 
 	set_utc(new_utc);
 }
-
-volatile uint64_t UTC_ms = 0;
-// Counts once per second. When server is connected, will be set to seconds since Unix Epoch
-volatile uint32_t UTC = 0;
-// Counts once per second. Epoch is when the unit was last reset.
-volatile uint32_t UpTime = 0;
-
+//------------------------------------------------------------------------------
 // Since GPT1 is counting at 1MHz, a delay measured in microseconds is very easy!
 // Note actually counting at 62.5MHz/63 = 992KHz.
 void delay_us(uint32_t delay)
@@ -97,25 +103,24 @@ void delay_us(uint32_t delay)
 
     }
 }
-
+//------------------------------------------------------------------------------
 void delay_ms(uint32_t delay)
 {
 	// calibrated for 992KHz timer
     delay_us(delay * 1008);
 }
-
+//------------------------------------------------------------------------------
 uint32_t get_microseconds_tick(void)
 {
     return TIM2->CNT;
 }
-
+//------------------------------------------------------------------------------
 // This will occur in the Systick Interrupt context
 // called at the Systick rate.
 void vApplicationTickHook(void)
 {
     static uint32_t div = 0;
     static int hermes_app_task_circle;
-    static int hub_state_conversation_send;
     static int mqtt_task_circle;
     static int sn_task_circle;
 
@@ -138,40 +143,40 @@ void vApplicationTickHook(void)
 		sn_task_circle = DebugCounter.sn_task_circle;
     }
 }
-
+//------------------------------------------------------------------------------
 void get_UTC_ms(uint64_t *p)
 {
     portENTER_CRITICAL();
     *p = UTC_ms;
     portEXIT_CRITICAL();	
 }
-
+//------------------------------------------------------------------------------
 // This could occur in any context, but since it's a
 // 32bit value, we don't need to worry about any inconsistencies.
 uint32_t get_UTC(void)
 {
     return UTC;
 }
-
+//------------------------------------------------------------------------------
 time_t wc_time(time_t* t)
 {
 	return UTC;
 }
-
+//------------------------------------------------------------------------------
 // This could occur in any context, but since it's a
 // 32bit value, we don't need to worry about any inconsistencies.
 uint32_t get_UTC_forWolfSSL(void)
 {
     return UTC;
 }
-
+//------------------------------------------------------------------------------
 // This could occur in any context, but since it's a
 // 32bit value, we don't need to worry about any inconsistencies.
 uint32_t get_UpTime(void)
 {
     return UpTime;
 }
-
+//------------------------------------------------------------------------------
 // Set UTC. This will occur when the Hub connects to the server.
 // We do have to be careful about interrupts here as we could
 // get overwritten if not careful by increment_UTC()
@@ -209,7 +214,7 @@ bool get_gmt(uint32_t utc_secs, HERMES_TIME_GMT* out)
 
 	return false;
 }
-
+//------------------------------------------------------------------------------
 struct tm *hermes_gmtime(time_t *tod)
 {
 	struct tm *retval;
@@ -218,7 +223,7 @@ struct tm *hermes_gmtime(time_t *tod)
 	portEXIT_CRITICAL();
 	return retval;
 }
-
+//------------------------------------------------------------------------------
 struct tm *hermes_gmtime_2(time_t *tod)
 {
 	struct tm *retval;
@@ -227,7 +232,6 @@ struct tm *hermes_gmtime_2(time_t *tod)
 	portEXIT_CRITICAL();
 	return retval;
 }
-
 /**************************************************************
  * Function Name   : time_string
  * Description     : Generates current time of day as HH:MM:SS string
@@ -241,3 +245,4 @@ int time_string(char *str)
 	get_gmt(UTC, &time);
 	return sprintf(str,"%02d:%02d:%02d ",time.hour,time.minute,time.second);
 }
+//==============================================================================

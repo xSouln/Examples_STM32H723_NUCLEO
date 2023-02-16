@@ -52,6 +52,23 @@ uint8_t xCircleBufferGet(xCircleBufferT* buffer)
 }
 //------------------------------------------------------------------------------
 
+uint32_t xCircleBufferRead(xCircleBufferT* buffer, uint8_t* data, uint32_t size)
+{
+	uint32_t count = 0;
+
+	while (count < size && buffer->HandlerIndex != buffer->TotalIndex)
+	{
+		data[count]= buffer->Buffer[buffer->HandlerIndex];
+		buffer->HandlerIndex++;
+		buffer->HandlerIndex &= buffer->SizeMask;
+
+		count++;
+	}
+
+	return count;
+}
+//------------------------------------------------------------------------------
+
 bool xCircleBufferIsEmpty(xCircleBufferT* buffer)
 {
 	return buffer->HandlerIndex == buffer->TotalIndex;

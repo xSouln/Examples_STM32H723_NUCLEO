@@ -59,6 +59,7 @@
 #include "pal_generic.h"
 #include "return_val.h"
 #include "common_sw_timer.h"
+#include "hermes-time.h"
 
 #if (PAL_USE_SPI_TRX == 1)
 #ifdef MULTI_TRX_SUPPORT
@@ -79,13 +80,13 @@
  *
  * @param delay in microseconds
  */
-#define pal_timer_delay(delay)    HAL_Delay(delay)
+#define pal_timer_delay(delay) delay_us(1);
 
 /* Wait for 1 us. */
-#define PAL_WAIT_1_US()               pal_timer_delay(1);
+#define PAL_WAIT_1_US() delay_us(1);
 
 /* Wait for 65 ns. */
-#define PAL_WAIT_65_NS()  PAL_WAIT_1_US()
+#define PAL_WAIT_65_NS() delay_us(1);
 
 /**
  * This macro is used for handling endianness among the different CPUs.
@@ -97,16 +98,16 @@
 #endif
 
 /* Enables the global interrupt */
-#define ENABLE_GLOBAL_IRQ()                  __enable_irq()
+#define ENABLE_GLOBAL_IRQ()                  //__enable_irq()
 
 /* Disables the global interrupt */
-#define DISABLE_GLOBAL_IRQ()                 __disable_irq()
+#define DISABLE_GLOBAL_IRQ()                 //__disable_irq()
 
 /* This macro saves the global interrupt status */
-#define ENTER_CRITICAL_REGION()              {
+#define ENTER_CRITICAL_REGION()              portENTER_CRITICAL()
 
 /* This macro restores the global interrupt status */
-#define LEAVE_CRITICAL_REGION()              }
+#define LEAVE_CRITICAL_REGION()              portEXIT_CRITICAL()
 
 #define STACK_FLASH_SIZE (1024)
 
@@ -213,7 +214,8 @@ void pal_trx_irq_init_tstamp(FUNC_PTR trx_irq_cb);
  * enabled by setting the MCU IRQ mask.
  *
  */
-#define pal_trx_irq_en()
+extern void trx_enable_irq_handler(void);
+#define pal_trx_irq_en() trx_enable_irq_handler();
 
 /**
  * \brief Enables the transceiver timestamp interrupt
@@ -237,7 +239,8 @@ void pal_trx_irq_init_tstamp(FUNC_PTR trx_irq_cb);
  * disabled by clearing the MCU IRQ mask.
  *
  */
-#define pal_trx_irq_dis()
+extern void trx_disable_irq_handler(void);
+#define pal_trx_irq_dis() trx_disable_irq_handler();
 
 /**
  * \brief Disables the transceiver timestamp interrupt

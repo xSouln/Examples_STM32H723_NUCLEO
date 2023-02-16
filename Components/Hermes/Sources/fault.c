@@ -20,7 +20,6 @@
 *   
 *             
 **************************************************************************/
-
 #include "FreeRTOS.h"
 #include "hermes-time.h"
 #include "fault.h"

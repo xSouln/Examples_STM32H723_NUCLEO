@@ -130,6 +130,9 @@ void StartDefaultTask(void *argument)
   /* init code for LWIP */
   MX_LWIP_Init();
   /* USER CODE BEGIN StartDefaultTask */
+
+  osDelay(pdMS_TO_TICKS(500));
+
   HermesComponentInit();
   /* Infinite loop */
   for(;;)

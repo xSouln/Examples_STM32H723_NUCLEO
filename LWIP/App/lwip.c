@@ -30,9 +30,14 @@
 #include <string.h>
 
 /* USER CODE BEGIN 0 */
-#ifndef FREERTOS_TCP_ENABLE
+//==============================================================================
 #include "sntp.h"
 #include "dns.h"
+#include "hermes.h"
+//==============================================================================
+uint8_t DNS_ADDRESS[4];
+
+//==============================================================================
 /* USER CODE END 0 */
 /* Private function prototypes -----------------------------------------------*/
 static void ethernet_link_status_updated(struct netif *netif);
@@ -83,8 +88,27 @@ void MX_LWIP_Init(void)
   GATEWAY_ADDRESS[3] = 1;
 
 /* USER CODE BEGIN IP_ADDRESSES */
-  //sntp_setoperatingmode(SNTP_OPMODE_POLL);
+	IP_ADDRESS[0] = configIP_ADDR0;
+    IP_ADDRESS[1] = configIP_ADDR1;
+    IP_ADDRESS[2] = configIP_ADDR2;
+    IP_ADDRESS[3] = configIP_ADDR3;
 
+    NETMASK_ADDRESS[0] = configNET_MASK0;
+    NETMASK_ADDRESS[1] = configNET_MASK1;
+    NETMASK_ADDRESS[2] = configNET_MASK2;
+    NETMASK_ADDRESS[3] = configNET_MASK3;
+
+    GATEWAY_ADDRESS[0] = configGATEWAY_ADDR0;
+    GATEWAY_ADDRESS[1] = configGATEWAY_ADDR1;
+    GATEWAY_ADDRESS[2] = configGATEWAY_ADDR2;
+    GATEWAY_ADDRESS[3] = configGATEWAY_ADDR3;
+
+    DNS_ADDRESS[0] = configDNS_SERVER_ADDR0;
+    DNS_ADDRESS[1] = configDNS_SERVER_ADDR1;
+    DNS_ADDRESS[2] = configDNS_SERVER_ADDR2;
+    DNS_ADDRESS[3] = configDNS_SERVER_ADDR3;
+
+    osDelay(pdMS_TO_TICKS(1000));
 /* USER CODE END IP_ADDRESSES */
 
   /* Initilialize the LwIP stack with RTOS */
@@ -126,22 +150,13 @@ void MX_LWIP_Init(void)
 
 /* USER CODE BEGIN 3 */
   ip_addr_t add1;
-  add1.addr = PP_HTONL(LWIP_MAKEU32(GATEWAY_ADDRESS[0],
-									GATEWAY_ADDRESS[1],
-									GATEWAY_ADDRESS[2],
-									GATEWAY_ADDRESS[3]));
+  add1.addr = PP_HTONL(LWIP_MAKEU32(DNS_ADDRESS[0],
+									  DNS_ADDRESS[1],
+									  DNS_ADDRESS[2],
+									  DNS_ADDRESS[3]));
 
   osDelay(1000);
   dns_setserver(0, &add1);
-
-  //add1.addr = PP_HTONL(LWIP_MAKEU32(213, 184, 224, 254));//213.184.224.254 //82, 209, 243, 241
-  //dns_setserver(1, &add1);
-
-/*
-  sntp_setoperatingmode(SNTP_OPMODE_POLL);//129.70.132.37
-  sntp_init();
-  sntp_setservername(0, "pool.ntp.org");//http://www.ntp.org/pool.ntp.org
-*/
 /* USER CODE END 3 */
 }
 
@@ -149,7 +164,7 @@ void MX_LWIP_Init(void)
 /* Kept to help code migration. (See new 4_1, 4_2... sections) */
 /* Avoid to use this user section which will become obsolete. */
 /* USER CODE BEGIN 4 */
-#endif //LWIP_IP_ENABLE
+
 /* USER CODE END 4 */
 #endif
 
@@ -163,15 +178,13 @@ static void ethernet_link_status_updated(struct netif *netif)
   if (netif_is_up(netif))
   {
 /* USER CODE BEGIN 5 */
-	  extern void NetworkInterfaceLinkUp(void* arg);
-	  NetworkInterfaceLinkUp(netif);
+
 /* USER CODE END 5 */
   }
   else /* netif is down */
   {
 /* USER CODE BEGIN 6 */
-	  extern void NetworkInterfaceLinkDown(void* arg);
-	  NetworkInterfaceLinkDown(netif);
+
 /* USER CODE END 6 */
   }
 }

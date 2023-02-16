@@ -189,7 +189,7 @@ void get_device_table(bool trigger)
 	uint8_t dev_table[sizeof(DEVICE_STATUS) * MAX_NUMBER_OF_DEVICES];
 
 	// ensure mailbox is empty
-	xQueueReceive(xSendDeviceTableMailbox, &dev_table, 0);
+	xQueueReceive(xSendDeviceTableMailbox, &dev_table, 1);
 
 	// send a message to SureNet to get a message back with the Device Table in it
 	if(trigger)
@@ -227,7 +227,7 @@ static void HubReg_Handle_Device_Status(void)
 {
 	DEVICE_STATUS_REQUEST	request;
 	bool require_update = false;
-	if( pdPASS == xQueueReceive(xSendDeviceStatusMailbox, &request, 0) )
+	if( pdPASS == xQueueReceive(xSendDeviceStatusMailbox, &request, 1) )
 	{
 		uint8_t* ptr = (uint8_t*)&request.device_status;
 		int i, j = HR_DEVICE_TABLE + request.line * sizeof(DEVICE_STATUS);

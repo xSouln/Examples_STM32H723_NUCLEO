@@ -22,8 +22,12 @@
 #ifndef __SNTP_H__
 #define __SNTP_H__
 //==============================================================================
-#include "Components.h"
-//------------------------------------------------------------------------------
+//includes:
+
+#include "Hermes-compiller.h"
+//==============================================================================
+//defines:
+
 #define SNTP_SERVER		"pool.ntp.org"
 #define SNTP_PORT		123
 
@@ -43,7 +47,9 @@
 #define sntp_printf(...)
 #define sntp_flush()
 #endif
-//------------------------------------------------------------------------------
+//==============================================================================
+//types:
+
 typedef enum
 {
 	SNTP_EVENT_UPDATE_REQUESTED	= (1<<0),
@@ -80,6 +86,38 @@ typedef struct
 
 } NTP_PACKET;
 //------------------------------------------------------------------------------
+typedef enum
+{
+	NTP_STATE_STOPPED,
+	NTP_STATE_REQUEST_UPDATE,
+	NTP_STATE_IN_PROGRESS,
+
+} NTP_StatesT;
+//------------------------------------------------------------------------------
+typedef enum
+{
+	NTP_RESULT_IDLE,
+	NTP_RESULT_SUCCESS,
+	NTP_RESULT_ERROR,
+
+} NTP_ResultsT;
+//------------------------------------------------------------------------------
+typedef struct
+{
+	struct
+	{
+		uint32_t IsInit : 1;
+		uint32_t IsUpdate : 1;
+
+	};
+
+	NTP_StatesT State;
+	NTP_ResultsT Result;
+
+} NTP_StatusT;
+//==============================================================================
+//functions:
+
 void SNTP_Init(void);
 void SNTP_Task(void* pvParameters);
 bool SNTP_IsTimeValid(void);

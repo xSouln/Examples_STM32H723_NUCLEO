@@ -26,7 +26,7 @@ extern "C" {
 #define PRINT_CREDS	false
 
 #define AWS_KEEP_ALIVE_TIMEOUT  90 //60  // In seconds
-#define AWS_YIELD_TIMEOUT       10 //5 //100 // In milliseconds
+#define AWS_YIELD_TIMEOUT       5 //5 //100 // In milliseconds
 
 #define AWS_COMMAND_TIMEOUT				1 //10 //5000 //40000
 #define AWS_CONNECT_COMMAND_TIMEOUT		100

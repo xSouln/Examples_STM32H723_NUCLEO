@@ -96,7 +96,8 @@ LABEL_PRINT_STATE label_print_state;
 extern PRODUCT_CONFIGURATION product_configuration;
 
 // test function, invoked by typing 'labelreset' from CLI
-void restart_label_print(void)	// this is a bit naughty, but only needed for testing...
+// this is a bit naughty, but only needed for testing...
+void restart_label_print(void)
 {
 	if( (LABEL_DONE == label_print_state) || (LABEL_WAIT_CONNECTED == label_print_state))
 	{
@@ -108,7 +109,6 @@ void restart_label_print(void)	// this is a bit naughty, but only needed for tes
 		zprintf(MEDIUM_IMPORTANCE,"NOT restarting label printer state machine as it's busy!\r\n");
 	}			
 }
-
 /**************************************************************
  * Function Name   : label_task
  * Description     : This task is run when the product is in PRODUCT_TESTED configuration
@@ -170,6 +170,7 @@ void label_task(void *pvParameters)
 				{
 					address.sin_addr.s_addr = LWIP_MAKEU32(LBL_SERVER_1, LBL_SERVER_2, LBL_SERVER_3, LBL_SERVER_4);
 					address.sin_port = htons(LBL_PORT);
+					address.sin_family = AF_INET;
 
 					if(connect(lblSocket, (struct sockaddr*)&address, sizeof(address)) == 0)
 					{
@@ -318,4 +319,3 @@ void label_task(void *pvParameters)
 		}
 	}
 }
-

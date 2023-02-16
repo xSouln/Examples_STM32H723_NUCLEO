@@ -152,7 +152,7 @@ PAIRING_MODE_TIMEOUT pairing_mode_timeout = { 0, false };
 // initialisation (false) (and therefore the callback it triggers performs the next
 // part of the sequence), or whether it's a 'run time' update of the payload (true)
 // and should NOT perform the next part of the sequence.
-bool beacon_payload_update;
+volatile bool beacon_payload_update;
 
 RX_BUFFER rx_buffer SN_RX_BUFFER_MEM_SECTION;
 
@@ -160,7 +160,7 @@ RX_BUFFER rx_buffer SN_RX_BUFFER_MEM_SECTION;
 static ASSOCIATION_SUCCESS_INFORMATION assoc_info;
 
 static uint8_t reentrancy_count = 0;
-static int irq_receive;
+static volatile int irq_receive;
 static int irq_accepted;
 
 // this is the master reference.
@@ -183,7 +183,7 @@ BaseType_t snd_init(uint64_t *mac_addr, uint16_t panid, uint8_t channel)
 {
     BaseType_t xReturn = pdPASS;
 
-	pan_id = SUREFLAP_PAN_ID;
+	pan_id = panid;
 
 	request_mac_addr = *mac_addr;
 
@@ -203,7 +203,7 @@ BaseType_t snd_init(uint64_t *mac_addr, uint16_t panid, uint8_t channel)
 		osDelay(10);
 	}
 
-	snd_set_channel(15);
+	snd_set_channel(channel);
 
     return xReturn;
 }
@@ -219,16 +219,18 @@ void snd_stack_task(void)
 		zprintf(CRITICAL_IMPORTANCE,"wpan_task() reentered %c times", reentrancy_count + 0x30);
 	}
 
-	if(irq_accepted < irq_receive)
+	//if(irq_accepted < irq_receive)
+	if(irq_receive)
 	{
 		//irq_update_flag = false;
-		irq_accepted++;
+		//irq_accepted++;
+		irq_receive = 0;
 
 		trx_irq_handler();
 	}
 
 	reentrancy_count++;
-    wpan_task();
+	wpan_task();
 	reentrancy_count--;
 	
 	// handle timeout of pairing mode
@@ -256,7 +258,9 @@ void RF_IRQ_HANDLER(void)
 
     tal_awake_end_flag = true;
 
-    irq_receive++;
+    //irq_receive++;
+
+    irq_receive = 1;
 }
 //------------------------------------------------------------------------------
 // Initialises the RF Stack
@@ -500,7 +504,7 @@ void usr_mlme_set_conf(uint8_t status, uint8_t PIBAttribute)
     {
 		// Set RX on when idle to enable the receiver as default.
 		// Use: bool wpan_mlme_set_req(uint8_t PIBAttribute, void *PIBAttributeValue);
-		if( beacon_payload_update == false )
+		if(beacon_payload_update == false)
 		{
 			bool rx_on_when_idle = true;
 

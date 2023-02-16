@@ -35,6 +35,7 @@
 #define COMMON_SW_TIMER_H
 
 #include "compiler.h"
+#include "cmsis_os.h"
 //#include "status_codes.h"
 //#include "conf_common_sw_timer.h"
 
@@ -45,8 +46,8 @@
  * @{
  */
 
-#define ENTER_SW_TIMER_CRITICAL_REGION()
-#define LEAVE_SW_TIMER_CRITICAL_REGION()
+#define ENTER_SW_TIMER_CRITICAL_REGION() portENTER_CRITICAL();
+#define LEAVE_SW_TIMER_CRITICAL_REGION() portEXIT_CRITICAL();
 
 /*
  * Type definition for callbacks for timer functions
@@ -54,7 +55,7 @@
 typedef void (*timer_expiry_cb_t)(void *);
 
 #define TOTAL_TIMERS    TOTAL_NUMBER_OF_TIMERS
-#define MAX_NO_OF_TIMERS          (25)
+#define MAX_NO_OF_TIMERS          (20)
 
 /*
  * Value to indicate end of timer in the array or queue

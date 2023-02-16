@@ -21,16 +21,10 @@
 **************************************************************************/
 #ifndef __SERVER_BUFFER_H__
 #define __SERVER_BUFFER_H__
-
+//==============================================================================
 #include "../MQTT/MQTT.h"
 #include "hermes.h"
-
-typedef struct
-{
-    uint8_t*	message_ptr;   // pointer to message as text string.
-    uint64_t	source_mac;    // source MAC of Device from which this message originated. We'll derive the sub-topic from this.
-} SERVER_MESSAGE;
-
+//==============================================================================
 #define MAX_MESSAGE_SIZE_SERVER_BUFFER 512
 
 #define PRINT_SERVER_BUFFER	false
@@ -40,10 +34,26 @@ typedef struct
 #else
 #define sbuffer_printf(...)
 #endif
+//------------------------------------------------------------------------------
+typedef struct
+{
+	// pointer to message as text string.
+    uint8_t* message_ptr;
 
-void			server_buffer_init(void);  // initialise our buffer
-bool			server_buffer_add(SERVER_MESSAGE *message);   // Add this message and topic
-bool			server_buffer_process_reflected_message(char *message);
-MQTT_MESSAGE*	server_buffer_get_next_message(void);
-void			server_buffer_dump();  // dump valid messages out of the UART
-#endif
+    // source MAC of Device from which this message originated. We'll derive the sub-topic from this.
+    uint64_t source_mac;
+
+} SERVER_MESSAGE;
+//==============================================================================
+// initialise our buffer
+void server_buffer_init(void);
+
+// Add this message and topic
+bool server_buffer_add(SERVER_MESSAGE *message);
+bool server_buffer_process_reflected_message(char *message);
+MQTT_MESSAGE* server_buffer_get_next_message(void);
+
+// dump valid messages out of the UART
+void			server_buffer_dump();
+//==============================================================================
+#endif //__SERVER_BUFFER_H__

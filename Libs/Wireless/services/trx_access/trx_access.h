@@ -56,6 +56,8 @@
 /* === Includes ============================================================ */
 
 #include "compiler.h"
+#include "hermes-time.h"
+#include "cmsis_os.h"
 /* === Macros =============================================================== */
 
 /**
@@ -114,10 +116,10 @@ typedef void (*irq_handler_t)(void);
 /* #define MIN_TIMEOUT                     (0x80) */
 
 /* This macro saves the global interrupt status */
-#define ENTER_TRX_CRITICAL_REGION()
+#define ENTER_TRX_CRITICAL_REGION() portENTER_CRITICAL()
 
 /* This macro restores the global interrupt status */
-#define LEAVE_TRX_CRITICAL_REGION()
+#define LEAVE_TRX_CRITICAL_REGION() portEXIT_CRITICAL()
 
 /* === Externals ============================================================ */
 

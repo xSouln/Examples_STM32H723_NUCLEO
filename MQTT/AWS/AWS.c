@@ -266,7 +266,7 @@ void AWS_Message_Received(AWS_IoT_Client* pClient,
 	// Fixed length string insertion with added null terminator.
 	sprintf(msg.subtopic, "%.*s\0", topicNameLen - i, &pTopicName[i]);
 
-	xQueueSend(xIncomingMQTTMessageMailbox, &msg, 0);
+	xQueueSend(xIncomingMQTTMessageMailbox, &msg, 1);
 
 	DebugCounter.aws_received_messages_count++;
 

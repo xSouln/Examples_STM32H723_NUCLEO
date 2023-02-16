@@ -54,7 +54,8 @@
 #include "LabelPrinter.h"
 #include "netif.h"
 
-#include "lwip.h"
+#include "NetworkInterface.h"
+#include "Hermes/Console/Hermes-console.h"
 
 #include "wolfssl/wolfcrypt/asn_public.h"
 /*******************************************************************************
@@ -73,13 +74,36 @@ void vRegisterCLICommands( void );
 
 static uint8_t initial_RF_channel;
 BaseType_t xTCstatus;
+//------------------------------------------------------------------------------
+//task handles:
 
 TaskHandle_t xHermesTestTaskHandle;
 TaskHandle_t xFM_hermesFlashTaskHandle;
 TaskHandle_t xStartupTaskHandle;
 TaskHandle_t xHTTPPostTaskHandle;
 TaskHandle_t xHFUTaskHandle;
+TaskHandle_t xLedTaskTaskHandle;
+TaskHandle_t xSNTPTaskHandle;
+TaskHandle_t xHermesAppTaskHandle;
+TaskHandle_t xMQTTTaskHandle;
+//------------------------------------------------------------------------------
+//static tasks attributes:
 
+StaticTask_t hermes_app_task_buffer HERMES_APPLICATION_TASK_STACK_MEM_SECTION;
+StackType_t hermes_app_task_stack[HERMES_APPLICATION_TASK_STACK_SIZE] HERMES_APPLICATION_TASK_STACK_MEM_SECTION;
+
+StaticTask_t hermes_mqtt_task_buffer MQTT_TASK_STACK_MEM_SECTION;
+StackType_t hermes_mqtt_task_stack[MQTT_TASK_STACK_SIZE] MQTT_TASK_STACK_MEM_SECTION;
+
+StaticTask_t hermes_sntp_task_buffer SNTP_TASK_STACK_MEM_SECTION;
+StackType_t hermes_sntp_task_stack[SNTP_TASK_STACK_SIZE] SNTP_TASK_STACK_MEM_SECTION;
+
+StaticTask_t hermes_led_task_buffer LED_TASK_STACK_MEM_SECTION;
+StackType_t hermes_led_task_stack[LED_TASK_STACK_SIZE] LED_TASK_STACK_MEM_SECTION;
+
+StaticTask_t hermes_http_post_task_buffer HTTP_POST_TASK_STACK_MEM_SECTION;
+StackType_t hermes_http_post_task_stack[HTTP_POST_TASK_STACK_SIZE] HTTP_POST_TASK_STACK_MEM_SECTION;
+//------------------------------------------------------------------------------
 extern QueueHandle_t xNvStoreMailboxSend;
 extern QueueHandle_t xNvStoreMailboxResp;
 
@@ -122,8 +146,11 @@ void HermesComponentInit()
 {
 	// Register the command line commands with the CLI
 	vRegisterBasicCLICommands();
+	HermesConsoleInit();
 
-	osDelay(pdMS_TO_TICKS(1000));
+	osDelay(pdMS_TO_TICKS(100));
+
+	xNetworkInterfaceInitialise();
 
 	HermesFlashInit();
 
@@ -160,55 +187,77 @@ void HermesComponentInit()
 		HermesFlashSaveData();
 	}
 
+	initial_RF_channel = INITIAL_CHANNEL;
+
 	// generate a truly random Shared Secret to be shared with the Server
 	GenerateSharedSecret(SHARED_SECRET_CURRENT);
 
 	// Used for signing data transfers between Hub and Server.
 	GenerateDerivedKey(DERIVED_KEY_CURRENT);
 
+	osDelay(pdMS_TO_TICKS(100));
+
 	hermes_app_init();
-	HTTPPostTask_init();
+	led_driver_init();
 	SNTP_Init();
+	HTTPPostTask_init();
 
 	//BABEL_set_aes_key(product_configuration.serial_number);
 	//BABEL_aes_encrypt_init();
 
 	shouldIPackageFlag = SHOULD_I_PACKAGE;
+
 	//true for AES Encryption
 	shouldICryptFlag = false;
 
-	led_driver_init();
-
 	surenet_init(&rfmac, product_configuration.rf_pan_id, initial_RF_channel);
 
-	if(xTaskCreate(SNTP_Task, "SNTP Task", SNTP_TASK_STACK_SIZE, NULL, osPriorityNormal, NULL) != pdPASS)
-	{
-		zprintf(CRITICAL_IMPORTANCE, "SNTP Task creation failed!\r\n");
-	}
+	osDelay(pdMS_TO_TICKS(100));
 
-	if(xTaskCreate(led_task, "led_task", LED_TASK_STACK_SIZE, NULL, osPriorityNormal, NULL) != pdPASS)
-	{
-		zprintf(CRITICAL_IMPORTANCE,"LED task creation failed!\r\n");
-	}
+	xSNTPTaskHandle =
+		xTaskCreateStatic(SNTP_Task, // Function that implements the task.
+							"SNTP Task", // Text name for the task.
+							SNTP_TASK_STACK_SIZE, // Number of indexes in the xStack array.
+							NULL, // Parameter passed into the task.
+							osPriorityNormal, // Priority at which the task is created.
+							hermes_sntp_task_stack, // Array to use as the task's stack.
+							&hermes_sntp_task_buffer);
 
-	if(xTaskCreate(hermes_app_task, "Hermes Application", HERMES_APPLICATION_TASK_STACK_SIZE, NULL, osPriorityNormal, NULL) != pdPASS)
-	{
-		zprintf(CRITICAL_IMPORTANCE, "Hermes Application task creation failed!\r\n");
-	}
+	xLedTaskTaskHandle =
+		xTaskCreateStatic(led_task, // Function that implements the task.
+							"led_task", // Text name for the task.
+							LED_TASK_STACK_SIZE, // Number of indexes in the xStack array.
+							NULL, // Parameter passed into the task.
+							osPriorityNormal, // Priority at which the task is created.
+							hermes_led_task_stack, // Array to use as the task's stack.
+							&hermes_led_task_buffer);
 
-	if(xTaskCreate(MQTT_Task, "MQTT", MQTT_TASK_STACK_SIZE, NULL, osPriorityNormal, NULL) != pdPASS )
-	{
-		zprintf(CRITICAL_IMPORTANCE,"MQTT Task creation failed!\r\n");
-	}
+	xHermesAppTaskHandle =
+		xTaskCreateStatic(hermes_app_task, // Function that implements the task.
+							"Hermes Application", // Text name for the task.
+							HERMES_APPLICATION_TASK_STACK_SIZE, // Number of indexes in the xStack array.
+							NULL, // Parameter passed into the task.
+							osPriorityNormal, // Priority at which the task is created.
+							hermes_app_task_stack, // Array to use as the task's stack.
+							&hermes_app_task_buffer);
 
-	if (xTaskCreate(HTTPPostTask, "HTTP Post", HTTP_POST_TASK_STACK_SIZE, NULL, osPriorityNormal, &xHTTPPostTaskHandle) != pdPASS)
-	{
-		zprintf(CRITICAL_IMPORTANCE,"HTTP Post task creation failed!.\r\n");
-	}
+	xHTTPPostTaskHandle =
+		xTaskCreateStatic(HTTPPostTask, // Function that implements the task.
+							"HTTP Post", // Text name for the task.
+							HTTP_POST_TASK_STACK_SIZE, // Number of indexes in the xStack array.
+							NULL, // Parameter passed into the task.
+							osPriorityNormal, // Priority at which the task is created.
+							hermes_http_post_task_stack, // Array to use as the task's stack.
+							&hermes_http_post_task_buffer);
 
-	osDelay(pdMS_TO_TICKS(500));
-
-	LWIP_UpdateLinkState();
+	xMQTTTaskHandle =
+		xTaskCreateStatic(MQTT_Task, // Function that implements the task.
+							"MQTT", // Text name for the task.
+							MQTT_TASK_STACK_SIZE, // Number of indexes in the xStack array.
+							NULL, // Parameter passed into the task.
+							osPriorityNormal, // Priority at which the task is created.
+							hermes_mqtt_task_stack, // Array to use as the task's stack.
+							&hermes_mqtt_task_buffer);
 }
 
 /**************************************************************
@@ -925,27 +974,41 @@ int hermes_rand(void)
 {
 	#include "rng.h"
 
-	int result = -1;
-
+	int value = -1;
+	HAL_StatusTypeDef result;
 	//cannot be used because it stops the system timer
 	//that is used by the function HAL_RNG_GenerateRandomNumber()
 	//portENTER_CRITICAL();
 
 	if (!RandMutex)
 	{
-		HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&result);
-		return result;
+		HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&value);
+		return value;
 	}
 
 	if (xSemaphoreTake(RandMutex, portMAX_DELAY) == pdTRUE)
 	{
-		HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&result);
+		HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&value);
 		xSemaphoreGive(RandMutex);
 	}
 
+/*
+	do
+	{
+		result = HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&value);
+
+		if (result == HAL_OK)
+		{
+			break;
+		}
+
+		osDelay(pdMS_TO_TICKS(1));
+	}
+	while (true);
+*/
 	//portEXIT_CRITICAL()
 
-	return result;
+	return value;
 }
 
 /**************************************************************

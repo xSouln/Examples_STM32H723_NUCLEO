@@ -26,8 +26,13 @@
 #ifndef __HERMES_APP_H__
 #define __HERMES_APP_H__
 //==============================================================================
+//includes:
+
+#include "Hermes-compiller.h"
 #include "leds.h"
-//------------------------------------------------------------------------------
+//==============================================================================
+//defines:
+
 // Ash said this was a good idea at 09:31 on 26th August 2020.
 #define UPLOAD_HUB_REGISTERS_ON_CLOUD_CONNECT
 // [09:31] Ashleigh Hopkins
@@ -46,7 +51,9 @@
 
 #define BUTTON_PRESSED	1
 #define READ_BUTTON() ((BUTTON_1_GPIO_Port->IDR & BUTTON_1_Pin) > 0)
-//------------------------------------------------------------------------------
+//==============================================================================
+//types:
+
 typedef enum
 {
 	CONN_STATUS_STARTING		= (1<<0),
@@ -77,7 +84,9 @@ typedef enum
 	STATUS_BACKSTOP,
 
 } SYSTEM_STATUS_EVENTS;
-//------------------------------------------------------------------------------
+//==============================================================================
+//functions:
+
 void hermes_app_init(void);
 void hermes_app_task(void *pvParameters);
 void trigger_send_hub_version_info(void);
@@ -89,5 +98,3 @@ void update_led_view(void);
 LED_MODE get_led_brightness(void);
 //==============================================================================
 #endif
-
-

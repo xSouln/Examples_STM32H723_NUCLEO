@@ -21,7 +21,6 @@
 *
 *
 **************************************************************************/
-
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
 #include "task.h"
@@ -57,8 +56,10 @@
 #include "HubFirmwareUpdate.h"
 #include "utilities.h"
 #include "hermes.h"
+#include "Hermes-debug.h"
 
 #include "wolfssl/wolfcrypt/hash.h"
+#include "NetworkInterface.h"
 
 typedef enum
 {
@@ -836,6 +837,9 @@ static portBASE_TYPE prvVersionCommand( char *pcWriteBuffer, size_t xWriteBuffer
 	/* Remove compile time warnings about unused parameters, and check the
 	write buffer is not NULL.  NOTE - for simplicity, this example assumes the
 	write buffer length is adequate, so does not check for buffer overflows. */
+
+	//attention
+	/*
 	( void ) pcCommandString;
 	( void ) xWriteBufferLen;
 	configASSERT( pcWriteBuffer );
@@ -906,6 +910,9 @@ static portBASE_TYPE prvVersionCommand( char *pcWriteBuffer, size_t xWriteBuffer
 	zprintf(CRITICAL_IMPORTANCE,"END OF VERSION\r\n");
 
 	*pcWriteBuffer='\0';	// stop previous content from being printed
+	*pcWriteBuffer='\0';
+	*/
+
 	return pdFALSE;
 }
 
@@ -919,7 +926,6 @@ static portBASE_TYPE prvGreetingCommand( char *pcWriteBuffer, size_t xWriteBuffe
     portBASE_TYPE 	xParameterStringLength;
     char 			pcParameter[20];    // should only really need to be a few bytes long
     int8_t 		packageValue;
-
 
     pcParameterString = (int8_t *) FreeRTOS_CLIGetParameter (pcCommandString,		 	/*The command string itself. */
 							                                xParameterNumber,		 	/*Return the next parameter. */
@@ -1024,9 +1030,13 @@ static portBASE_TYPE prvBankCommand( char *pcWriteBuffer, size_t xWriteBufferLen
 	/* Remove compile time warnings about unused parameters, and check the
 	write buffer is not NULL.  NOTE - for simplicity, this example assumes the
 	write buffer length is adequate, so does not check for buffer overflows. */
+
+	//!attention
+	/*
 	( void ) pcCommandString;
 	( void ) xWriteBufferLen;
-	configASSERT( pcWriteBuffer );
+
+	//configASSERT( pcWriteBuffer );
 
 	zprintf(CRITICAL_IMPORTANCE, "Bank Descriptors\r\n");
 	zprintf(CRITICAL_IMPORTANCE, "Bank A\r\n");
@@ -1034,6 +1044,7 @@ static portBASE_TYPE prvBankCommand( char *pcWriteBuffer, size_t xWriteBufferLen
 	zprintf(CRITICAL_IMPORTANCE, "\r\nBank B\r\n");
 	dump_bank_desc(&BankB_Descriptor);
     *pcWriteBuffer='\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
+    *pcWriteBuffer='\0';    */
     return pdFALSE;
 }
 
@@ -1059,14 +1070,15 @@ void dump_bank_desc(const BANK_DESCRIPTOR *desc)
 
 void CLI_PingRespCallback(void)
 {
-	zprintf(CRITICAL_IMPORTANCE,"CLI Ping reply OK\r\n");
+	zprintf(CRITICAL_IMPORTANCE, "CLI Ping reply OK\r\n");
 }
 
-BaseType_t vSendPing(uint32_t ulIPAddress )
+BaseType_t vSendPing(uint32_t ulIPAddress)
 {
     uint16_t usRequestSequenceNumber, usReplySequenceNumber;
 
- 	FreeRTOS_SendPingRequest( ulIPAddress, 8, 100 / portTICK_PERIOD_MS, CLI_PingRespCallback );
+    //!attention
+ 	//FreeRTOS_SendPingRequest( ulIPAddress, 8, 100 / portTICK_PERIOD_MS, CLI_PingRespCallback );
 
     return pdPASS;
 }
@@ -1094,11 +1106,15 @@ static portBASE_TYPE prvPingCommand( char *pcWriteBuffer, size_t xWriteBufferLen
     /* The pcIPAddress parameter holds the destination IP address as a string in
     decimal dot notation (for example, "192.168.0.200").  Convert the string into
     the required 32-bit format. */
-    ulIPAddress = FreeRTOS_inet_addr( (char const *)pcParameter );
+
+    //!attention
+    //ulIPAddress = FreeRTOS_inet_addr( (char const *)pcParameter);
 
     vSendPing(ulIPAddress);
 
-    *pcWriteBuffer = '\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
+    // ensure we don't return with duff info in write buffer (because it does get output!)
+    *pcWriteBuffer = '\0';
+
     return pdFALSE;
 }
 
@@ -1135,6 +1151,8 @@ void calc_checksum(uint8_t *addr, uint32_t length)
 
 static portBASE_TYPE prvChecksumCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
+	//!attention
+	/*
     int8_t *pcParameterString;
     static portBASE_TYPE xParameterNumber = 1;
     portBASE_TYPE xParameterStringLength;
@@ -1144,11 +1162,11 @@ static portBASE_TYPE prvChecksumCommand( char *pcWriteBuffer, size_t xWriteBuffe
     char pcParameter[30];    // 0x60000000,0x10000 is probably the longest realistic command
 	pcParameterString = ( int8_t * ) FreeRTOS_CLIGetParameter
                             (
-                                pcCommandString,		/* The command string itself. */
-                                xParameterNumber,		/* Return the next parameter. */
-                                &xParameterStringLength	/* Store the parameter string length. */
+                                pcCommandString,		// The command string itself.
+                                xParameterNumber,		// Return the next parameter.
+                                &xParameterStringLength	// Store the parameter string length.
                             );
-    if (xParameterStringLength>sizeof(pcParameter)-1) xParameterStringLength=sizeof(pcParameter)-1;   // clip it
+    if (xParameterStringLength>sizeof(pcParameter)-1) xParameterStringLength=sizeof(pcParameter)-1; // clip it
 
 	if( (pcParameterString[0]=='A') || (pcParameterString[0]=='a') )
 	{
@@ -1163,7 +1181,8 @@ static portBASE_TYPE prvChecksumCommand( char *pcWriteBuffer, size_t xWriteBuffe
 	}
 
 	else if( (pcParameterString[0]=='0') && (pcParameterString[1]=='x' || (pcParameterString[0]=='X') ) )
-	{	// parameter string should be 0xstart,0xlength
+	{
+		// parameter string should be 0xstart,0xlength
 		tok = strtok((char *)pcParameterString,",");
 		sscanf(tok,"%x",&addr);
 		tok = strtok(NULL,",");
@@ -1171,12 +1190,15 @@ static portBASE_TYPE prvChecksumCommand( char *pcWriteBuffer, size_t xWriteBuffe
 		{
 			sscanf(tok,"%x",&length);
 		}
-		calc_checksum(addr,length);
+		//!attention
+		//calc_checksum(addr,length);
 	}
     else
-        pcWriteBuffer+=uAppendString(pcWriteBuffer,"Unrecognised checksum parameter!\r\n");
+        pcWriteBuffer += uAppendString(pcWriteBuffer,"Unrecognised checksum parameter!\r\n");
+	*/
+	// ensure we don't return with duff info in write buffer (because it does get output!)
+    *pcWriteBuffer = '\0';
 
-    *pcWriteBuffer='\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
     return pdFALSE;
 }
 
@@ -1339,6 +1361,8 @@ static portBASE_TYPE prvPrintLevelCommand( char *pcWriteBuffer, size_t xWriteBuf
 extern const char *pin_speed_names[];
 static portBASE_TYPE prvPinSpeedCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
+	//!attention
+	/*
     int8_t 			*pcParameterString;
     portBASE_TYPE	xParameterNumber = 1;
     portBASE_TYPE 	xParameterStringLength;
@@ -1346,9 +1370,9 @@ static portBASE_TYPE prvPinSpeedCommand( char *pcWriteBuffer, size_t xWriteBuffe
     int8_t 			state;
 	PIN_SPEED		spi_pin_speed,eth_pin_speed;
 
-    pcParameterString = (int8_t *) FreeRTOS_CLIGetParameter (pcCommandString,		/* The command string itself. */
-							                                xParameterNumber,		/* Return the next parameter. */
-                            							    &xParameterStringLength);	/* Store the parameter string length. */
+    pcParameterString = (int8_t *)FreeRTOS_CLIGetParameter(pcCommandString,		// The command string itself.
+							                                xParameterNumber,		// Return the next parameter.
+                            							    &xParameterStringLength);	// Store the parameter string length.
 
 	if (xParameterStringLength > sizeof(pcParameter) -1)
 	{
@@ -1361,9 +1385,9 @@ static portBASE_TYPE prvPinSpeedCommand( char *pcWriteBuffer, size_t xWriteBuffe
 
 	xParameterNumber++;	// skip on to next parameter
 
-    pcParameterString = (int8_t *) FreeRTOS_CLIGetParameter (pcCommandString,		/* The command string itself. */
-							                                xParameterNumber,		/* Return the next parameter. */
-                            							    &xParameterStringLength);	/* Store the parameter string length. */
+    pcParameterString = (int8_t *)FreeRTOS_CLIGetParameter(pcCommandString,		// The command string itself.
+							                                xParameterNumber,		// Return the next parameter.
+                            							    &xParameterStringLength);	// Store the parameter string length.
 
 	if (xParameterStringLength > sizeof(pcParameter) -1)
 	{
@@ -1376,7 +1400,8 @@ static portBASE_TYPE prvPinSpeedCommand( char *pcWriteBuffer, size_t xWriteBuffe
 
 	if( (PIN_SPEED_BACKSTOP>spi_pin_speed) && (PIN_SPEED_BACKSTOP>eth_pin_speed))
 	{
-		configure_high_speed_pins (spi_pin_speed, eth_pin_speed);
+		//!attention
+		//configure_high_speed_pins (spi_pin_speed, eth_pin_speed);
 
 		zprintf(MEDIUM_IMPORTANCE,"Set FlexSPI to %s and Ethernet to %s\r\n", \
 										pin_speed_names[spi_pin_speed],
@@ -1386,8 +1411,9 @@ static portBASE_TYPE prvPinSpeedCommand( char *pcWriteBuffer, size_t xWriteBuffe
 	{
 		zprintf(MEDIUM_IMPORTANCE,"pinspeed: invalid parameter. Idiot\r\n");
 	}
-
-	*pcWriteBuffer='\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
+	*/
+	// ensure we don't return with duff info in write buffer (because it does get output!)
+	*pcWriteBuffer='\0';
 
 	return pdFALSE;
 }
@@ -1583,32 +1609,49 @@ static portBASE_TYPE prvLEDCommand( char *pcWriteBuffer, size_t xWriteBufferLen,
 	return pdFALSE;
 }
 
-
-
 // ifconfig command
-//extern phy_speed_t phy_speed;
-//extern phy_duplex_t phy_duplex;
-
-static portBASE_TYPE prvIfConfigCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
+// extern phy_speed_t phy_speed;
+// extern phy_duplex_t phy_duplex;
+static portBASE_TYPE prvIfConfigCommand(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString)
 {
 	/* Remove compile time warnings about unused parameters, and check the
 	write buffer is not NULL.  NOTE - for simplicity, this example assumes the
 	write buffer length is adequate, so does not check for buffer overflows. */
-	( void ) pcCommandString;
-	( void ) xWriteBufferLen;
-	configASSERT( pcWriteBuffer );
-    uint32_t pulIPAddress, pulNetMask, pulGatewayAddress, pulDNSServerAddress;
+	(void)pcCommandString;
+	(void)xWriteBufferLen;
+	configASSERT(pcWriteBuffer);
 
-    FreeRTOS_GetAddressConfiguration( &pulIPAddress, &pulNetMask, &pulGatewayAddress, &pulDNSServerAddress );
+    uint32_t pulIPAddress = pulIPAddress, pulNetMask, pulGatewayAddress, pulDNSServerAddress;
+
+    NetworkInterface_GetAddressConfiguration(&pulIPAddress, &pulNetMask, &pulGatewayAddress, &pulDNSServerAddress);
 
     zprintf(CRITICAL_IMPORTANCE, "IP Address: ");
-	zprintf(CRITICAL_IMPORTANCE, "%d.%d.%d.%d",(pulIPAddress&0xff),((pulIPAddress>>8)&0xff),((pulIPAddress>>16)&0xff),((pulIPAddress>>24)&0xff));
+	zprintf(CRITICAL_IMPORTANCE, "%d.%d.%d.%d",
+			(pulIPAddress & 0xff),
+			((pulIPAddress >> 8) & 0xff),
+			((pulIPAddress >> 16) & 0xff),
+			((pulIPAddress >> 24) & 0xff));
+
     zprintf(CRITICAL_IMPORTANCE, "\r\nNetmask:    ");
-	zprintf(CRITICAL_IMPORTANCE, "%d.%d.%d.%d",(pulNetMask&0xff),((pulNetMask>>8)&0xff),((pulNetMask>>16)&0xff),((pulNetMask>>24)&0xff));
+	zprintf(CRITICAL_IMPORTANCE, "%d.%d.%d.%d",
+			(pulNetMask & 0xff),
+			((pulNetMask >> 8) & 0xff),
+			((pulNetMask >> 16) & 0xff),
+			((pulNetMask >> 24) & 0xff));
+
     zprintf(CRITICAL_IMPORTANCE, "\r\nGateway:    ");
-	zprintf(CRITICAL_IMPORTANCE, "%d.%d.%d.%d",(pulGatewayAddress&0xff),((pulGatewayAddress>>8)&0xff),((pulGatewayAddress>>16)&0xff),((pulGatewayAddress>>24)&0xff));
+	zprintf(CRITICAL_IMPORTANCE, "%d.%d.%d.%d",
+			(pulGatewayAddress & 0xff),
+			((pulGatewayAddress >> 8) & 0xff),
+			((pulGatewayAddress >> 16) & 0xff),
+			((pulGatewayAddress >> 24) & 0xff));
+
     zprintf(CRITICAL_IMPORTANCE, "\r\nDNS Server: ");
-	zprintf(CRITICAL_IMPORTANCE, "%d.%d.%d.%d",(pulDNSServerAddress&0xff),((pulDNSServerAddress>>8)&0xff),((pulDNSServerAddress>>16)&0xff),((pulDNSServerAddress>>24)&0xff));
+	zprintf(CRITICAL_IMPORTANCE, "%d.%d.%d.%d",
+			(pulDNSServerAddress & 0xff),
+			((pulDNSServerAddress >> 8) & 0xff),
+			((pulDNSServerAddress >> 16) & 0xff),
+			((pulDNSServerAddress >> 24) & 0xff));
 
 	/*
 	if( kPHY_Speed10M == phy_speed)
@@ -1634,10 +1677,15 @@ static portBASE_TYPE prvNetStatCommand( char *pcWriteBuffer, size_t xWriteBuffer
 	/* Remove compile time warnings about unused parameters, and check the
 	write buffer is not NULL.  NOTE - for simplicity, this example assumes the
 	write buffer length is adequate, so does not check for buffer overflows. */
+
+	//!attention
+	/*
 	( void ) pcCommandString;
 	( void ) xWriteBufferLen;
-	configASSERT( pcWriteBuffer );
+	configASSERT(pcWriteBuffer);
 	FreeRTOS_netstat();
+	*/
+
 	return pdFALSE;
 }
 
@@ -1882,7 +1930,8 @@ static portBASE_TYPE prvTestCaseCommand( char *pcWriteBuffer, size_t xWriteBuffe
             || (firstParam == 21) || (firstParam == 23) || (firstParam == 25) || (firstParam == 27) || (firstParam == 29) \
             || (firstParam == 50) || (firstParam == 73) )
     {
-        hermesTestRunCase(firstParam, (int8_t*)pToken);
+    	//!attention
+        //hermesTestRunCase(firstParam, (int8_t*)pToken);
     }
     /* testcases without additional parameter */
     else if ( (firstParam == 2) || (firstParam == 4) || (firstParam == 6) || (firstParam == 8) || (firstParam == 9) || (firstParam == 10) \
@@ -1892,7 +1941,8 @@ static portBASE_TYPE prvTestCaseCommand( char *pcWriteBuffer, size_t xWriteBuffe
             || (firstParam == 74) || (firstParam == 76) || (firstParam == 77) || (firstParam == 78) \
             || (firstParam == 168) || (firstParam == 192) || (firstParam == 193) || (firstParam == 194) )
     {
-        hermesTestRunCase(firstParam, NULL);
+    	//!attention
+        //hermesTestRunCase(firstParam, NULL);
     }
     else if (firstParam == 40)
     {

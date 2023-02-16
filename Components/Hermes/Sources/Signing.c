@@ -266,7 +266,7 @@ void StoreDerivedKey(void)
 		product_configuration.DerivedKey[i] = DerivedKey[i];
 	}
 	
-	write_product_configuration();
+	//write_product_configuration();
 }
 
 /**************************************************************

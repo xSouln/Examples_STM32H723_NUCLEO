@@ -40,8 +40,10 @@ static void PrivateTerminalComponentEventListener(TerminalT* terminal, TerminalE
 	switch((int)selector)
 	{
 		case TerminalEventTime_1000ms:
+			#if SERIAL_PORT_COMPONENT_ENABLE
 			xTxTransferSetTxLine(&Terminal.Transfer, &SerialPortUART.Tx);
 			xTxTransferStart(&Terminal.Transfer, "qwerty", 6);
+			#endif
 			break;
 		default: break;
 	}
@@ -262,13 +264,15 @@ xResult ComponentsInit(void* parent)
 	ZigbeeComponentInit(parent);
 	#endif
 
-	Timer4->DMAOrInterrupts.UpdateInterruptEnable = true;
-	Timer4->Control1.CounterEnable = true;
-
+	#if SERIAL_PORT_COMPONENT_ENABLE
 	TerminalTxBind(&SerialPortUART.Tx);
+	#endif
 
 	sntp_update_time_stamp = 20000;
-
+/*
+	Timer4->DMAOrInterrupts.UpdateInterruptEnable = true;
+	Timer4->Control1.CounterEnable = true;
+*/
 	Timer2->Control1.CounterEnable = true;
 	//Timer3->Control1.CounterEnable = true;
 	//Timer12->Control1.CounterEnable = true;

@@ -58,7 +58,7 @@
 // -  as the incoming message may be the reflection of a previous attempt to send.
 // Also note that the message index should NOT simply be the position in the buffer. If it was, it
 // means that a late reflection could erroneously 'free' a new entry if the buffer was full.
-
+//==============================================================================
 #include "hermes.h"
 
 /* Standard includes. */
@@ -72,19 +72,23 @@
 #include "hermes-time.h"
 #include "SureNet-Interface.h"
 #include "Server_Buffer.h"
-#include "MQTT.h"   // to allow error notifications to be passed into MQTT stack in case it wants to take remedial action
+
+// to allow error notifications to be passed into MQTT stack in case it wants to take remedial action
+#include "MQTT.h"
 #include "Backoff.h"
+//==============================================================================
+//defines:
 
 // Local #defines
 // 128 messages is 4 for each of 32 devices
-#define SERVER_BUFFER_ENTRIES					32
+#define SERVER_BUFFER_ENTRIES		32
 
 // bit of a guess, but at least we can truncate at this length and dump an error message
-#define MAX_SERVER_MESSAGE_SIZE					MAX_MESSAGE_SIZE_SERVER_BUFFER
+#define MAX_SERVER_MESSAGE_SIZE		MAX_MESSAGE_SIZE_SERVER_BUFFER
 
 // messages larger than this will be stored with pvPortMalloc() / pvPortFree()
 // Tom says that a typical Thalamus message is about 160 bytes
-#define SERVER_MESSAGE_ARRAY_STORAGE_THRESHOLD  192
+#define SERVER_MESSAGE_ARRAY_STORAGE_THRESHOLD  MAX_SERVER_MESSAGE_SIZE//192
 
 #define MESSAGE_STORED_VIA_MALLOC   0xffff
 #define MESSAGE_STORED_STATICALLY	0xfffe
@@ -101,6 +105,8 @@
 #define BASE_MESSAGE_RETRY_MS		40000
 #define MESSAGE_RETRY_MULTIPLIER	2
 #define MESSAGE_RETRY_JITTER_MAX	5000
+//==============================================================================
+//types:
 
 typedef struct
 {
@@ -108,7 +114,7 @@ typedef struct
     uint8_t message[SERVER_MESSAGE_ARRAY_STORAGE_THRESHOLD];
 
 } SERVER_BUFFER_MESSAGE;
-
+//------------------------------------------------------------------------------
 typedef struct
 {
 	// UTC when this message entered the buffer
@@ -132,27 +138,36 @@ typedef struct
     uint64_t	source_mac;
 
 } SERVER_BUFFER_ENTRY;
+//==============================================================================
+//externs:
 
 extern bool global_message_trace_flag;
+//==============================================================================
+//variables:
 
-// Local variables
 // make us a nice buffer to hold message entries
-SERVER_BUFFER_ENTRY		server_buffer[SERVER_BUFFER_ENTRIES] SERVER_BUFFER_MEM_SECTION;
+SERVER_BUFFER_ENTRY server_buffer[SERVER_BUFFER_ENTRIES] SERVER_BUFFER_MEM_SECTION;
+//------------------------------------------------------------------------------
 // store for actual server messages ~ 24K
-SERVER_BUFFER_MESSAGE	server_buffer_message[SERVER_BUFFER_ENTRIES] SERVER_BUFFER_MESSAGE_MEM_SECTION;
+SERVER_BUFFER_MESSAGE server_buffer_message[SERVER_BUFFER_ENTRIES] SERVER_BUFFER_MESSAGE_MEM_SECTION;
+//------------------------------------------------------------------------------
 // must never be zero
-uint8_t 				next_message_index = 1;
-MQTT_MESSAGE			output_mqtt_message;
-const BACKOFF_SPECS		publish_backoff_specs =
+uint8_t next_message_index = 1;
+MQTT_MESSAGE output_mqtt_message;
+//------------------------------------------------------------------------------
+const BACKOFF_SPECS publish_backoff_specs =
 {
 	BASE_MESSAGE_RETRY_MS,
 	MESSAGE_RETRY_MULTIPLIER,
 	MESSAGE_RETRY_JITTER_MAX,
 	MAX_MESSAGE_RETRIES
 };
+//==============================================================================
+//prototypes:
 
-// Local functions
 void server_buffer_message_drop(uint32_t i);
+//==============================================================================
+//functions:
 
 /**************************************************************
  * Function Name   : server_buffer_init
@@ -200,7 +215,7 @@ bool server_buffer_add(SERVER_MESSAGE* message)
 			(uint32_t)(((message->source_mac)>>32) & 0xffffffff),
 			(uint32_t)((message->source_mac) & 0xffffffff),
 			message->message_ptr);
-		//DbgConsole_Flush();
+		DbgConsole_Flush();
 	}
 
     if(i == SERVER_BUFFER_ENTRIES)
@@ -297,7 +312,7 @@ bool server_buffer_add(SERVER_MESSAGE* message)
     }
 	return true;
 }
-
+//------------------------------------------------------------------------------
 bool server_buffer_construct_message(MQTT_MESSAGE* message, uint32_t index)
 {
 	// Make header of form 0x0iir where i is index, r is retries.
@@ -336,7 +351,6 @@ bool server_buffer_construct_message(MQTT_MESSAGE* message, uint32_t index)
 
 	return true;
 }
-
 /**************************************************************
  * Function Name   : server_buffer_get_next_message
  * Description     : Generates and returns a pointer to the next message.
@@ -436,7 +450,6 @@ void server_buffer_message_drop(uint32_t i)
     // mark this entry as empty
     server_buffer[i].index = 0;
 }
-
 /**************************************************************
  * Function Name   : server_buffer_process_reflected_message
  * Description     : Use a reflected message to remove an entry from the buffer
@@ -482,7 +495,6 @@ bool server_buffer_process_reflected_message(char *message)
     }
     return false;
 }
-
 /**************************************************************
  * Function Name   : server_buffer_dump
  * Description     : Dump out active buffer entries
@@ -513,3 +525,4 @@ void server_buffer_dump()
         }
     }
 }
+//==============================================================================

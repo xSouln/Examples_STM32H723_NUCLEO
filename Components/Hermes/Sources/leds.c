@@ -194,7 +194,7 @@ static void LED_Start_Pattern(LED_MODE new_mode, LED_COLOUR new_colour, LED_PATT
 		LED_Progress_Stage(true);
 	}
 }
-
+//------------------------------------------------------------------------------
 static bool LED_Progress_Stage(bool initial)
 {
 	if(!led_current_pattern.pattern || (LED_PATTERN_NO_STAGE == led_current_pattern.stage_index))
@@ -257,7 +257,7 @@ static bool LED_Progress_Stage(bool initial)
 	
 	return true;
 }
-
+//------------------------------------------------------------------------------
 static bool LED_Approach_Target(void)
 {
 	uint32_t	i;
@@ -324,7 +324,7 @@ static bool LED_Approach_Target(void)
 	
 	return false;
 }
-
+//------------------------------------------------------------------------------
 static uint32_t LED_Implement_Pattern(void)
 {
 	static Timer	led_update_timer 	= EMPTY_TIMER;
@@ -404,7 +404,7 @@ static uint32_t LED_Implement_Pattern(void)
 	
 	return next_delay;
 }
-
+//------------------------------------------------------------------------------
 // This is called from other parts of the project
 void LED_Request_Pattern(LED_MODE mode, LED_COLOUR colour, LED_PATTERN_TYPE pattern, uint32_t duration)
 {
@@ -412,7 +412,7 @@ void LED_Request_Pattern(LED_MODE mode, LED_COLOUR colour, LED_PATTERN_TYPE patt
 	
 	xQueueSend(xLedMailbox, &pattern_to_set, 0);
 }
-
+//------------------------------------------------------------------------------
 void led_task(void *pvParameters)
 {
 	LED_PATTERN_REQUEST	incoming_pattern;
@@ -438,7 +438,7 @@ void led_task(void *pvParameters)
 		}
 	};
 }
-
+//------------------------------------------------------------------------------
 void led_driver_init(void)
 {
     xLedMailbox = xQueueCreate(3, sizeof(LED_PATTERN_REQUEST));

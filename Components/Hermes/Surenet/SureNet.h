@@ -2,7 +2,7 @@
 *
 * SUREFLAP CONFIDENTIALITY & COPYRIGHT NOTICE
 *
-* Copyright © 2013-2021 Sureflap Limited.
+* Copyright ï¿½ 2013-2021 Sureflap Limited.
 * All Rights Reserved.
 *
 * All information contained herein is, and remains the property of Sureflap
@@ -21,34 +21,32 @@
 *
 *
 **************************************************************************/
-
 #ifndef SURENET_H
 #define	SURENET_H
+//==============================================================================
+//includes:
 
-#define	USE_RANDOM_KEY	true	// set to true to use a different truly random key when encrypting
-								// RF data packets between Hub and Devices.
+//==============================================================================
+//defines:
+
+// set to true to use a different truly random key when encrypting
+// RF data packets between Hub and Devices.
+#define	USE_RANDOM_KEY	true
+
 #define RF_CHANNEL1 15
 #define RF_CHANNEL2 20
 #define RF_CHANNEL3 26
 #define INITIAL_CHANNEL RF_CHANNEL1
-
-#define PAIRING_SERVER_REQUEST_LOCKOUT_TIME	(10*usTICK_SECONDS)	// if the Server requests pairing mode
-	 															// within this time window, it will be
-	 															// denied. This is to stop a slow server
-	 															// 'echo' of a change to the pairing mode
-	 															// register putting the Hub back into
-	 															// pairing mode immediately after a
-	 															// successful pairing.
-
-typedef struct  // used to transfer received message between SureNet and SureNetDriver
-{
-    uint64_t uiSrcAddr;     // Source address
-    uint64_t uiDstAddr;
-    uint8_t ucBufferLength;
-    uint8_t ucRSSI;
-    uint8_t ucRxBuffer[127];   // Receive buffer
-} RX_BUFFER;
-
+//------------------------------------------------------------------------------
+// if the Server requests pairing mode
+// within this time window, it will be
+// denied. This is to stop a slow server
+// 'echo' of a change to the pairing mode
+// register putting the Hub back into
+// pairing mode immediately after a
+// successful pairing.
+#define PAIRING_SERVER_REQUEST_LOCKOUT_TIME	(10 * usTICK_SECONDS)
+//------------------------------------------------------------------------------
 // Surenet->Surenet-Interface EventGroup flags
 #define SURENET_GET_PAIRMODE        (1<<0)
 #define SURENET_GET_NUM_PAIRS       (1<<1)
@@ -57,9 +55,23 @@ typedef struct  // used to transfer received message between SureNet and SureNet
 #define SURENET_GET_CHANNEL			(1<<4)
 #define SURENET_GET_DEVICE_TABLE	(1<<5)
 #define SURENET_GET_LAST_HEARD_FROM (1<<6)
+//------------------------------------------------------------------------------
+// records with timestamps some SureNet activity
+#define	SURENET_ACTIVITY_LOG	true
+//==============================================================================
+//types:
 
-#define	SURENET_ACTIVITY_LOG	true	// records with timestamps some SureNet activity
+// used to transfer received message between SureNet and SureNetDriver
+typedef struct
+{
+    uint64_t uiSrcAddr; // Source address
+    uint64_t uiDstAddr;
+    uint8_t ucBufferLength;
+    uint8_t ucRSSI;
+    uint8_t ucRxBuffer[127]; // Receive buffer
 
+} RX_BUFFER;
+//------------------------------------------------------------------------------
 #if SURENET_ACTIVITY_LOG
 typedef enum
 {
@@ -81,7 +93,7 @@ typedef enum
 	SURENET_LOG_END_OF_SESSION,	 // 15
 
 } SURENET_LOG_ACTIVITY;
-
+//------------------------------------------------------------------------------
 
 typedef struct
 {
@@ -91,10 +103,15 @@ typedef struct
 	bool					used;
 } SURENET_LOG_ENTRY;
 
-#endif
+#endif //SURENET_ACTIVITY_LOG
+//==============================================================================
+//functions:
 
 BaseType_t sn_init(uint64_t *mac, uint16_t panid, uint8_t channel);
-void sn_device_pairing_success(ASSOCIATION_SUCCESS_INFORMATION *assoc_info);    // call back to say association successful
+
+// call back to say association successful
+void sn_device_pairing_success(ASSOCIATION_SUCCESS_INFORMATION *assoc_info);
+
 void sn_association_changed(PAIRING_REQUEST);
 uint8_t sn_how_many_pairs(void);
 void sn_set_hub_pairing_mode(PAIRING_REQUEST state);
@@ -107,6 +124,5 @@ SN_DATA_RECEIVED_RESPONSE sn_data_received(RECEIVED_PACKET *rx_packet);
 bool sn_process_received_packet(RX_BUFFER *rx_buffer);
 void sn_GenerateSecurityKey(uint8_t device_index);
 void sn_CalculateSecretKey(uint8_t device_index);
-
-#endif	/* SURENET_H */
-
+//==============================================================================
+#endif //SURENET_H

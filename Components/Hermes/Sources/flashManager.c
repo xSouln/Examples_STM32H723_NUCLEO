@@ -304,3 +304,4 @@ FlashOperationResultT HermesFlashInit(void)
 
 	return 0;
 }
+//==============================================================================

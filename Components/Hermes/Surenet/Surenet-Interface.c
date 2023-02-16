@@ -103,15 +103,15 @@ void Surenet_Interface_Handler(void)
 
     // Receive Packet
     if((uxQueueMessagesWaiting(xRxMailbox) > 0)
-    && (xQueueReceive(xRxMailbox, &rx_packet, 0) == pdPASS))
+    && (xQueueReceive(xRxMailbox, &rx_packet, 10) == pdPASS))
     {
         result = surenet_data_received_cb(&rx_packet);
-        xQueueSend(xRxMailbox_resp, &result, 0);
+        xQueueSend(xRxMailbox_resp, &result, 10);
     }
 
     // check for a successful association
     if((uxQueueMessagesWaiting(xAssociationSuccessfulMailbox) > 0)
-    && (xQueueReceive(xAssociationSuccessfulMailbox, &assoc_info, 0) == pdPASS))
+    && (xQueueReceive(xAssociationSuccessfulMailbox, &assoc_info, 10) == pdPASS))
     {
     	// got successful association, so store in the pairing table
     	// call back to say association successful
@@ -120,7 +120,7 @@ void Surenet_Interface_Handler(void)
 
     // check for pairing mode change
     if((uxQueueMessagesWaiting(xPairingModeHasChangedMailbox) > 0)
-    && (xQueueReceive(xPairingModeHasChangedMailbox, &presult, 0) == pdPASS))
+    && (xQueueReceive(xPairingModeHasChangedMailbox, &presult, 10) == pdPASS))
     {
     	// got a request, so service it
         surenet_pairing_mode_change_cb(presult);
@@ -128,28 +128,30 @@ void Surenet_Interface_Handler(void)
 
     // check for a request for the next message to send
     if((uxQueueMessagesWaiting(xGetNextMessageMailbox) > 0)
-    && (xQueueReceive(xGetNextMessageMailbox, &mac_address, 0) == pdPASS))
+    && (xQueueReceive(xGetNextMessageMailbox, &mac_address, 10) == pdPASS))
     {
     	// got a request, so service it
-        message_params.new_message = surenet_get_next_message_cb(mac_address, &message_params.ptr, &message_params.handle);
+        message_params.new_message = surenet_get_next_message_cb(mac_address,
+																&message_params.ptr,
+																&message_params.handle);
 
         if (message_params.new_message)
         {
         	DebugCounter.message_device_to_server_add++;
         }
-        xQueueSend(xGetNextMessageMailbox_resp, &message_params, 0);
+        xQueueSend(xGetNextMessageMailbox_resp, &message_params, 10);
     }
 
     // check for data from the most recent DEVICE_AWAKE message
     if((uxQueueMessagesWaiting(xDeviceAwakeMessageMailbox) > 0)
-    && (xQueueReceive(xDeviceAwakeMessageMailbox, &device_awake_mailbox, 0) == pdPASS))
+    && (xQueueReceive(xDeviceAwakeMessageMailbox, &device_awake_mailbox, 10) == pdPASS))
     {
     	// got a request, so service it
         surenet_device_awake_notification_cb(&device_awake_mailbox);
     }
 
 	if((uxQueueMessagesWaiting(xPingDeviceMailbox_resp) > 0)
-	&& (xQueueReceive(xPingDeviceMailbox_resp, &ping_result, 0) == pdPASS))
+	&& (xQueueReceive(xPingDeviceMailbox_resp, &ping_result, 10) == pdPASS))
 	{
 		// SureNet has sent us a ping reply!
 		surenet_ping_response_cb(&ping_result);
@@ -167,9 +169,7 @@ void Surenet_Interface_Handler(void)
 
 	// Check for register updates.
 	HubReg_Handle_Messages();
-
 }
-
 /**************************************************************
  * Function Name   : surenet_init
  * Description     : Called before scheduler starts to initialise SureNet.
@@ -180,7 +180,7 @@ void Surenet_Interface_Handler(void)
  **************************************************************/
 BaseType_t surenet_init(uint64_t *mac, uint16_t panid, uint8_t channel)
 {
-    xSendDeviceStatusMailbox	= xQueueCreate(1, sizeof(DEVICE_STATUS_REQUEST));
+    xSendDeviceStatusMailbox = xQueueCreate(1, sizeof(DEVICE_STATUS_REQUEST));
     return sn_init(mac, panid, channel);
 }
 
@@ -193,7 +193,7 @@ BaseType_t surenet_init(uint64_t *mac, uint16_t panid, uint8_t channel)
  **************************************************************/
 void surenet_send_firmware_chunk(DEVICE_FIRMWARE_CHUNK *device_firmware_chunk)
 {
-	xQueueSend(xDeviceFirmwareChunkMailbox,device_firmware_chunk,pdMS_TO_TICKS(100));
+	xQueueSend(xDeviceFirmwareChunkMailbox, device_firmware_chunk, pdMS_TO_TICKS(100));
 }
 
 /**************************************************************
@@ -351,7 +351,7 @@ uint8_t surenet_set_channel(uint8_t channel)
 	  	channel = RF_CHANNEL3;
 	}
 
-    xQueueSend(xSetChannelMailbox,&channel,0);
+    xQueueSend(xSetChannelMailbox, &channel, 0);
 	return channel;
 }
 

@@ -213,8 +213,12 @@ void EXTI9_5_IRQHandler(void)
 void TIM4_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM4_IRQn 0 */
+	extern void common_tc_timer_irq();
+
 	Timer4->Status.UpdateInterrupt = false;
-	ComponentsTimeSynchronization();
+
+	 common_tc_timer_irq();
+	//ComponentsTimeSynchronization();
   /* USER CODE END TIM4_IRQn 0 */
   /* USER CODE BEGIN TIM4_IRQn 1 */
 
@@ -227,9 +231,8 @@ void TIM4_IRQHandler(void)
 void USART3_IRQHandler(void)
 {
   /* USER CODE BEGIN USART3_IRQn 0 */
-#ifdef SERIAL_PORT_UART_COMPONENT_ENABLE
-	SerialPortComponentIRQListener();
-#endif
+	extern void HermesConsoleUART_IRQ();
+	HermesConsoleUART_IRQ();
   /* USER CODE END USART3_IRQn 0 */
   /* USER CODE BEGIN USART3_IRQn 1 */
 

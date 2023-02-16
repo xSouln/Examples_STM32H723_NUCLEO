@@ -44,13 +44,9 @@
 #include "credentials.h"
 
 #include "Common/xConverter.h"
+//==============================================================================
+//types:
 
-// Main entry point is process_MQTT_message_from_server()
-
-// hideous globals
-extern uint8_t bootRN;
-
-// local typedefs
 typedef enum
 {
     PARSE_COMMAND,
@@ -59,13 +55,19 @@ typedef enum
     PARSE_NUM_VALUES,
     PARSE_VALUES,
 } PARSER_STATE;
-
+//------------------------------------------------------------------------------
 typedef enum
 {
     MESSAGE_FOR_HUB,
     MESSAGE_FOR_DEVICE,
 } MESSAGE_DESTINATION;
+//==============================================================================
+//externs:
 
+// hideous globals
+extern uint8_t bootRN;
+extern bool global_message_trace_flag;
+//==============================================================================
 // local functions
 void TranslateToDevice(uint64_t mac, uint16_t address, uint8_t *values, bool sendGet, uint32_t numVals);
 uint32_t msg_string_to_bytes(char *str,
@@ -87,7 +89,6 @@ uint32_t msg_string_to_bytes(char *str,
  * Outputs         :
  * Returns         :
  **************************************************************/
-extern bool global_message_trace_flag;
 void process_MQTT_message_from_server(char *message,char *subtopic)
 {
     uint8_t 			values[MAX_MESSAGE_BYTES];
@@ -224,9 +225,9 @@ void process_MQTT_message_from_server(char *message,char *subtopic)
 						else if (numValues == 9)
 						{
 							ping_value = values[0];
-							DeviceMAC = ((uint64_t)values[1])<<56 | ((uint64_t)values[2])<<48 | \
-										((uint64_t)values[3])<<40 | ((uint64_t)values[4])<<32 | \
-										((uint64_t)values[5])<<24 | ((uint64_t)values[6])<<16 | \
+							DeviceMAC = ((uint64_t)values[1])<<56 | ((uint64_t)values[2])<<48 |
+										((uint64_t)values[3])<<40 | ((uint64_t)values[4])<<32 |
+										((uint64_t)values[5])<<24 | ((uint64_t)values[6])<<16 |
 										((uint64_t)values[7])<<8  | ((uint64_t)values[8]);
 							surenet_ping_device(DeviceMAC,ping_value);
 						}
@@ -295,7 +296,7 @@ void process_MQTT_message_from_server(char *message,char *subtopic)
                         break;
 
                     case MSG_SEND_REG_RANGE:
-                        TranslateToDevice(DeviceMAC,address,NULL,true,numValues);
+                        TranslateToDevice(DeviceMAC, address, NULL, true, numValues);
                         break;
 
                     case MSG_REG_VALUES:
@@ -303,7 +304,7 @@ void process_MQTT_message_from_server(char *message,char *subtopic)
                         break;
 
                     default:
-						zprintf(MEDIUM_IMPORTANCE, "Unrecognised message received for device\r\nMessage: %s Subtopic: %s\r\n",message, subtopic);
+						zprintf(MEDIUM_IMPORTANCE, "Unrecognised message received for device\r\nMessage: %s Subtopic: %s\r\n", message, subtopic);
                         break;
                 }
                 break;
@@ -311,8 +312,6 @@ void process_MQTT_message_from_server(char *message,char *subtopic)
         }
     }
 }
-
-
 /**************************************************************
  * Function Name   : msg_string_to_bytes
  * Description     : split a message into its components
@@ -342,7 +341,7 @@ uint32_t msg_string_to_bytes(char *str, 			// the supplied string to convert
 {
     uint32_t len = strlen(str);
     uint32_t i,j;
-    uint8_t numVals = 0;							// how many values we have found
+    uint8_t numVals = 0; // how many values we have found
     uint16_t val;
     bool valid;
     bool expectHex = false;

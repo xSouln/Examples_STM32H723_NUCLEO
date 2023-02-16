@@ -81,7 +81,7 @@ DEVICE_BUFFER device_buffer[DEVICE_BUFFER_SIZE] DEVICE_BUFFER_MEM_SECTION;
 void device_buffer_init(void)
 {
 	// clear our buffer;
-    memset(device_buffer,0,sizeof(device_buffer));
+    memset(device_buffer, 0, sizeof(device_buffer));
 }
 
 /**************************************************************

@@ -38,6 +38,9 @@
 #include "DeviceToServer.h"
 #include "message_parser.h"
 
+// This is 2 bytes for command, 2 for length and 1 for parity
+#define MESSAGE_OVERHEAD	5
+
 // Local functions
 void packet_dump(RECEIVED_PACKET *rx_packet);
 
@@ -49,9 +52,6 @@ extern uint8_t hub_debug_mode;
  * Outputs         :
  * Returns         : TRUE if the message could be processed (SureNet will return an ACK), FALSE if not (NACK).
  **************************************************************/
-// This is 2 bytes for command, 2 for length and 1 for parity
-#define MESSAGE_OVERHEAD	5
-
 SN_DATA_RECEIVED_RESPONSE surenet_data_received_cb(RECEIVED_PACKET *rx_packet)
 {
 	T_MESSAGE *rx_message;	
