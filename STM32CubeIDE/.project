@@ -777,11 +777,6 @@
 			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/usart.c</locationURI>
 		</link>
 		<link>
-			<name>Application/User/Core/usb_otg.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/usb_otg.c</locationURI>
-		</link>
-		<link>
 			<name>Drivers/BSP/Components/lan8742.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/Drivers/BSP/Components/lan8742/lan8742.c</locationURI>

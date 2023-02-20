@@ -38,7 +38,6 @@
         * Output
         * EVENT_OUT
         * EXTI
-     PA9   ------> USB_OTG_HS_VBUS
      PA10   ------> USB_OTG_HS_ID
 */
 void MX_GPIO_Init(void)
@@ -84,12 +83,6 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(USB_FS_OVCR_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PtPin */
-  GPIO_InitStruct.Pin = USB_FS_VBUS_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(USB_FS_VBUS_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PtPin */
   GPIO_InitStruct.Pin = USB_FS_ID_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -101,7 +94,7 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pin = AT86RF233_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(AT86RF233_CS_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PtPin */

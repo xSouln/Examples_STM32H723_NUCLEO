@@ -20,13 +20,11 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include "crc.h"
-#include "dma.h"
 #include "lwip.h"
 #include "rng.h"
 #include "spi.h"
 #include "tim.h"
 #include "usart.h"
-#include "usb_otg.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -115,16 +113,14 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART3_UART_Init();
-  //MX_USB_OTG_HS_USB_Init();
-  //MX_DMA_Init();
-  MX_SPI3_Init();
-  MX_TIM4_Init();
-  MX_TIM5_Init();
-  MX_RNG_Init();
   MX_CRC_Init();
+  MX_RNG_Init();
+  MX_SPI3_Init();
+  MX_TIM12_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
-  MX_TIM12_Init();
+  MX_TIM4_Init();
+  MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start(&htim2);
   HAL_TIM_PWM_Start(&htim12, TIM_CHANNEL_1);
@@ -173,20 +169,23 @@ void SystemClock_Config(void)
 
   while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
 
+  /** Macro to configure the PLL clock source
+  */
+  __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
+
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
-  RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 4;//
-  RCC_OscInitStruct.PLL.PLLN = 275;//125
+  RCC_OscInitStruct.PLL.PLLM = 4;
+  RCC_OscInitStruct.PLL.PLLN = 275;
   RCC_OscInitStruct.PLL.PLLP = 1;
   RCC_OscInitStruct.PLL.PLLQ = 5;
   RCC_OscInitStruct.PLL.PLLR = 5;
-  RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_2;
+  RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_1;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
   RCC_OscInitStruct.PLL.PLLFRACN = 0;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
