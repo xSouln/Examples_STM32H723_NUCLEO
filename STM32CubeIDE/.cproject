@@ -113,6 +113,8 @@
 									<listOptionValue builtIn="false" value="../../Components/Hermes/Sources"/>
 									<listOptionValue builtIn="false" value="../../Components/Hermes/Surenet"/>
 									<listOptionValue builtIn="false" value="../../Components/Hermes/Surenet/SureNetDriver"/>
+									<listOptionValue builtIn="false" value="../../Components/Hermes/Settings"/>
+									<listOptionValue builtIn="false" value="../../Components/Hermes/Console"/>
 									<listOptionValue builtIn="false" value="../../MQTT"/>
 									<listOptionValue builtIn="false" value="../../MQTT/AWS"/>
 									<listOptionValue builtIn="false" value="../../MQTT/AWS/include"/>
@@ -129,8 +131,6 @@
 									<listOptionValue builtIn="false" value="&quot;../..\Middlewares\Third_Party\FreeRTOS\FreeRTOS-Plus-CLI&quot;"/>
 									<listOptionValue builtIn="false" value="../../Middlewares/Third_Party/wolfSSL_wolfSSL_wolfSSL/wolfssl/"/>
 									<listOptionValue builtIn="false" value="../../wolfSSL"/>
-									<listOptionValue builtIn="false" value="../../Components/Hermes/Utilities"/>
-									<listOptionValue builtIn="false" value="../../Hermes/Console"/>
 								</option>
 								<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.languagestandard.317766743" name="Language standard" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.languagestandard" useByScannerDiscovery="true" value="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.languagestandard.value.gnu18" valueType="enumerated"/>
 								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c.541946347" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c"/>

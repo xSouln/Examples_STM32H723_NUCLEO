@@ -89,7 +89,7 @@
 		<link>
 			<name>UserSettings/wolfSSL.I-CUBE-wolfSSL_conf.h</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/wolfSSL/wolfSSL.I-CUBE-wolfSSL_conf.h</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/Components/Hermes/Settings/wolfSSL.I-CUBE-wolfSSL_conf.h</locationURI>
 		</link>
 		<link>
 			<name>UserSettings/wolfSSL_user_config.h</name>
