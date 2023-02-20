@@ -336,7 +336,7 @@ void device_buffer_dump(void)
 			}
 			zprintf(CRITICAL_IMPORTANCE, "\r\n");
 
-			DbgConsole_Flush();
+			HermesConsoleFlush();
 		}
     }
 }

@@ -240,8 +240,10 @@ void snd_stack_task(void)
 		{
 			pairing_mode_timeout.active = false;	
 			PAIRING_REQUEST request	= { 0, false, PAIRING_REQUEST_SOURCE_TIMEOUT };
+
 			// turn off pairing mode
 			snd_pairing_mode(request);
+
 			zprintf(LOW_IMPORTANCE,"Pairing mode has timed out\r\n");
 			// Note that this instructs the stack to change pairing mode. It will ripple
 			// down through the stack, and back up again, and eventually reach surenet_pairing_mode_change_cb()
@@ -290,8 +292,8 @@ void snd_stack_init(void)
  **************************************************************/
 void snd_set_channel(uint8_t ucChannel)
 {
-    wpan_mlme_set_req(phyCurrentChannel,&ucChannel);
-   	wpan_mlme_set_req(phyTransmitPower,&TX_Power_Per_Channel[ucChannel]);		
+    wpan_mlme_set_req(phyCurrentChannel, &ucChannel);
+   	wpan_mlme_set_req(phyTransmitPower, &TX_Power_Per_Channel[ucChannel]);
     current_channel = ucChannel;
     // Note we will get a callback to usr_mlme_set_conf() when this change has taken effect
 }
@@ -336,6 +338,7 @@ void snd_pairing_mode(PAIRING_REQUEST pairing)
 		// start timeout if the request is to activate pairing mode, and we're not already
 		// in a timeout period, i.e. don't retrigger it.
 		pairing_mode_timeout.timestamp = get_microseconds_tick();
+
 		// this timeout is monitored in Surenet_Interface_Handler()
 		pairing_mode_timeout.active = true;
 		if(pairing.source == PAIRING_REQUEST_SOURCE_BEACON_REQUEST)
@@ -352,7 +355,7 @@ void snd_pairing_mode(PAIRING_REQUEST pairing)
 	// the request is to go into pairing mode
 	// && the last request was less than 10 seconds ago
 	// && the last request was to end pairing mode (i.e. successful pairing probably)
-	if((PAIRING_REQUEST_SOURCE_SERVER == pairing.source)
+	if((pairing.source == PAIRING_REQUEST_SOURCE_SERVER)
 	&& pairing.enable
 	&& ((get_microseconds_tick() - requested_pairing_mode.timestamp) < PAIRING_SERVER_REQUEST_LOCKOUT_TIME)
 	&& (!requested_pairing_mode.enable))
@@ -411,6 +414,7 @@ void usr_mcps_data_conf(uint8_t msduHandle, uint8_t status)
     {
         zprintf(MEDIUM_IMPORTANCE, "WEIRD - RECEIVED CALLBACK FOR UNKNOWN HANDLE\r\n");
     }
+
     // status should be MAC_SUCCESS
     if (MAC_SUCCESS != status)
     {
@@ -431,7 +435,7 @@ void usr_mlme_reset_conf(uint8_t status)
 	}
 	else
 	{
-		/* something went wrong; restart */
+		//something went wrong; restart
 		wpan_mlme_reset_req(true);
 	}
 }
@@ -448,8 +452,13 @@ void usr_mlme_get_conf(uint8_t status, uint8_t PIBAttribute, void *PIBAttributeV
 	else if((status == MAC_SUCCESS) && (PIBAttribute == phyChannelsSupported))
     {
         uint8_t short_addr[2];
-        short_addr[0] = (uint8_t)COORD_SHORT_ADDR; /* low byte */
-        short_addr[1] = (uint8_t)(COORD_SHORT_ADDR >> 8); /*high byte */
+
+        //low byte
+        short_addr[0] = (uint8_t)COORD_SHORT_ADDR;
+
+        //high byte
+        short_addr[1] = (uint8_t)(COORD_SHORT_ADDR >> 8);
+
         wpan_mlme_set_req(macShortAddress, short_addr);
 	}
 	else if((status == MAC_SUCCESS) && (PIBAttribute == phyCurrentChannel))
@@ -459,7 +468,7 @@ void usr_mlme_get_conf(uint8_t status, uint8_t PIBAttribute, void *PIBAttributeV
 	}
 	else
     {
-		/* Something went wrong; restart */
+		// Something went wrong; restart
         zprintf(HIGH_IMPORTANCE, "Unexpected attribute get callback - restarting stack\r\n");
 		wpan_mlme_reset_req(true);
 	}
@@ -492,6 +501,7 @@ void usr_mlme_set_conf(uint8_t status, uint8_t PIBAttribute)
     {
 		// Set length of Beacon Payload  - have to do this before setting beacon payload
 		uint8_t beacon_payload_len = sizeof(Beacon_Payload);
+
 		// will call back to usr_mlme_set_conf()
 		wpan_mlme_set_req(macBeaconPayloadLength, &beacon_payload_len);
 	}
@@ -532,9 +542,8 @@ void usr_mlme_set_conf(uint8_t status, uint8_t PIBAttribute)
 		// where it is set via TAL_CURRENT_CHANNEL_DEFAULT. But we do it here to ensure consistency
 		// between SureNetDriver and the MAC. The 'master' value is now current_channel which is
 		// in SureNetDriver, and this is manipulated via snd_set_channel() and snd_get_channel()
-		//wpan_mlme_start_req(pan_id, current_channel, current_channel_page, 15, 15, true, false, false);
 		wpan_mlme_start_req(pan_id, current_channel, current_channel_page, 15, 15, true, false, false);
-    	wpan_mlme_set_req(phyTransmitPower,&TX_Power_Per_Channel[current_channel]);			
+    	wpan_mlme_set_req(phyTransmitPower, &TX_Power_Per_Channel[current_channel]);
 	}
 	else if((status == MAC_SUCCESS) && (PIBAttribute == macAssociationPermit))
     {
@@ -611,8 +620,8 @@ void usr_mlme_associate_ind(uint64_t DeviceAddress,
 	 * Get the next available short address for this device
 	 */
 	uint16_t associate_short_addr = macShortAddress_def;
-//    if (is_mac_in_pairing_table(mac_address)==true)
 
+	//if (is_mac_in_pairing_table(mac_address) == true)
 	if (assign_new_short_addr(DeviceAddress, &associate_short_addr))
     {
 		wpan_mlme_associate_resp(DeviceAddress, associate_short_addr, ASSOCIATION_SUCCESSFUL);
@@ -620,6 +629,7 @@ void usr_mlme_associate_ind(uint64_t DeviceAddress,
     else
     {
         zprintf(HIGH_IMPORTANCE, "PAN FULL\r\n");
+
         // PAN_ACCESS_DENIED
 		wpan_mlme_associate_resp(DeviceAddress, associate_short_addr, PAN_AT_CAPACITY);
 	}
@@ -812,7 +822,8 @@ void usr_mlme_comm_status_ind(wpan_addr_spec_t *SrcAddrSpec,
     {
         zprintf(HIGH_IMPORTANCE,"usr_mlme_comm_status_ind() called with status=0x%02X\r\n",status);
     }
-	/* Keep compiler happy. */
+
+	// Keep compiler happy.
 	SrcAddrSpec = SrcAddrSpec;
 	DstAddrSpec = DstAddrSpec;
 }

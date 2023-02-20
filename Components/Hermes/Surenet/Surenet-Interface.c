@@ -47,7 +47,6 @@
 
 #include "RegisterMap.h"
 
-
 // local functions
 
 // These mailboxes are used to transfer data into / out of the SureNet stack

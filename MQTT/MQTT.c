@@ -51,24 +51,50 @@
 #include "lwip.h"
 #include "rng.h"
 //==============================================================================
+//types:
+
+typedef enum
+{
+	CRED_REQ_USE_FLASH_KEY,
+	CRED_REQ_USE_RAM_KEY,
+
+} CRED_REQ_KEY_TYPE;
+//==============================================================================
+//defines:
+
 #ifndef MQTT_SERVER_SIMULATED
+
+//==============================================================================
+//externs:
 
 extern QueueHandle_t		xOutgoingMQTTMessageMailbox;
 extern QueueHandle_t		xBufferMessageMailbox;
 extern QueueHandle_t 		xRestartNetworkMailbox;
 extern EventGroupHandle_t	xConnectionStatus_EventGroup;
+extern QueueHandle_t xOutgoingMQTTMessageMailbox;
+//==============================================================================
+//variables:
 
 STORED_CREDENTIAL MQTT_Stored_Certificate MQTT_STORED_CERTIFICATE_MEM_SECTION;
 STORED_CREDENTIAL MQTT_Stored_Private_Key MQTT_STORED_PRIVATE_KEY_MEM_SECTION;
+SUREFLAP_CREDENTIALS aws_credentials MQTT_SUREFLAP_CREDENTIALS_MEM_SECTION;
+
+static MQTT_MESSAGE mqtt_outgoing_message;
+static char mqtt_signed_message[BASE_TOPIC_MAX_SIZE + MAX_INCOMING_MQTT_MESSAGE_SIZE_SMALL + SIGNATURE_LENGTH_ASCII + 1];
 
 static AWS_IoT_Client 			aws_client MQTT_AWS_CLIENT_MEM_SECTION;
-SUREFLAP_CREDENTIALS			aws_credentials MQTT_SUREFLAP_CREDENTIALS_MEM_SECTION;
 static MQTT_CONNECTION_STATE	mqtt_connection_state = MQTT_STATE_INITIAL;
 static char aws_certificat[CERTIFICATE_MAX_SIZE] MQTT_CERTIFICATE_MEM_SECTION;
 static bool no_creds = false;
+
+static char response_buffer[CREDENTIAL_BUFFER_SIZE];
 //==============================================================================
+//prototypes:
+
 static void MQTT_Hash_It_Up(SUREFLAP_CREDENTIALS* creds);
 //==============================================================================
+//functions:
+
 static bool MQTT_Init(AWS_IoT_Client* client)
 {
 	memset(client, 0, sizeof(AWS_IoT_Client));
@@ -481,14 +507,6 @@ static bool MQTT_Interpret_Credentials(SUREFLAP_CREDENTIALS* creds, char* respon
 	return valid_creds;
 }
 //------------------------------------------------------------------------------
-typedef enum
-{
-	CRED_REQ_USE_FLASH_KEY,
-	CRED_REQ_USE_RAM_KEY,
-} CRED_REQ_KEY_TYPE;
-
-static char response_buffer[CREDENTIAL_BUFFER_SIZE];
-
 static bool MQTT_Send_Credential_Request(SUREFLAP_CREDENTIALS* creds)
 {
 	static char fullContent[] = "serial_number=####-#######"
@@ -771,10 +789,6 @@ static bool MQTT_Subscribe(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credent
 //------------------------------------------------------------------------------
 static bool MQTT_Poll(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials)
 {
-	extern QueueHandle_t xOutgoingMQTTMessageMailbox;
-
-	static MQTT_MESSAGE outgoing_message;
-	char signed_message[BASE_TOPIC_MAX_SIZE + MAX_INCOMING_MQTT_MESSAGE_SIZE_SMALL + SIGNATURE_LENGTH_ASCII + 1];
 	static MQTT_MESSAGE* pending_message = NULL;
 
 	IoT_Error_t result;
@@ -786,7 +800,7 @@ static bool MQTT_Poll(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials)
 		return false;
 	}
 
-	if(pending_message || (pdPASS == xQueueReceive(xOutgoingMQTTMessageMailbox, &outgoing_message, 50)))
+	if(pending_message || (pdPASS == xQueueReceive(xOutgoingMQTTMessageMailbox, &mqtt_outgoing_message, 50)))
 	{
 		// We now need to sign the outgoing message in accordance with the current
 		// value of the Derived Key.
@@ -794,18 +808,30 @@ static bool MQTT_Poll(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials)
 		// and 1 byte space)
 		// Note that we need to re-sign it each time we try to send it in case the Derived Key
 		// has changed.
-		snprintf(signed_message,
+		memset(mqtt_signed_message, 0, sizeof(mqtt_signed_message));
+
+		snprintf(mqtt_signed_message,
 				(BASE_TOPIC_MAX_SIZE + MAX_INCOMING_MQTT_MESSAGE_SIZE_SMALL + SIGNATURE_LENGTH_ASCII + 1),
 				"%s/messages%s%s",
 				credentials->base_topic,
-				outgoing_message.subtopic,
-				outgoing_message.message);
+				mqtt_outgoing_message.subtopic,
+				mqtt_outgoing_message.message);
 
-		CalculateSignature((uint8_t *)signed_message, DERIVED_KEY_CURRENT, (uint8_t *)signed_message, strlen(signed_message));
-		sprintf(&signed_message[64]," %s",outgoing_message.message);
-		pending_message = &outgoing_message;
+		CalculateSignature((uint8_t *)mqtt_signed_message,
+				DERIVED_KEY_CURRENT,
+				(uint8_t *)mqtt_signed_message,
+				strlen(mqtt_signed_message));
 
-		result = AWS_Publish(client, credentials, pending_message->subtopic, signed_message, strlen(signed_message), QOS1);
+		sprintf(&mqtt_signed_message[64]," %s", mqtt_outgoing_message.message);
+		pending_message = &mqtt_outgoing_message;
+
+		result = AWS_Publish(client,
+				credentials,
+				pending_message->subtopic,
+				mqtt_signed_message,
+				strlen(mqtt_signed_message),
+				QOS1);
+
 		if(result == AWS_SUCCESS)
 		{
 			pending_message = NULL;
@@ -813,6 +839,7 @@ static bool MQTT_Poll(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials)
 	}
 
 	result = aws_iot_mqtt_yield(client, AWS_YIELD_TIMEOUT);
+
 	if((AWS_SUCCESS != result)
 	&& (NETWORK_SSL_NOTHING_TO_READ != result)
 	&& (MQTT_RX_BUFFER_TOO_SHORT_ERROR != result))

@@ -90,19 +90,12 @@ uint32_t blocking_test_failure_start;
 
 bool trigger_delayed_pairing_mode_disabled_event = false;
 uint32_t trigger_delayed_pairing_mode_disabled_event_timestamp;
-//==============================================================================
-// local functions
-static void send_hub_report(void);
-static void HermesApp_MaintainConnection(void);
-static void button_handler(void);
-void update_led_view(void);
-void surenet_blocking_test_watchdog();
-//==============================================================================
+
 // Mailboxes for inter task communication
-QueueHandle_t		xIncomingMQTTMessageMailbox;
-QueueHandle_t		xOutgoingMQTTMessageMailbox;
-QueueHandle_t		xBufferMessageMailbox;
-QueueHandle_t		xSystemStatusMailbox;
+QueueHandle_t xIncomingMQTTMessageMailbox;
+QueueHandle_t xOutgoingMQTTMessageMailbox;
+QueueHandle_t xBufferMessageMailbox;
+QueueHandle_t xSystemStatusMailbox;
 
 static StaticQueue_t xStaticIncomingMQTTMessageMailbox;
 uint8_t ucIncomingMQTTMessageMailboxStorageArea[INCOMING_MQTT_MESSAGE_QUEUE_DEPTH_SMALL * sizeof(MQTT_MESSAGE)] __attribute__((section("._user_dtcmram_ram")));
@@ -114,12 +107,18 @@ uint8_t ucOutgoingMQTTMessageMailboxStorageArea[1 * sizeof(MQTT_MESSAGE)] __attr
 // hermes_app_task() to provide for them
 static MQTT_MESSAGE mqtt_message;
 //==============================================================================
+//prototypes:
+
+static void send_hub_report(void);
+static void HermesApp_MaintainConnection(void);
+static void button_handler(void);
+void update_led_view(void);
+void surenet_blocking_test_watchdog();
+//==============================================================================
+//functions:
+
 void hermes_app_init(void)
 {
-    // set up our mailboxes
-    //xIncomingMQTTMessageMailbox 	= xQueueCreate(INCOMING_MQTT_MESSAGE_QUEUE_DEPTH_SMALL, sizeof(MQTT_MESSAGE));
-    //xOutgoingMQTTMessageMailbox 	= xQueueCreate(1, sizeof(MQTT_MESSAGE));
-
 	xIncomingMQTTMessageMailbox = xQueueCreateStatic(INCOMING_MQTT_MESSAGE_QUEUE_DEPTH_SMALL,
 									sizeof(MQTT_MESSAGE),
 									ucIncomingMQTTMessageMailboxStorageArea,
@@ -171,10 +170,10 @@ void hermes_app_task(void *pvParameters)
 
 	signature_change_timestamp = get_UpTime();
 
-	static uint32_t time_stamp_1000ms;
-
     while(1)
     {
+    	vTaskDelay(pdMS_TO_TICKS(1));
+
     	// this polls the SureNet mailboxes and events, and calls back
 		// in this context with any results.
 		// The SureNet callbacks are all weakly linked stubs, and are
@@ -194,13 +193,6 @@ void hermes_app_task(void *pvParameters)
 		{
 			// process any firmware update activity
 			////DFU_Handler();
-		}
-
-		if ((get_UTC() - time_stamp_1000ms) > 1)
-		{
-			time_stamp_1000ms = get_UTC();
-
-			HermesConsoleWrite("qwerty\r", strlen("qwerty\r"), 0);
 		}
 
 		// Check for any registers whose values need to be sent to the Server
@@ -341,8 +333,6 @@ void hermes_app_task(void *pvParameters)
 			zprintf(LOW_IMPORTANCE,"Sending new shared secret to the Server\r\n");
 			send_shared_secret();
 		}
-
-		vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
 //------------------------------------------------------------------------------

@@ -23,10 +23,13 @@
 **************************************************************************/
 // Project wide includes that can affect anything!
 #include "hermes.h"
-#include <stdarg.h>	// used by zprintf
-#include <stdio.h>	// for vsprintf
+
+// used by zprintf
+#include <stdarg.h>
+
 /* FreeRTOS kernel includes. */
 #include "FreeRTOS.h"
+
 #include "task.h"
 #include "queue.h"
 #include "event_groups.h"
@@ -45,9 +48,14 @@
 #include "Hermes-test.h"
 #include "resetHandler.h"
 #include "HTTP_Helper.h"
-#include "myMAC.h"		// just needed for initialisation
+
+// just needed for initialisation
+#include "myMAC.h"
 #include "Hermes-app.h"
-#include "SureNet.h"	// for INITAL_CHANNEL
+
+// for INITAL_CHANNEL
+#include "SureNet.h"
+
 #include "HubFirmwareUpdate.h"
 #include "Signing.h"
 #include "Babel.h"
@@ -58,21 +66,22 @@
 #include "Hermes/Console/Hermes-console.h"
 
 #include "wolfssl/wolfcrypt/asn_public.h"
-/*******************************************************************************
- * Definitions
- ******************************************************************************/
+//==============================================================================
+//defines:
 
-/*******************************************************************************
- * Prototypes
- ******************************************************************************/
-static void shell_task(void *pvParameters);
-void init_watchdog();
+#define ZBUFFER_SIZE 384
+//==============================================================================
+//types:
 
-/* The CLI commands are defined in CLI-commands.c. */
-void vRegisterBasicCLICommands(void);
-void vRegisterCLICommands( void );
+//==============================================================================
+//externs:
 
+extern QueueHandle_t xNvStoreMailboxSend;
+extern QueueHandle_t xNvStoreMailboxResp;
+//==============================================================================
 static uint8_t initial_RF_channel;
+static const char SERIAL_NUMBER[] = "H201-0859935";
+
 BaseType_t xTCstatus;
 //------------------------------------------------------------------------------
 //task handles:
@@ -86,6 +95,7 @@ TaskHandle_t xLedTaskTaskHandle;
 TaskHandle_t xSNTPTaskHandle;
 TaskHandle_t xHermesAppTaskHandle;
 TaskHandle_t xMQTTTaskHandle;
+TaskHandle_t xWatchdogTaskHandle;
 //------------------------------------------------------------------------------
 //static tasks attributes:
 
@@ -103,9 +113,10 @@ StackType_t hermes_led_task_stack[LED_TASK_STACK_SIZE] LED_TASK_STACK_MEM_SECTIO
 
 StaticTask_t hermes_http_post_task_buffer HTTP_POST_TASK_STACK_MEM_SECTION;
 StackType_t hermes_http_post_task_stack[HTTP_POST_TASK_STACK_SIZE] HTTP_POST_TASK_STACK_MEM_SECTION;
+
+StaticTask_t hermes_watch_dog_task_buffer WATCHDOG_TASK_STACK_MEM_SECTION;
+StackType_t hermes_watch_dog_task_stack[WATCHDOG_TASK_STACK_SIZE] WATCHDOG_TASK_STACK_MEM_SECTION;
 //------------------------------------------------------------------------------
-extern QueueHandle_t xNvStoreMailboxSend;
-extern QueueHandle_t xNvStoreMailboxResp;
 
 //Global variable with some useful product information within. Initialised from Flash on boot.
 bool shouldIPackageFlag = false;
@@ -118,13 +129,7 @@ bool global_message_trace_flag = false;
 // This is a RAM copy of the product info from Flash.
 PRODUCT_CONFIGURATION product_configuration;
 
-// local functions
-void write_product_configuration(void);
-static void StartUpTask(void *pvParameters);
-static void watchdog_task(void *pvParameters);
-static void service_watchdog(void);
 uint8_t printLevel = LOW_IMPORTANCE;
-void Core_detect(void);
 bool immediate_firmware_update = false;
 
 // global because a pointer to this variable is used by the RF Stack
@@ -132,16 +137,201 @@ uint64_t rfmac = 0x982782e01fdc;
 
 bool rf_channel_override = false;
 
-static const char SERIAL_NUMBER[] = "H201-0859935";
-
-extern void LWIP_UpdateLinkState();
-
 SemaphoreHandle_t RandMutex = 0;
 
 DebugCounterT DebugCounter;
-/*******************************************************************************
- * Code
- ******************************************************************************/
+//==============================================================================
+//prototypes:
+
+static void shell_task(void *pvParameters);
+void init_watchdog();
+
+/* The CLI commands are defined in CLI-commands.c. */
+void vRegisterBasicCLICommands(void);
+void vRegisterCLICommands(void);
+
+void write_product_configuration(void);
+static void StartUpTask(void *pvParameters);
+static void watchdog_task(void *pvParameters);
+static void service_watchdog(void);
+
+void Core_detect(void);
+//==============================================================================
+//functions:
+
+int HermesStart_SNTP_Task()
+{
+	xSNTPTaskHandle =
+			xTaskCreateStatic(SNTP_Task, // Function that implements the task.
+								"SNTP Task", // Text name for the task.
+								SNTP_TASK_STACK_SIZE, // Number of indexes in the xStack array.
+								NULL, // Parameter passed into the task.
+								SNTP_TASK_PRIORITY, // Priority at which the task is created.
+								hermes_sntp_task_stack, // Array to use as the task's stack.
+								&hermes_sntp_task_buffer);
+
+	return xHTTPPostTaskHandle == NULL ? 0 : -1;
+}
+//------------------------------------------------------------------------------
+
+int HermesStart_LedTask()
+{
+	xLedTaskTaskHandle =
+			xTaskCreateStatic(led_task, // Function that implements the task.
+								"led_task", // Text name for the task.
+								LED_TASK_STACK_SIZE, // Number of indexes in the xStack array.
+								NULL, // Parameter passed into the task.
+								LED_TASK_PRIORITY, // Priority at which the task is created.
+								hermes_led_task_stack, // Array to use as the task's stack.
+								&hermes_led_task_buffer);
+
+	return xLedTaskTaskHandle == NULL ? 0 : -1;
+}
+//------------------------------------------------------------------------------
+
+int HermesStart_HermesAppTask()
+{
+	xHermesAppTaskHandle =
+			xTaskCreateStatic(hermes_app_task, // Function that implements the task.
+								"Hermes Application", // Text name for the task.
+								HERMES_APPLICATION_TASK_STACK_SIZE, // Number of indexes in the xStack array.
+								NULL, // Parameter passed into the task.
+								HERMES_TASK_PRIORITY, // Priority at which the task is created.
+								hermes_app_task_stack, // Array to use as the task's stack.
+								&hermes_app_task_buffer);
+
+	return xHermesAppTaskHandle == NULL ? 0 : -1;
+}
+//------------------------------------------------------------------------------
+
+int HermesStart_HTTP_PostTask()
+{
+	xHTTPPostTaskHandle =
+			xTaskCreateStatic(HTTPPostTask, // Function that implements the task.
+								"HTTP Post", // Text name for the task.
+								HTTP_POST_TASK_STACK_SIZE, // Number of indexes in the xStack array.
+								NULL, // Parameter passed into the task.
+								HTTP_TASK_PRIORITY, // Priority at which the task is created.
+								hermes_http_post_task_stack, // Array to use as the task's stack.
+								&hermes_http_post_task_buffer);
+
+	return xHTTPPostTaskHandle == NULL ? 0 : -1;
+}
+//------------------------------------------------------------------------------
+
+int HermesStart_MQTT_Task()
+{
+	xMQTTTaskHandle =
+			xTaskCreateStatic(MQTT_Task, // Function that implements the task.
+								"MQTT", // Text name for the task.
+								MQTT_TASK_STACK_SIZE, // Number of indexes in the xStack array.
+								NULL, // Parameter passed into the task.
+								MQTT_TASK_PRIORITY, // Priority at which the task is created.
+								hermes_mqtt_task_stack, // Array to use as the task's stack.
+								&hermes_mqtt_task_buffer);
+
+	return xMQTTTaskHandle == NULL ? 0 : -1;
+}
+//------------------------------------------------------------------------------
+
+int HermesStart_WatchdogTask()
+{
+	xWatchdogTaskHandle =
+			xTaskCreateStatic(watchdog_task, // Function that implements the task.
+								"watchdog_task", // Text name for the task.
+								WATCHDOG_TASK_STACK_SIZE, // Number of indexes in the xStack array.
+								NULL, // Parameter passed into the task.
+								WATCHDOG_TASK_PRIORITY, // Priority at which the task is created.
+								hermes_watch_dog_task_stack, // Array to use as the task's stack.
+								&hermes_watch_dog_task_buffer);
+
+	return xWatchdogTaskHandle == NULL ? 0 : -1;
+}
+//------------------------------------------------------------------------------
+
+void HermesInit_ProductNotConfiguredMode()
+{
+	// should never get here!!
+
+	shouldICryptFlag = false;
+	shouldIPackageFlag = false;
+
+	printLevel = LOW_IMPORTANCE;
+
+	zprintf(MEDIUM_IMPORTANCE,"\r\n\r\nSure Petcare Hub - 'Hermes'\r\n---------------------------\r\n");
+	zprintf(MEDIUM_IMPORTANCE,"PRODUCT NOT CONFIGURED\r\n");
+}
+//------------------------------------------------------------------------------
+
+void HermesInit_ProductBlankMode()
+{
+	// This is the state after a reset after firmware programming. It needs to support 'test'
+
+	shouldICryptFlag = false;
+	shouldIPackageFlag = false;
+
+	// Limit the CLI messages when communicating with Programmer
+	printLevel = MEDIUM_IMPORTANCE;
+}
+//------------------------------------------------------------------------------
+
+void HermesInit_ProductTestedMode()
+{
+	// Now I want to talk to the Label Printer
+
+	shouldICryptFlag = false;
+	shouldIPackageFlag = false;
+
+	printLevel = LOW_IMPORTANCE;
+
+	zprintf(MEDIUM_IMPORTANCE,"\r\n\r\nSure Petcare Hub - 'Hermes'\r\n---------------------------\r\n");
+	zprintf(MEDIUM_IMPORTANCE,"PRODUCT_TESTED - expecting Label Printer\r\n");
+}
+//------------------------------------------------------------------------------
+
+void HermesInit_ProductConfiguredMode()
+{
+	shouldIPackageFlag = SHOULD_I_PACKAGE;
+	//true for AES Encryption
+	shouldICryptFlag = false;
+
+	#ifdef DEBUG
+	printLevel = LOW_IMPORTANCE;
+	#else
+	printLevel = CRITICAL_IMPORTANCE;
+	#endif
+
+	zprintf(CRITICAL_IMPORTANCE,"\r\n\r\nSure Petcare Hub - 'Hermes'\r\n---------------------------\r\n");
+
+	#ifdef DEBUG
+	zprintf(CRITICAL_IMPORTANCE,"DEBUG build - NOT FOR RELEASE!\r\n");
+	#endif
+
+	// normal operation
+	DisplayResetStatus();
+	Core_detect();
+
+	// from nvm
+	set_led_brightness(get_led_brightness(), false);
+
+	update_led_view();
+}
+//------------------------------------------------------------------------------
+
+void HermesInit_FirmwareUpdatedMode()
+{
+	// So we don't need to do a lot here
+	LED_Request_Pattern(LED_MODE_NORMAL, COLOUR_RED, LED_PATTERN_SOLID, 0);
+
+	// Now we need to wait for DHCP, then trigger a SNTP fetch, and finally
+	// kick off a Hub Firmware Update
+	extern EventGroupHandle_t xConnectionStatus_EventGroup;
+	xEventGroupWaitBits(xConnectionStatus_EventGroup, CONN_STATUS_NETWORK_UP, false, false, portMAX_DELAY );
+	while(false == SNTP_AwaitUpdate(true, portMAX_DELAY));
+	HFU_trigger(true);
+}
+//------------------------------------------------------------------------------
+
 void HermesComponentInit()
 {
 	// Register the command line commands with the CLI
@@ -214,52 +404,14 @@ void HermesComponentInit()
 
 	osDelay(pdMS_TO_TICKS(100));
 
-	xSNTPTaskHandle =
-		xTaskCreateStatic(SNTP_Task, // Function that implements the task.
-							"SNTP Task", // Text name for the task.
-							SNTP_TASK_STACK_SIZE, // Number of indexes in the xStack array.
-							NULL, // Parameter passed into the task.
-							osPriorityNormal, // Priority at which the task is created.
-							hermes_sntp_task_stack, // Array to use as the task's stack.
-							&hermes_sntp_task_buffer);
-
-	xLedTaskTaskHandle =
-		xTaskCreateStatic(led_task, // Function that implements the task.
-							"led_task", // Text name for the task.
-							LED_TASK_STACK_SIZE, // Number of indexes in the xStack array.
-							NULL, // Parameter passed into the task.
-							osPriorityNormal, // Priority at which the task is created.
-							hermes_led_task_stack, // Array to use as the task's stack.
-							&hermes_led_task_buffer);
-
-	xHermesAppTaskHandle =
-		xTaskCreateStatic(hermes_app_task, // Function that implements the task.
-							"Hermes Application", // Text name for the task.
-							HERMES_APPLICATION_TASK_STACK_SIZE, // Number of indexes in the xStack array.
-							NULL, // Parameter passed into the task.
-							osPriorityNormal, // Priority at which the task is created.
-							hermes_app_task_stack, // Array to use as the task's stack.
-							&hermes_app_task_buffer);
-
-	xHTTPPostTaskHandle =
-		xTaskCreateStatic(HTTPPostTask, // Function that implements the task.
-							"HTTP Post", // Text name for the task.
-							HTTP_POST_TASK_STACK_SIZE, // Number of indexes in the xStack array.
-							NULL, // Parameter passed into the task.
-							osPriorityNormal, // Priority at which the task is created.
-							hermes_http_post_task_stack, // Array to use as the task's stack.
-							&hermes_http_post_task_buffer);
-
-	xMQTTTaskHandle =
-		xTaskCreateStatic(MQTT_Task, // Function that implements the task.
-							"MQTT", // Text name for the task.
-							MQTT_TASK_STACK_SIZE, // Number of indexes in the xStack array.
-							NULL, // Parameter passed into the task.
-							osPriorityNormal, // Priority at which the task is created.
-							hermes_mqtt_task_stack, // Array to use as the task's stack.
-							&hermes_mqtt_task_buffer);
+	HermesStart_SNTP_Task();
+	HermesStart_LedTask();
+	HermesStart_HermesAppTask();
+	HermesStart_HTTP_PostTask();
+	HermesStart_MQTT_Task();
+	//HermesStart_WatchdogTask();
 }
-
+//------------------------------------------------------------------------------
 /**************************************************************
  * Function Name   : StartUpTask
  * Description     : This handles the retrieval of config data from flash
@@ -271,57 +423,10 @@ void HermesComponentInit()
  **************************************************************/
 static void StartUpTask(void *pvParameters)
 {
-    uint32_t		notifyValue;
-	uint32_t		i;
-/*
-    xQueueSend(xNvStoreMailboxSend, &notifyValue, 0);	// get device table into RAM
-
-    if( xTaskNotifyWait(0, 0, &notifyValue, portMAX_DELAY) == pdTRUE )
-    {
-		if( notifyValue == 0 )
-		{	// Got the values into product_configuration
-        	printLevel = MEDIUM_IMPORTANCE;                                     // Limit the CLI messages when communicating with Programmer
-			if( (product_configuration.sanity_state==PRODUCT_NOT_CONFIGURED) )//||
-//				(myRFMAC != product_configuration.rf_mac) ||
-//				(0 != strcmp(mySecretSerial, (char const *)product_configuration.secret_serial)) ||
-//				(0 != strcmp(mySerial, (char const *)product_configuration.serial_number)) )	// **** THESE THREE LINES TEMPORARY FOR DEVELOPMENT TO KEEP PRODUCT_CONFIGURATION SYNCHRONISED WITH MYMAC.H
-			{	// we need to put some sensible defaults in place
-				// we will only overwrite the MAC addresses and serials if they are 0xff's. Otherwise we will
-				// leave them as they were.
-				if( (product_configuration.ethernet_mac[0] == 0xff) &&
-					(product_configuration.rf_mac == 0xffffffffffffffff) &&
-					(product_configuration.rf_pan_id == 0xffff))
-				{	// we are pretty sure that the flash area is actually blank so we can put some sensible values in it
-					uint8_t ethmac[6] = myEthMAC;
-					memcpy(product_configuration.ethernet_mac, ethmac, 6);	// retrieve ethernet mac
-					strcpy((char*)product_configuration.serial_number, mySerial);	// serial number
-					strcpy((char*)product_configuration.secret_serial, mySecretSerial);
-					product_configuration.rf_mac = myRFMAC;
-					product_configuration.rf_pan_id = SUREFLAP_PAN_ID;
-				}
-				// but we put sensible values in this lot regardless
-				product_configuration.sanity_state = PRODUCT_CONFIGURED;
-				product_configuration.product_state = PRODUCT_BLANK;	// leave product_state ready for programming / test / label steps
-				product_configuration.rf_mac_mangle = true;
-				product_configuration.spare1 = 0;
-				product_configuration.spare2 = 0;
-				product_configuration.spare3 = 0;
-				for( i=0; i<DERIVED_KEY_LENGTH; i++) { product_configuration.DerivedKey[i] = 0xff; }
-				write_product_configuration();
-
-
-				FM_store_persistent_data(PERSISTENT_BRIGHTNESS, (uint32_t)LED_MODE_NORMAL);
-				FM_store_persistent_data(PERSISTENT_PRINTLEVEL, (uint32_t)printLevel);
-				FM_store_persistent_data(PERSISTENT_RF_CHANNEL, (uint32_t)INITIAL_CHANNEL);
-
-			}
-		}
-	}
-*/
 	// we mangle it by putting 0xfffe in the middle, and use the 6 byte Ethernet one around it
 	if(product_configuration.rf_mac_mangle)
 	{
-	// This is because Pet Doors reject Hub MAC addresses that do not have 0xfffe in the middle
+		// This is because Pet Doors reject Hub MAC addresses that do not have 0xfffe in the middle
 		((uint8_t *)&rfmac)[7] = product_configuration.ethernet_mac[0];
 		((uint8_t *)&rfmac)[6] = product_configuration.ethernet_mac[1];
 		((uint8_t *)&rfmac)[5] = product_configuration.ethernet_mac[2];
@@ -330,17 +435,17 @@ static void StartUpTask(void *pvParameters)
 		((uint8_t *)&rfmac)[2] = product_configuration.ethernet_mac[3];
 		((uint8_t *)&rfmac)[1] = product_configuration.ethernet_mac[4];
 		((uint8_t *)&rfmac)[0] = product_configuration.ethernet_mac[5];
-	}	// the apparent swapping of endianness is because the RF mac is stored as a uint64_t
-		// but the Ethernet mac is stored as a byte array.
+	}
 	else
 	{
+		// the apparent swapping of endianness is because the RF mac is stored as a uint64_t
+		// but the Ethernet mac is stored as a byte array.
 		rfmac = product_configuration.rf_mac;
 	}
 
-	// This must come before TCP initialisation as it sets up some mailboxes used by TCP/IP
-    hermes_app_init();
 
-	if( false == rf_channel_override)	// swap RF channels if button held down for >5 secs
+    // swap RF channels if button held down for >5 secs
+	if(!rf_channel_override)
 	{
 		/*
 		initial_RF_channel = pNvPersistent->RF_channel;
@@ -348,238 +453,47 @@ static void StartUpTask(void *pvParameters)
 	}
 	else
 	{
-		//if( RF_CHANNEL1 == pNvPersistent->RF_channel)
-		if(RF_CHANNEL1)
-		{
-			initial_RF_channel = RF_CHANNEL3;
-		}
-		else
-		{
-			initial_RF_channel = RF_CHANNEL1;
-		}
+		initial_RF_channel = RF_CHANNEL1 ? RF_CHANNEL3 : RF_CHANNEL1;
 	}
 
 	switch (product_configuration.product_state)
 	{
 		case PRODUCT_NOT_CONFIGURED:
-			// should never get here!!
 
-			shouldICryptFlag = false;
-			shouldIPackageFlag = false;
-        	printLevel = LOW_IMPORTANCE;
-        	zprintf(MEDIUM_IMPORTANCE,"\r\n\r\nSure Petcare Hub - 'Hermes'\r\n---------------------------\r\n");
-			zprintf(MEDIUM_IMPORTANCE,"PRODUCT NOT CONFIGURED\r\n");
-			if( xTaskCreate(shell_task, "Shell_task", SHELL_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-			{
-				zprintf(CRITICAL_IMPORTANCE,"Shell task creation failed!\r\n");
-			}
-			if( xTaskCreate(watchdog_task, "watchdog_task", WATCHDOG_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-			{
-				zprintf(CRITICAL_IMPORTANCE,"Watchdog task creation failed! - tick... tick... tick...\r\n");
-			}
 			break;
 
 		case PRODUCT_BLANK:
-			// This is the state after a reset after firmware programming. It needs to support 'test'
 
-			shouldICryptFlag = false;
-			shouldIPackageFlag = false;
-        	printLevel = MEDIUM_IMPORTANCE; // Limit the CLI messages when communicating with Programmer
-			if( xTaskCreate(shell_task, "Shell_task", SHELL_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-			{
-				zprintf(CRITICAL_IMPORTANCE,"Shell task creation failed!\r\n");
-			}
-			//FreeRTOS_IPInit( ucIPAddress, ucNetMask, ucGatewayAddress, ucDNSServerAddress, product_configuration.ethernet_mac);
-            /* The call to surenet_init() is now controlled by the Programmer, via CLI */
-			if( xTaskCreate(led_task, "led_task", LED_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-    		{
-				zprintf(CRITICAL_IMPORTANCE,"LED task creation failed!\r\n");
-    		}
-#ifdef HERMES_TEST_MODE
-			if (xTaskCreate(hermesTestTask, "Hermes_Test", TEST_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &xHermesTestTaskHandle) != pdPASS)
-    		{
-				zprintf(CRITICAL_IMPORTANCE,"Hermes Test task creation failed!.\r\n");
-			}
-#endif
-			if( xTaskCreate(watchdog_task, "watchdog_task", WATCHDOG_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-			{
-				zprintf(CRITICAL_IMPORTANCE,"Watchdog task creation failed! - tick... tick... tick...\r\n");
-			}
 			break;
 
 		case PRODUCT_TESTED:
-			// Now I want to talk to the Label Printer
 
-		  	shouldICryptFlag = false;
-			shouldIPackageFlag = false;
-        	printLevel = LOW_IMPORTANCE;
-        	zprintf(MEDIUM_IMPORTANCE,"\r\n\r\nSure Petcare Hub - 'Hermes'\r\n---------------------------\r\n");
-			zprintf(MEDIUM_IMPORTANCE,"PRODUCT_TESTED - expecting Label Printer\r\n");
-			if( xTaskCreate(shell_task, "Shell_task", SHELL_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-			{
-				zprintf(CRITICAL_IMPORTANCE,"Shell task creation failed!\r\n");
-			}
-			//FreeRTOS_IPInit( ucIPAddress_printer, ucNetMask, ucIPAddress_printer, ucIPAddress_printer, product_configuration.ethernet_mac);
-			if( xTaskCreate(led_task, "led_task", LED_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-			{
-				zprintf(CRITICAL_IMPORTANCE,"LED task creation failed!\r\n");
-			}
-			if( xTaskCreate(label_task, "Label Printer task", LABEL_PRINTER_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-			{
-				zprintf(CRITICAL_IMPORTANCE,"Label printer creation failed!\r\n");
-			}
-			if( xTaskCreate(watchdog_task, "watchdog_task", WATCHDOG_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-			{
-				zprintf(CRITICAL_IMPORTANCE,"Watchdog task creation failed! - tick... tick... tick...\r\n");
-			}
 			break;
 
 		case PRODUCT_CONFIGURED:
-			// everything set up, now I am ready for a customer
 
-			GenerateSharedSecret(SHARED_SECRET_CURRENT);	// generate a truly random Shared Secret to be shared with the Server
-			GenerateDerivedKey(DERIVED_KEY_CURRENT);	// Used for signing data transfers between Hub and Server.
-					
-			//Delay boot-up by 2 seconds.  The LEDs will be off for this period, giving us a visual indication if the device ever reboots.
-			vTaskDelay(pdMS_TO_TICKS(2000));
-
-			BABEL_set_aes_key(product_configuration.serial_number);
-			BABEL_aes_encrypt_init();
-
-		  	shouldIPackageFlag = SHOULD_I_PACKAGE;
-			shouldICryptFlag = false;//true for AES Encryption
-
-#ifdef DEBUG
-        	printLevel = LOW_IMPORTANCE;
-#else
-			printLevel = CRITICAL_IMPORTANCE;
-#endif
-        	zprintf(CRITICAL_IMPORTANCE,"\r\n\r\nSure Petcare Hub - 'Hermes'\r\n---------------------------\r\n");
-#ifdef DEBUG
-			zprintf(CRITICAL_IMPORTANCE,"DEBUG build - NOT FOR RELEASE!\r\n");
-#endif
-			// Initialise Hub Firmware Update - this requires the Secret Serial to have been read
-			// from flash into product_configuration.secret_serial for key calculation
-			HFU_init();
-			if( xTaskCreate(watchdog_task, "watchdog_task", WATCHDOG_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
+			if(!immediate_firmware_update)
 			{
-				zprintf(CRITICAL_IMPORTANCE,"Watchdog task creation failed! - tick... tick... tick...\r\n");
+
 			}
-			if( false == immediate_firmware_update )
-			{	// normal operation
-				DisplayResetStatus();
-				Core_detect();
-				set_led_brightness(get_led_brightness(),false);     // from nvm
-				update_led_view();
-				// CONSIDER NOT STARTING THIS TASK FOR RELEASE BUILD...
-				if( xTaskCreate(shell_task, "Shell_task", SHELL_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-				{
-					zprintf(CRITICAL_IMPORTANCE,"Shell task creation failed!\r\n");
-				}
-				//FreeRTOS_IPInit( ucIPAddress, ucNetMask, ucGatewayAddress, ucDNSServerAddress, product_configuration.ethernet_mac);
+			else
+			{
 
-				// Start SureNet
-
-				surenet_init(&rfmac, product_configuration.rf_pan_id,initial_RF_channel); // This initialises stack variables and starts the surenet task.
-
-				HTTPPostTask_init();
-
-				SNTP_Init();
-				if( xTaskCreate(SNTP_Task, "SNTP Task", SNTP_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-				{
-					zprintf(CRITICAL_IMPORTANCE, "SNTP Task creation failed!\r\n");
-				}
-
-				if( xTaskCreate(led_task, "led_task", LED_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-				{
-					zprintf(CRITICAL_IMPORTANCE,"LED task creation failed!\r\n");
-				}
-
-				if( xTaskCreate(hermes_app_task, "Hermes Application", HERMES_APPLICATION_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-				{
-					zprintf(CRITICAL_IMPORTANCE, "Hermes Application task creation failed!\r\n");
-				}
-
-				if( xTaskCreate(MQTT_Task, "MQTT", MQTT_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-				{
-					zprintf(CRITICAL_IMPORTANCE,"MQTT Task creation failed!\r\n");
-				}
-
-#ifdef HERMES_TEST_MODE
-				if (xTaskCreate(hermesTestTask, "Hermes_Test", TEST_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &xHermesTestTaskHandle) != pdPASS)
-				{
-					zprintf(CRITICAL_IMPORTANCE,"Hermes Test task creation failed!.\r\n");
-				}
-#endif
-
-				if (xTaskCreate(HTTPPostTask, "HTTP Post", HTTP_POST_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &xHTTPPostTaskHandle) != pdPASS)
-				{
-					zprintf(CRITICAL_IMPORTANCE,"HTTP Post task creation failed!.\r\n");
-				}
-
-				if (xTaskCreate(HFU_task, "Hub Firmware Update", HFU_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &xHFUTaskHandle) != pdPASS)
-				{
-					zprintf(CRITICAL_IMPORTANCE,"Hub Firmware Update task creation failed!.\r\n");
-				}
-			}
-			else	// 	immediate_firmware_update == true
-			{		// So we don't need to do a lot here
-				LED_Request_Pattern(LED_MODE_NORMAL, COLOUR_RED, LED_PATTERN_SOLID, 0);
-
-				// CONSIDER NOT STARTING THIS TASK FOR RELEASE BUILD...
-				if( xTaskCreate(shell_task, "Shell_task", SHELL_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-				{
-					zprintf(CRITICAL_IMPORTANCE,"Shell task creation failed!\r\n");
-				}
-				//FreeRTOS_IPInit( ucIPAddress, ucNetMask, ucGatewayAddress, ucDNSServerAddress, product_configuration.ethernet_mac);
-
-				HTTPPostTask_init();
-
-				SNTP_Init();	// This is required as Signing requires UTC to be correct
-				if( xTaskCreate(SNTP_Task, "SNTP Task", SNTP_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-				{
-					zprintf(CRITICAL_IMPORTANCE, "SNTP Task creation failed!\r\n");
-				}
-				
-				if( xTaskCreate(led_task, "led_task", LED_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-				{
-					zprintf(CRITICAL_IMPORTANCE,"LED task creation failed!\r\n");
-				}
-				if (xTaskCreate(HTTPPostTask, "HTTP Post", HTTP_POST_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &xHTTPPostTaskHandle) != pdPASS)
-				{
-					zprintf(CRITICAL_IMPORTANCE,"HTTP Post task creation failed!.\r\n");
-				}
-				if (xTaskCreate(HFU_task, "Hub Firmware Update", HFU_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &xHFUTaskHandle) != pdPASS)
-				{
-					zprintf(CRITICAL_IMPORTANCE,"Hub Firmware Update task creation failed!.\r\n");
-				}
-
-				// Now we need to wait for DHCP, then trigger a SNTP fetch, and finally
-				// kick off a Hub Firmware Update
-				extern EventGroupHandle_t	xConnectionStatus_EventGroup;
-				xEventGroupWaitBits(xConnectionStatus_EventGroup, CONN_STATUS_NETWORK_UP, false, false, portMAX_DELAY );
-				while(false == SNTP_AwaitUpdate(true, portMAX_DELAY));			
-				HFU_trigger(true);
 			}
 			break;
 
 		default:
 			// Not sure what to do here - something's gone wrong with Flash
         	printLevel = LOW_IMPORTANCE;
+
         	zprintf(MEDIUM_IMPORTANCE,"\r\n\r\nSure Petcare Hub - 'Hermes'\r\n---------------------------\r\n");
 			zprintf(MEDIUM_IMPORTANCE,"CONFIGURATION CORRUPTED\r\n");
-			if( xTaskCreate(shell_task, "Shell_task", SHELL_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-			{
-				zprintf(CRITICAL_IMPORTANCE,"Shell task creation failed!\r\n");
-			}
-			if( xTaskCreate(watchdog_task, "watchdog_task", WATCHDOG_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-			{
-				zprintf(CRITICAL_IMPORTANCE,"Watchdog task creation failed! - tick... tick... tick...\r\n");
-			}
+
 			break;
 	}
 
-	vTaskDelete(NULL);	// my work is done, now I fly to Switzerland.
+	// my work is done, now I fly to Switzerland.
+	vTaskDelete(NULL);
 }
 
 /**************************************************************
@@ -644,7 +558,7 @@ void write_product_configuration(void)
 	HermesFlashSetProductConfig(&product_configuration);
 	HermesFlashSaveData();
 }
-
+//------------------------------------------------------------------------------
 // quick and dirty task written by Chris to give a shell-like Debug interface.
 // uses FreeRTOS CLI
 // It gets timesliced by other tasks of the same priority, and pre-empted by higher priority tasks.
@@ -687,7 +601,17 @@ static void shell_task(void *pvParameters)
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
+//------------------------------------------------------------------------------
+/* Initialise watchdog - only do once, at startup */
+void init_watchdog(void)
+{
 
+}
+//------------------------------------------------------------------------------
+static void service_watchdog(void)
+{
+
+}
 /**************************************************************
  * Function Name   : watchdog_task
  * Description     : Kicks the 'dog every 5 seconds
@@ -706,88 +630,78 @@ static void watchdog_task(void *pvParameters)
     {
 		service_watchdog();
 		mqtt_connection_state = get_mqtt_connection_state();
+
 		// This is brutal. If we fall outside MQTT_STATE_CONNECTED for too
 		// long, we just reboot the Hub !!
-		if( (MQTT_STATE_CONNECTED == mqtt_connection_state) || 
-		    (MQTT_STATE_STOP == mqtt_connection_state))
+		if((mqtt_connection_state == MQTT_STATE_CONNECTED)
+		|| (mqtt_connection_state == MQTT_STATE_STOP))
 		{
 			mqtt_reboot_timestamp = get_microseconds_tick();
 		}
-		else
+		else if((get_microseconds_tick() - mqtt_reboot_timestamp) > MQTT_REBOOT_TIMEOUT)
 		{
-			if( (get_microseconds_tick()-mqtt_reboot_timestamp) > MQTT_REBOOT_TIMEOUT)
-			{
-				zprintf(CRITICAL_IMPORTANCE,"MQTT detected lack of traffic - restarting system...\r\n");
-				NVIC_SystemReset(); // never returns
-			}
+			zprintf(CRITICAL_IMPORTANCE,"MQTT detected lack of traffic - restarting system...\r\n");
+
+			// never returns
+			NVIC_SystemReset();
 		}
-				
-        vTaskDelay(pdMS_TO_TICKS(5000));   // give up CPU for 5 seconds
+
+		// give up CPU for 5 seconds
+        vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }
-
-
-/* Initialise watchdog - only do once, at startup */
-void init_watchdog(void)
-{
-
-}
-
-static void service_watchdog(void)
-{
-
-}
-
-#ifndef DEBUG
-/* For completeness... probably not required */
-/* Provides early warning of reset */
-void WDOG1_IRQHandler(void)
-{
-     /* Clear WTIS interrupt flag.*/
-    WDOG1->WICR |= 1<<14;
-	uart_puts("Watchdog about to fire...\r\n");
-}
-#endif
-
-//#define TIMESTAMP_ZPRINTF_OUTPUT	// Note this breaks Alohomora, so should only be used with a terminal
-#define ZBUFFER_SIZE	384
+//------------------------------------------------------------------------------
+// Note this breaks Alohomora, so should only be used with a terminal
 void zprintf(ZPRINTF_IMPORTANCE importanceLevel, const char *arg0, ...)
 {
-	/*
 	static uint32_t zprintfCorrelationIDCounter = 0;
-	uint32_t 			len;
-    va_list 			args;	
-	char 				*zbuffer;
-	HERMES_UART_HEADER	*header;	
+	uint32_t len;
+    va_list args;
+	char *zbuffer;
+	HERMES_UART_HEADER *header;
 
-	if( 0 == strlen(arg0) )
+	if(!strlen(arg0))
 	{
 		return;
 	}
 
-    if( (importanceLevel <= MAX_PRINT_LEVEL) && (importanceLevel >= printLevel) )
+    if((importanceLevel <= MAX_PRINT_LEVEL) && (importanceLevel >= printLevel))
 	{
 		if(shouldIPackageFlag == true)
 		{
     		va_start(args, arg0);
-			len = vsnprintf(NULL,0,arg0,args) + 1;	// find out how long the string would be, excluding terminating \0
+
+    		// find out how long the string would be, excluding terminating \0
+			len = vsnprintf(NULL, 0, arg0, args) + 1;
+
 			va_end(args);	
-#ifdef TIMESTAMP_ZPRINTF_OUTPUT
-			len += 9;	// allow for extra HH:MM:SS that would be prepended.
-#endif
-			if( len > ZBUFFER_SIZE) {return;}	// string too long
+			#ifdef TIMESTAMP_ZPRINTF_OUTPUT
+			// allow for extra HH:MM:SS that would be prepended.
+			len += 9;
+			#endif
 
-			header = pvPortMalloc(len+sizeof(HERMES_UART_HEADER));
+			// string too long
+			if(len > ZBUFFER_SIZE)
+			{
+				return;
+			}
+
+			header = pvPortMalloc(len + sizeof(HERMES_UART_HEADER));
 	
-			if( NULL == header) {return;}	// drop output if cannot allocate buffer
+			// drop output if cannot allocate buffer
+			if(!header)
+			{
+				return;
+			}
 
-			zbuffer = (char *)header + sizeof(HERMES_UART_HEADER);
+			zbuffer = (char*)header + sizeof(HERMES_UART_HEADER);
 			
 			len = 0;
-#ifdef TIMESTAMP_ZPRINTF_OUTPUT
+
+			#ifdef TIMESTAMP_ZPRINTF_OUTPUT
 			len += time_string(zbuffer);
 			zbuffer += len;
-#endif			
+			#endif
 			
 			va_start(args, arg0);
 			len += vsprintf(zbuffer, arg0, args);
@@ -805,7 +719,8 @@ void zprintf(ZPRINTF_IMPORTANCE importanceLevel, const char *arg0, ...)
 
 			header->check = header->type ^ 0xFF;
 
-			if(shouldICryptFlag == true)	// this is probably broken
+			// this is probably broken
+			if(shouldICryptFlag)
 			{
 				uint32_t TotalWidth = (((strlen(zbuffer) + 15)/16)*16);
 
@@ -815,39 +730,58 @@ void zprintf(ZPRINTF_IMPORTANCE importanceLevel, const char *arg0, ...)
 				}
 				else
 				{
-					sprintf(zbuffer,"%-*s",TotalWidth,zbuffer);
+					sprintf(zbuffer, "%-*s", TotalWidth, zbuffer);
 				}
 			}
 
 			header->size = len;
 			header->timestamp = get_microseconds_tick();
 			header->correlation_ID = zprintfCorrelationIDCounter++;
-			LOG_Push((uint8_t*)header,sizeof(HERMES_UART_HEADER)+len);	// single push of whole message
+
+			// single push of whole message
+			HermesConsoleWrite(header, sizeof(HERMES_UART_HEADER) + len, 0);
+
 			vPortFree(header);	
 		}
 		else
-		{	// Not packaging, so straight printout
+		{
+			// Not packaging, so straight printout
 			va_start(args, arg0);
-			len = vsnprintf(NULL,0,arg0,args) + 1;	// find out how long the string would be, excluding terminating \0
-			va_end(args);	
-#ifdef TIMESTAMP_ZPRINTF_OUTPUT
-			len += 9;	// allow for extra HH:MM:SS that would be prepended.
-#endif
-			if( len > ZBUFFER_SIZE) {return;}
+			// find out how long the string would be, excluding terminating \0
+			len = vsnprintf(NULL, 0, arg0, args) + 1;
+			va_end(args);
+
+			#ifdef TIMESTAMP_ZPRINTF_OUTPUT
+			// allow for extra HH:MM:SS that would be prepended.
+			len += 9;
+			#endif
+
+			if(len > ZBUFFER_SIZE)
+			{
+				return;
+			}
+
 			zbuffer = pvPortMalloc(len);
-			if( NULL == zbuffer) {return;}		
+
+			if(!zbuffer)
+			{
+				return;
+			}
+
 			len = 0;
-#ifdef TIMESTAMP_ZPRINTF_OUTPUT
+			#ifdef TIMESTAMP_ZPRINTF_OUTPUT
 			len += time_string(zbuffer);
-#endif
+			#endif
+
 			va_start(args, arg0);
 			len += vsprintf(zbuffer+len, arg0, args);
-			va_end(args);				
-			LOG_Push((uint8_t*)zbuffer,len);
+			va_end(args);
+
+			HermesConsoleWrite(zbuffer, len, 0);
+
 			vPortFree(zbuffer);
 		}
 	}
-	*/
 }
 /**************************************************************
  * Function Name   : Core_detect
@@ -858,57 +792,33 @@ void zprintf(ZPRINTF_IMPORTANCE importanceLevel, const char *arg0, ...)
  **************************************************************/
 void Core_detect(void)
 {
-  uint32_t cpuid = SCB->CPUID;
-  uint32_t var, pat;
+	uint32_t cpuid = SCB->CPUID;
+	uint32_t var, pat;
 
-//  printf("CPUID %08X DEVID %03X REVID %04X\n", cpuid, DBGMCU->IDCODE & 0xFFF, (DBGMCU->IDCODE >> 16) & 0xFFFF);
+	zprintf(LOW_IMPORTANCE,"Detected Core: ");
 
-  zprintf(LOW_IMPORTANCE,"Detected Core: ");
+	pat = (cpuid & 0x0000000F);
+	var = (cpuid & 0x00F00000) >> 20;
 
-  pat = (cpuid & 0x0000000F);
-  var = (cpuid & 0x00F00000) >> 20;
+	if ((cpuid & 0xFF000000) == 0x41000000) // ARM
+	{
+		switch((cpuid & 0x0000FFF0) >> 4)
+		{
+			case 0xC20 : zprintf(LOW_IMPORTANCE,"Cortex M0 r%dp%d\r\n", var, pat); break;
+			case 0xC60 : zprintf(LOW_IMPORTANCE,"Cortex M0+ r%dp%d\r\n", var, pat); break;
+			case 0xC21 : zprintf(LOW_IMPORTANCE,"Cortex M1 r%dp%d\r\n", var, pat); break;
+			case 0xC23 : zprintf(LOW_IMPORTANCE,"Cortex M3 r%dp%d\r\n", var, pat); break;
+			case 0xC24 : zprintf(LOW_IMPORTANCE,"Cortex M4 r%dp%d\r\n", var, pat); break;
+			case 0xC27 : zprintf(LOW_IMPORTANCE,"Cortex M7 r%dp%d\r\n", var, pat); break;
 
-  if ((cpuid & 0xFF000000) == 0x41000000) // ARM
-  {
-    switch((cpuid & 0x0000FFF0) >> 4)
-    {
-      case 0xC20 : zprintf(LOW_IMPORTANCE,"Cortex M0 r%dp%d\r\n", var, pat); break;
-      case 0xC60 : zprintf(LOW_IMPORTANCE,"Cortex M0+ r%dp%d\r\n", var, pat); break;
-      case 0xC21 : zprintf(LOW_IMPORTANCE,"Cortex M1 r%dp%d\r\n", var, pat); break;
-      case 0xC23 : zprintf(LOW_IMPORTANCE,"Cortex M3 r%dp%d\r\n", var, pat); break;
-      case 0xC24 : zprintf(LOW_IMPORTANCE,"Cortex M4 r%dp%d\r\n", var, pat); break;
-      case 0xC27 : zprintf(LOW_IMPORTANCE,"Cortex M7 r%dp%d\r\n", var, pat); break;
-
-      default : zprintf(LOW_IMPORTANCE,"Unknown CORE\r\n");
-    }
-  }
-  else
-    zprintf(LOW_IMPORTANCE,"Unknown CORE IMPLEMENTER\r\n");
+			default : zprintf(LOW_IMPORTANCE,"Unknown CORE\r\n");
+		}
+	}
+	else
+	{
+		zprintf(LOW_IMPORTANCE,"Unknown CORE IMPLEMENTER\r\n");
+	}
 }
-
-/**************************************************************
- * Function Name   : Diagnostic function that just turns on an LED combination and hangs up
- * Description     :
- * Inputs          :
- * Outputs         :
- * Returns         :
- **************************************************************/
-void led_hang(uint8_t val)
-{
-	/*
-	// Switch LED pins from PWM to GPIO so we can directly manipulate them
-	IOMUXC_SetPinMux(IOMUXC_GPIO_EMC_23_GPIO2_IO23,0U); // PWMLED4 - Green
-	IOMUXC_SetPinMux(IOMUXC_GPIO_EMC_24_GPIO2_IO24,0U); // PWMLED3 - Red
-	IOMUXC_SetPinMux(IOMUXC_GPIO_EMC_25_GPIO2_IO25,0U); // PWMLED2 - Green
-	IOMUXC_SetPinMux(IOMUXC_GPIO_EMC_26_GPIO2_IO26,0U); // PWMLED1 - Red
-
-  	GPIO2->DR &= 0xf87fffff;
-	GPIO2->DR |= (val<<23);
-
-	while(1);
-	*/
-}
-
 /**************************************************************
  * Function Name   : initSureNetByProgrammer
  * Description     : Used by the Programmer to control SureNet initialisation.
@@ -935,7 +845,7 @@ void connectToServer(void)
     HFU_init();
     HTTPPostTask_init();
     SNTP_Init();
-
+/*
     if( xTaskCreate(SNTP_Task, "SNTP Task", SNTP_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
     {
         zprintf(CRITICAL_IMPORTANCE, "SNTP Task creation failed!\r\n");
@@ -960,7 +870,7 @@ void connectToServer(void)
     {
         zprintf(CRITICAL_IMPORTANCE,"Hub Firmware Update task creation failed!.\r\n");
     }
-
+*/
 }
 
 /**************************************************************
@@ -975,10 +885,6 @@ int hermes_rand(void)
 	#include "rng.h"
 
 	int value = -1;
-	HAL_StatusTypeDef result;
-	//cannot be used because it stops the system timer
-	//that is used by the function HAL_RNG_GenerateRandomNumber()
-	//portENTER_CRITICAL();
 
 	if (!RandMutex)
 	{
@@ -986,27 +892,11 @@ int hermes_rand(void)
 		return value;
 	}
 
-	if (xSemaphoreTake(RandMutex, portMAX_DELAY) == pdTRUE)
-	{
-		HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&value);
-		xSemaphoreGive(RandMutex);
-	}
+	xSemaphoreTake(RandMutex, portMAX_DELAY);
 
-/*
-	do
-	{
-		result = HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&value);
+	HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&value);
 
-		if (result == HAL_OK)
-		{
-			break;
-		}
-
-		osDelay(pdMS_TO_TICKS(1));
-	}
-	while (true);
-*/
-	//portEXIT_CRITICAL()
+	xSemaphoreGive(RandMutex);
 
 	return value;
 }
@@ -1024,31 +914,4 @@ void hermes_srand(int seed)
 	srand(seed);
 	portEXIT_CRITICAL();
 }
-
-void mem_dump(uint8_t *addr, uint32_t len)
-{
-#define LINELEN 16
-	uint32_t j;
-	uint8_t c;
-	uint8_t *end_addr = addr+len;
-	zprintf(LOW_IMPORTANCE,"\r\n");
-	while(addr<end_addr)
-	{
-		zprintf(LOW_IMPORTANCE,"%08x: ",(uint32_t)addr);
-		zprintf(LOW_IMPORTANCE,"%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X ", \
-			*addr,*(addr+1),*(addr+2),*(addr+3),*(addr+4),*(addr+5),*(addr+6),*(addr+7),	
-			*(addr+8),*(addr+9),*(addr+10),*(addr+11),*(addr+12),*(addr+13),*(addr+14),*(addr+15));
-
-		for (j=0; j<LINELEN; j++)
-		{
-			c = *(addr+j);
-			if ((c>31) && (c<127))
-				zprintf(LOW_IMPORTANCE,"%c",c);
-			else
-				zprintf(LOW_IMPORTANCE,".");		
-		}
-		zprintf(LOW_IMPORTANCE,"\r\n");
-		//DbgConsole_Flush();
-		addr+=LINELEN;
-	}
-}
+//==============================================================================

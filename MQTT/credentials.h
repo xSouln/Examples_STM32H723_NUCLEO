@@ -1,10 +1,14 @@
 #ifndef __CREDENTIALS_H_
 #define __CREDENTIALS_H_
+//==============================================================================
+//includes:
 
 #include <stdint.h>
 #include <stdbool.h>
 
 #include "hermes.h"
+//==============================================================================
+//defines:
 
 #define AWS_CLIENT_ID_MINIMUM_LENGTH	5
 #define VERSION_MAX_SIZE		8
@@ -14,7 +18,10 @@
 #define PASSWORD_MAX_SIZE		8
 #define	BASE_TOPIC_MAX_SIZE		96
 #define HOST_MAX_SIZE			64
-#define CERTIFICATE_MAX_SIZE	3492 // 3584 // Pared down - let's hope Ash always gives the same size certificate...
+
+// Pared down - let's hope Ash always gives the same size certificate...
+#define CERTIFICATE_MAX_SIZE	3492 // 3584
+
 #define AWS_HASH_MAX_LENGTH		48
 
 #define CREDS_ABSOLUTE_MAX_LENGTH	4096
@@ -31,6 +38,8 @@
 #else
 #define cred_printf(...)
 #endif
+//==============================================================================
+//types:
 
 typedef enum
 {
@@ -38,6 +47,7 @@ typedef enum
 	SUREFLAP_NETWORK_TYPE_AWS		= 1
 
 } SUREFLAP_NETWORK_TYPE;
+//------------------------------------------------------------------------------
 
 typedef struct
 {
@@ -59,14 +69,19 @@ typedef struct
 	char					cert_hash[AWS_HASH_MAX_LENGTH];
 	char					key_hash[AWS_HASH_MAX_LENGTH];
 	uint32_t				combined_hash;
+
 } SUREFLAP_CREDENTIALS;
+//------------------------------------------------------------------------------
 
 typedef struct
 {
 	uint32_t	size;
 	uint8_t		data[CREDS_ABSOLUTE_MAX_LENGTH - sizeof(uint32_t)];
+
 } STORED_CREDENTIAL;
+//==============================================================================
+//functions:
 
 bool Credentials_Parse(char* buffer, SUREFLAP_CREDENTIALS* credentials);
-
-#endif
+//==============================================================================
+#endif //__CREDENTIALS_H_

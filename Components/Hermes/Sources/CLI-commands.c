@@ -17,9 +17,6 @@
 * Filename: CLI-Commands.c
 * Author:   Chris Cowdery
 * Purpose:
-*
-*
-*
 **************************************************************************/
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
@@ -56,7 +53,6 @@
 #include "HubFirmwareUpdate.h"
 #include "utilities.h"
 #include "hermes.h"
-#include "Hermes-debug.h"
 
 #include "wolfssl/wolfcrypt/hash.h"
 #include "NetworkInterface.h"
@@ -595,7 +591,7 @@ static portBASE_TYPE prvTaskStatsCommand( char *pcWriteBuffer, size_t xWriteBuff
 			//DbgConsole_Flush();
 			percent_unused = (100*(pxTaskStatusArray[ x ].usStackHighWaterMark*sizeof( StackType_t )))/(end-start);
 			zprintf(CRITICAL_IMPORTANCE,"  %d\r\n",percent_unused);
-			DbgConsole_Flush();
+			HermesConsoleFlush();
 		}
 		/* Free the array again.  NOTE!  If configSUPPORT_DYNAMIC_ALLOCATION
 		is 0 then vPortFree() will be #defined to nothing. */
@@ -621,7 +617,7 @@ static portBASE_TYPE prvRunTimeStatsCommand( char *pcWriteBuffer, size_t xWriteB
 	uint32_t ulTotalTime, ulStatsAsPercentage;
 
 	zprintf(CRITICAL_IMPORTANCE,"Task                    Abs Time    %% Percent Time\r\n*************************************************\r\n");
-	DbgConsole_Flush();
+	HermesConsoleFlush();
 	/* Take a snapshot of the number of tasks in case it changes while this
 	function is executing. */
 	uxArraySize = uxTaskGetNumberOfTasks();;
@@ -669,7 +665,7 @@ static portBASE_TYPE prvRunTimeStatsCommand( char *pcWriteBuffer, size_t xWriteB
 					consumed less than 1% of the total run time. */
 					zprintf(CRITICAL_IMPORTANCE, "\t%u\t\t<1\r\n", ( unsigned int ) pxTaskStatusArray[ x ].ulRunTimeCounter ); /*lint !e586 sprintf() allowed as this is compiled with many compilers and this is a utility function only - not part of the core kernel implementation. */
 				}
-				DbgConsole_Flush();
+				HermesConsoleFlush();
 			}
 		}
 		/* Free the array again.*/
@@ -1221,13 +1217,13 @@ static portBASE_TYPE prvMessageDumpCommand( char *pcWriteBuffer, size_t xWriteBu
     {
 		global_message_trace_flag = true;
         zprintf(CRITICAL_IMPORTANCE,"Message dumps enabled\r\n");
-		DbgConsole_Flush();
+        HermesConsoleFlush();
     }
     else if (strcmp((const char *)pcParameterString,"off")==0)
     {
 		global_message_trace_flag = false;
         zprintf(CRITICAL_IMPORTANCE,"Message dumps disabled\r\n");
-		DbgConsole_Flush();
+        HermesConsoleFlush();
     }
     else
         pcWriteBuffer+=uAppendString(pcWriteBuffer,"Unrecognised messagedump parameter!\r\n");
@@ -1254,7 +1250,7 @@ static portBASE_TYPE prvRFMACMangleCommand( char *pcWriteBuffer, size_t xWriteBu
     if (strcmp((const char *)pcParameterString,"on")==0)
     {
         zprintf(CRITICAL_IMPORTANCE,"Enabling mangling of RF MAC address\r\n");
-		DbgConsole_Flush();
+        HermesConsoleFlush();
 		product_configuration.rf_mac_mangle = true;
 		write_product_configuration();
 		// Reset MCU
@@ -1263,7 +1259,7 @@ static portBASE_TYPE prvRFMACMangleCommand( char *pcWriteBuffer, size_t xWriteBu
     else if (strcmp((const char *)pcParameterString,"off")==0)
     {
         zprintf(CRITICAL_IMPORTANCE,"Disabled mangling of RF MAC address\r\n");
-		DbgConsole_Flush();
+        HermesConsoleFlush();
 		product_configuration.rf_mac_mangle = false;
 		write_product_configuration();
 		// Reset MCU
@@ -1858,39 +1854,39 @@ static portBASE_TYPE prvTestCaseCommand( char *pcWriteBuffer, size_t xWriteBuffe
 
     if (strncmp((const char *)pcParameterString,"help", 4)==0)
     {
-        DbgConsole_Flush();
+    	HermesConsoleFlush();
         zprintf(CRITICAL_IMPORTANCE,"1: Write Ethernet MAC - 12 hex chars\te.g. testcase 1,1199aabbEEFF\r\n");
         zprintf(CRITICAL_IMPORTANCE,"2: Get Ethernet MAC from NV Store\te.g. testcase 2\r\n");
         zprintf(CRITICAL_IMPORTANCE,"3: Write RF MAC address - 16 hex chars\te.g. testcase 3,1234567890abcDEF\r\n");
-        DbgConsole_Flush();
+        HermesConsoleFlush();
 		zprintf(CRITICAL_IMPORTANCE,"4: Get RF MAC from NV Store\t\te.g. testcase 4\r\n");
         zprintf(CRITICAL_IMPORTANCE,"5: Write Serial Number to NV Store\te.g. testcase 5,(12 x acceptable ascii chars)\r\n");
         zprintf(CRITICAL_IMPORTANCE,"6: Get Serial Number from NV Store\te.g. testcase 6\r\n");
-        DbgConsole_Flush();
+        HermesConsoleFlush();
 		zprintf(CRITICAL_IMPORTANCE,"7: Write rf_pan_id - 4 hex chars\te.g. testcase 7,(4 x 0....fF)\r\n");
         zprintf(CRITICAL_IMPORTANCE,"8: Get rf_pan_id from NV Store\t\te.g. testcase 8\r\n");
         zprintf(CRITICAL_IMPORTANCE,"9: Write Device Stats to NV Store\te.g. testcase 9  <<uses pre-defined data>>\r\n");
-        DbgConsole_Flush();
+        HermesConsoleFlush();
 		zprintf(CRITICAL_IMPORTANCE,"10: Get Device Stats from NV Store\te.g. testcase 10\r\n");
         zprintf(CRITICAL_IMPORTANCE,"13: Erase a sector\t\t\te.g. testcase 13,9...1022\r\n");         // 8 <> 1023 ...exclude start code and persistent data
         zprintf(CRITICAL_IMPORTANCE,"15: Write aes_high\r\n");
-        DbgConsole_Flush();
+        HermesConsoleFlush();
 		zprintf(CRITICAL_IMPORTANCE,"16: Get aes_high\r\n");
         zprintf(CRITICAL_IMPORTANCE,"17: Write aes_low\r\n");
         zprintf(CRITICAL_IMPORTANCE,"18: Get aes_low\r\n");
-        DbgConsole_Flush();
+        HermesConsoleFlush();
 //		zprintf(CRITICAL_IMPORTANCE,"19: Store Secret Serial Number\r\n");
 //        zprintf(CRITICAL_IMPORTANCE,"20: Get Secret Serial from Store\r\n");
         zprintf(CRITICAL_IMPORTANCE,"22: GET_FT_REV_NUM\r\n");
-        DbgConsole_Flush();
+        HermesConsoleFlush();
 		zprintf(CRITICAL_IMPORTANCE,"24: GET_FT_STDBY_MA\r\n");
         zprintf(CRITICAL_IMPORTANCE,"26: GET_FT_GREEN_MA\r\n");
         zprintf(CRITICAL_IMPORTANCE,"28: GET_FT_RED_MA\r\n");
-        DbgConsole_Flush();
+        HermesConsoleFlush();
 		zprintf(CRITICAL_IMPORTANCE,"30: GET_FT_PASS_RESULTS\r\n");
         zprintf(CRITICAL_IMPORTANCE,"32: Write the PRODUCT_CONFIGURATION to flash\r\n");
         zprintf(CRITICAL_IMPORTANCE,"40: Read H/W version from resistors\r\n");
-        DbgConsole_Flush();
+        HermesConsoleFlush();
         // Factory Testing Results etc - used by the Programmer
         // 21 = SET_FT_REV_NUM
         // 22 = GET_FT_REV_NUM

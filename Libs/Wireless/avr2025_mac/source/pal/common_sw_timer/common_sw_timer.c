@@ -110,7 +110,7 @@ void common_tc_timer_irq()
 		timer_trigger = true;
 	}
 }
-
+//------------------------------------------------------------------------------
 static void common_tc_delay(uint32_t microseconds)
 {
 	Timer4->Control1.CounterEnable = false;
@@ -121,12 +121,12 @@ static void common_tc_delay(uint32_t microseconds)
 	Timer4->DMAOrInterrupts.UpdateInterruptEnable = true;
 	Timer4->Control1.CounterEnable = true;
 }
-
+//------------------------------------------------------------------------------
 static void common_tc_compare_stop()
 {
 	Timer4->DMAOrInterrupts.UpdateInterruptEnable = false;
 }
-
+//------------------------------------------------------------------------------
 static inline uint32_t gettime(void)
 {
 	return Timer2->Counter;

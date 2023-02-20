@@ -7,7 +7,13 @@
 //==============================================================================
 #ifndef AWS_H
 #define	AWS_H
+//------------------------------------------------------------------------------
+#ifdef	__cplusplus
+extern "C" {
+#endif
 //==============================================================================
+//includes:
+
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -17,10 +23,8 @@
 
 #include "credentials.h"
 #include "hermes-time.h"
-//------------------------------------------------------------------------------
-#ifdef	__cplusplus
-extern "C" {
-#endif
+//==============================================================================
+//defines:
 
 #define PRINT_AWS	false
 #define PRINT_CREDS	false
@@ -53,7 +57,9 @@ extern "C" {
 #endif
 
 #define AWS_USE_MSG_LEN		-1
-//------------------------------------------------------------------------------
+//==============================================================================
+//functions:
+
 IoT_Error_t AWS_Init(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials);
 IoT_Error_t AWS_Connect(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials, const char* will_message, bool clean_connect);
 IoT_Error_t AWS_Subscribe(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials);
@@ -61,10 +67,10 @@ IoT_Error_t AWS_Resubscribe(AWS_IoT_Client* client);
 IoT_Error_t AWS_Publish(AWS_IoT_Client* client, SUREFLAP_CREDENTIALS* credentials, char* sub_topic, char* message, int32_t message_len, QoS qos);
 
 void AWS_Message_Received(AWS_IoT_Client* pClient, char* pTopicName, uint16_t topicNameLen, IoT_Publish_Message_Params* pParams, void* pClientData);
-
+//==============================================================================
 #ifdef	__cplusplus
 }
 #endif
-//==============================================================================
+//------------------------------------------------------------------------------
 #endif	// AWS_H
 

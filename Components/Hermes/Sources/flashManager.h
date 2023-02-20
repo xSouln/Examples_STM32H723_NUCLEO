@@ -169,6 +169,6 @@ int HermesFlashReadDeviceTable(DEVICE_STATUS* out);
 int HermesFlashReadData();
 int HermesFlashSaveData();
 //==============================================================================
-#endif  // FLASH_MANAGER_H
+#endif // FLASH_MANAGER_H
 
 

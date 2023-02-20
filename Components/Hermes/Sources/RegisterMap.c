@@ -47,21 +47,29 @@
 #include "leds.h"
 #include "utilities.h"
 #include "wolfssl/wolfcrypt/sha256.h"
+//==============================================================================
+//defines:
 
-// Global variables
+// this is how many entries of the DEVICE_TABLE
+// are exposed to the server on reset.
+#define INITIAL_NUMBER_OF_EXPOSED_DEVICES	60
+
+//==============================================================================
+//externs:
+
 uint8_t						hub_debug_mode;
 extern QueueHandle_t		xSendDeviceStatusMailbox;
 extern QueueHandle_t		xSendDeviceTableMailbox;
 extern EventGroupHandle_t	xSurenet_EventGroup;
 extern QueueHandle_t		xLedMailbox;
 
-// Local #defines
+//==============================================================================
+//variables:
 
-// this is how many entries of the DEVICE_TABLE
-// are exposed to the server on reset.
-#define INITIAL_NUMBER_OF_EXPOSED_DEVICES	60
-// Local variables
 uint8_t number_of_exposed_devices;
+
+//==============================================================================
+//variables:
 
 // Local Functions
 static void HubReg_Handle_Device_Status(void);
@@ -94,6 +102,8 @@ uint8_t	trigger_get_device_table(uint16_t address);
 void	get_device_table(bool trigger);
 void	update_register_map_device_table_size(uint8_t value);
 uint8_t	HRM_Read_Image_Hash(uint16_t address);
+
+uint8_t hub_reg_outgoing_message[MAX_MESSAGE_SIZE_SERVER_BUFFER];
 
 // Register Name						Read Handler					Write Handler 				Value						Update Flag		End of Block	Hashed}
 T_HUB_REGISTER_ENTRY hubRegisterBank[HR_LAST_ELEMENT] HUB_REGISTER_BANK_MEM_SECTION =
@@ -168,12 +178,13 @@ uint8_t trigger_get_device_table(uint16_t address)
 
 void HubReg_Handle_Messages(void)
 {
-	if( uxQueueMessagesWaiting(xSendDeviceTableMailbox) > 0 )
-	{	// Device Table waiting for us. Handle without requesting again.
+	if(uxQueueMessagesWaiting(xSendDeviceTableMailbox) > 0)
+	{
+		// Device Table waiting for us. Handle without requesting again.
 		get_device_table(false);
 	}
 
-	if( uxQueueMessagesWaiting(xSendDeviceStatusMailbox) > 0 )
+	if(uxQueueMessagesWaiting(xSendDeviceStatusMailbox) > 0)
 	{
 		HubReg_Handle_Device_Status();
 	}
@@ -408,11 +419,11 @@ void HubReg_Check_Full(void)
 static void Hub_Registers_Send_Range(uint32_t start_index, uint32_t count)
 {
 	// Will wrap around. Server has limit of 8 bit value
-	static uint8_t 	server_set_reg_count	= 0;
+	static uint8_t server_set_reg_count = 0;
+	SERVER_MESSAGE server_message = { hub_reg_outgoing_message, 0};
+	uint32_t pos, i;
 
-	uint8_t			outgoing_message[MAX_MESSAGE_SIZE_SERVER_BUFFER];
-	SERVER_MESSAGE	server_message = {outgoing_message, 0};
-	uint32_t		pos, i;
+	memset(hub_reg_outgoing_message, 0, sizeof(hub_reg_outgoing_message));
 
 	if( start_index + count >= HR_GET_DYNAMIC_SIZE() )
 	{
@@ -421,23 +432,25 @@ static void Hub_Registers_Send_Range(uint32_t start_index, uint32_t count)
 
 	if( count == 0 ){ return; }
 
-	pos = snprintf((char*)outgoing_message, sizeof(outgoing_message),
+	pos = snprintf((char*)hub_reg_outgoing_message, sizeof(hub_reg_outgoing_message),
 					"%d %d %d %d",
 					MSG_REG_VALUES_INDEX_ADDED,
 					server_set_reg_count,
-					start_index, count);
+					start_index,
+					count);
 
 	server_set_reg_count++;
 
 	for( i = 0; i < count; i++ )
 	{
-		pos += snprintf((char*)&outgoing_message[pos], sizeof(outgoing_message) - pos,
+		pos += snprintf((char*)&hub_reg_outgoing_message[pos],
+				sizeof(hub_reg_outgoing_message) - pos,
 				" %02x", hubRegisterBank[start_index + i].value);
 	}
 
-	if( true == server_buffer_add(&server_message) )
+	if(server_buffer_add(&server_message))
 	{
-		for( i = 0; i < count; i++ )
+		for(i = 0; i < count; i++)
 		{
 			hubRegisterBank[start_index + i].updateWebFlag = false;
 		}
@@ -890,27 +903,28 @@ void HubReg_SetValues(uint16_t address,uint16_t numValues,uint8_t *values,bool s
 void HubReg_GetValues(uint16_t address, uint16_t numValues)
 {
     uint32_t i;
-    if( (address >= HR_GET_DYNAMIC_SIZE()) || \
-		((address + numValues - 1) >= HR_GET_DYNAMIC_SIZE()) )
+    if((address >= HR_GET_DYNAMIC_SIZE())
+    || ((address + numValues - 1) >= HR_GET_DYNAMIC_SIZE()))
 	{
 		return;
 	}
 
-	if( (address + numValues) > (HR_LAST_ELEMENT + 1) )
+	if((address + numValues) > (HR_LAST_ELEMENT + 1))
 	{
-		zprintf(CRITICAL_IMPORTANCE,"Server requested out of range register %d %d\r\n",address,numValues);
+		zprintf(CRITICAL_IMPORTANCE,"Server requested out of range register %d %d\r\n", address, numValues);
 		numValues = HR_LAST_ELEMENT + 1 - address;
 	}
 
-    for( i = 0; i < numValues; i++ )
+    for(i = 0; i < numValues; i++)
     {
-       if( hubRegisterBank[address].read_handler_function != NULL )
+       if(hubRegisterBank[address].read_handler_function != NULL)
        {
           hubRegisterBank[address].value = hubRegisterBank[address].read_handler_function(address);
           hubRegisterBank[address].updateWebFlag = true;
        }
        address++;
     }
+
     return;
 }
 
@@ -947,6 +961,7 @@ void hub_reg_dump(char* s, HUB_REGISTER_TYPE reg, uint32_t num_regs)
 		}
 	}
 	zprintf(CRITICAL_IMPORTANCE, "%*s]\r\n", 7-num_regs, "");
+	HermesConsoleFlush();
 }
 
 void HubReg_Dump(void)
@@ -997,14 +1012,14 @@ void HubReg_Dump(void)
             zprintf(CRITICAL_IMPORTANCE, "%02X ",hubRegisterBank[HR_DEVICE_TABLE + (i * sizeof(DEVICE_STATUS)) + j].value);
         }
         zprintf(CRITICAL_IMPORTANCE, "]\r\n");
+        HermesConsoleFlush();
     }
 	zprintf(CRITICAL_IMPORTANCE, "\t[--- End Device Table ---]\r\n");
 }
 
 uint8_t HRM_Read_Image_Hash(uint16_t address)
 {
-
-	return 0;
+	return hubRegisterBank[address].value;
 }
 
 uint32_t HubReg_Get_Integer(uint16_t address)

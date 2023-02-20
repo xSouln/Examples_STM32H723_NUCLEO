@@ -215,7 +215,7 @@ bool server_buffer_add(SERVER_MESSAGE* message)
 			(uint32_t)(((message->source_mac)>>32) & 0xffffffff),
 			(uint32_t)((message->source_mac) & 0xffffffff),
 			message->message_ptr);
-		DbgConsole_Flush();
+		HermesConsoleFlush();
 	}
 
     if(i == SERVER_BUFFER_ENTRIES)
@@ -261,6 +261,9 @@ bool server_buffer_add(SERVER_MESSAGE* message)
 
             return false;
         }
+
+        memset(server_buffer_message[j].message, 0, sizeof(server_buffer_message[j].message));
+
         // Now set up storage references in server_buffer
         // set buffer to point to where message is stored
         server_buffer[i].message = server_buffer_message[j].message;
@@ -322,7 +325,8 @@ bool server_buffer_construct_message(MQTT_MESSAGE* message, uint32_t index)
 	uint32_t message_length = snprintf(message->message, sizeof(message->message),
 										"%08x %04x %s\0",
 										server_buffer[index].buffer_entry_timestamp,
-										header, server_buffer[index].message);
+										header,
+										server_buffer[index].message);
 
 	if(message_length > sizeof(message->message))
 	{
@@ -347,7 +351,7 @@ bool server_buffer_construct_message(MQTT_MESSAGE* message, uint32_t index)
 		}
 	}
 
-	//zprintf(LOW_IMPORTANCE,"sending to Server %s\r\n",message->message);
+	zprintf(LOW_IMPORTANCE, "sending to Server %s\r\n", message->message);
 
 	return true;
 }
@@ -366,6 +370,7 @@ MQTT_MESSAGE* server_buffer_get_next_message(void)
 
     // Null topic means Hub base topic "messages".
 	memset(output_mqtt_message.subtopic, '\0', sizeof(output_mqtt_message.subtopic));
+	memset(output_mqtt_message.message, 0, sizeof(output_mqtt_message.message));
 
     // Need to find next message to send.
 	// Backoff arranges sucessive transmissions to be spaced at increasing intervals,

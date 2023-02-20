@@ -47,7 +47,7 @@
 extern REG_SPI_T *RF_SPI;
 
 static irq_handler_t irq_hdl_trx = NULL;
-static volatile bool irq_hdl_trx_is_enable;
+static volatile bool irq_hdl_trx_is_enable = true;
 
 void trx_spi_init(void)
 {

@@ -22,10 +22,17 @@
 #ifndef __HERMES_H__
 #define __HERMES_H__
 //==============================================================================
+//includes:
+
 #include "Hermes-compiller.h"
 
+#include "Hermes/Console/Hermes-console.h"
+
 #include "Signing.h"
+#include "cmsis_os.h"
 //==============================================================================
+//defines:
+
 #define SHOULD_I_PACKAGE	true
 
 // Number of watchdog resets required to cause a bank switch
@@ -38,76 +45,13 @@
 #define GPT1_ONE_SECOND 1000000
 
 #define MYUSERNAME ""
-//------------------------------------------------------------------------------
-//memories sections:
 
-#define MQTT_STORED_CERTIFICATE_MEM_SECTION __attribute__((section("._user_ram3_ram")))
-#define MQTT_STORED_PRIVATE_KEY_MEM_SECTION __attribute__((section("._user_ram3_ram")))
-#define MQTT_SUREFLAP_CREDENTIALS_MEM_SECTION __attribute__((section("._user_ram3_ram")))
-#define MQTT_CERTIFICATE_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define MQTT_AWS_CLIENT_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+// default is every hour
+#define HUB_SEND_TIME_UPDATES_FROM_DEVICES_EVERY_MINUTE	0x01
 
-#define DEVICE_STATUS_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define DEVICE_STATUS_EXTRA_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+// default is every hour
+#define HUB_SEND_HUB_STATUS_UPDATES_EVERY_MINUTE 		0x02
 
-#define SECURITY_KEYS_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define SECRET_KEYS_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-
-#define SERVER_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define SERVER_BUFFER_MESSAGE_MEM_SECTION// __attribute__((section("._user_dtcmram_ram")))
-
-#define DEVICE_LIST_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define HFU_RECEIVED_PAGE_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define DEVICE_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-
-#define ACKNOWLEDGE_QUEUE_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define DATA_ACKNOWLEDGE_QUEUE_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define RECEIVED_SEQUENCE_NUMBERS_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-
-#define SN_RX_PACKET_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define SN_RX_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define SN_DUMMY_CHUNK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-
-#define HUB_REGISTER_BANK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-
-#define HERMES_FLASH_OPERATION_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-//------------------------------------------------------------------------------
-// Task stack sizes in words:
-
-//#define ipISR_TASK_STACK_SIZE_WORDS	(0x400/4) //(0x800/4)
-//#define	NETWORK_WATCHDOG_TASK_STACK_SIZE (0x200/4) //(0x400/4)
-//#define STARTUP_TASK_STACK_SIZE (0x400/4)
-//#define FLASH_MANAGER_TASK_STACK_SIZE (0x400/4) //(0x800/4)
-
-#define WATCHDOG_TASK_STACK_SIZE (0x200/4) //(0x400/4)
-#define LABEL_PRINTER_TASK_STACK_SIZE (0x800/4)
-#define TEST_TASK_STACK_SIZE (0x400/4) //(0x800/4)
-
-#define SHELL_TASK_STACK_SIZE (0x800/4) //(0x1000/4)
-
-#define LED_TASK_STACK_SIZE (0x400/4) //(0x800/4)
-#define LED_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-
-#define SNTP_TASK_STACK_SIZE (0x400/4) //(0x400/4)
-#define SNTP_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-
-#define MQTT_TASK_STACK_SIZE (0x4000/4) //(0x2000/4)
-#define MQTT_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-
-#define HTTP_POST_TASK_STACK_SIZE (0x2000/4) //(0x800/4)
-#define HTTP_POST_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-
-#define HFU_TASK_STACK_SIZE (0x400/4) //(0x800/4)
-
-#define HERMES_APPLICATION_TASK_STACK_SIZE (0x3000/4) //(0x800/4)
-#define HERMES_APPLICATION_TASK_STACK_MEM_SECTION __attribute__((section("._user_itcmram_stack")))
-
-#define SURENET_TASK_STACK_SIZE (0x2000/4) //(0x800/4)
-#define SURENET_TASK_STACK_MEM_SECTION __attribute__((section("._user_itcmram_stack")))
-
-#define HUB_SEND_TIME_UPDATES_FROM_DEVICES_EVERY_MINUTE	0x01 // default is every hour
-#define HUB_SEND_HUB_STATUS_UPDATES_EVERY_MINUTE 		0x02 // default is every hour
 #define HUB_SEND_TIME_UPDATES_FROM_DEVICES				0x04
 //------------------------------------------------------------------------------
 
@@ -144,15 +88,6 @@ ipconfigUSE_DNS is set to 1 but a DNS server cannot be contacted. */
 
 /* DHCP has an option for clients to register their hostname.  */
 #define HUB2_HOSTNAME       "Sure Petcare Hub"
-
-/* Task priorities. */
-// We will only have two priorities, one for ISR's and one for other tasks. This
-// means that the scheduler will round-robin the other tasks when they each yield,
-// giving each one some processing time.
-
-#define ISR_TASK_PRIORITY (configMAX_PRIORITIES - 1)
-#define NORMAL_TASK_PRIORITY    1
-#define HIGH_TASK_PRIORITY		3
 
 #define MIN_PRINT_LEVEL 0
 #define MAX_PRINT_LEVEL 11
@@ -337,13 +272,17 @@ extern DebugCounterT DebugCounter;
 //functions:
 
 int hermes_app_start(void);
-void mem_dump(uint8_t *addr, uint32_t len);	// utility function
 void zprintf(ZPRINTF_IMPORTANCE test, const char *_Restrict, ...);
 void set_product_state(PRODUCT_STATE state);
 void sanitise_product_config(void);
 void write_product_configuration(void);
-void hermes_srand(int seed); // thread safe
-int hermes_rand(void); // thread safe
+
+// thread safe
+void hermes_srand(int seed);
+
+// thread safe
+int hermes_rand(void);
+
 void initSureNetByProgrammer(void);
 void connectToServer(void);
 //==============================================================================

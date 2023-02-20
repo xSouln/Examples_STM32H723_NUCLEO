@@ -20,18 +20,19 @@
 *           The real ones should be programmed in which overwrites these.
 *             
 **************************************************************************/
-
 #ifndef _MYMAC_H_
 #define _MYMAC_H_
+//==============================================================================
+//defines:
 
 // These are default placeholder values. They will be written into Flash if the firmware
 // decides that the Flash has not been initialised.
 
-#define		myRFMAC 		0x70b3d5f9c0000801
-#define		myEthMAC 		{0x00,0x11,0x22,0xCC,0x19,0x73}
-#define 	mySerial		"H017-9999998\0"
-#define		mySecretSerial	"FD5CE7184B30BEBA890B6A83D7184760\0"
-//#define		mySecretSerial	"15B1F087B2A1EC3E56D759B07538B3A9\0"
-
-#endif
+#define myRFMAC 0x70b3d5f9c0000801
+#define myEthMAC { 0x00, 0x11, 0x22, 0xCC, 0x19, 0x73 }
+#define mySerial "H017-9999998\0"
+#define mySecretSerial "FD5CE7184B30BEBA890B6A83D7184760\0"
+//#define mySecretSerial "15B1F087B2A1EC3E56D759B07538B3A9\0"
+//==============================================================================
+#endif // _MYMAC_H_
 

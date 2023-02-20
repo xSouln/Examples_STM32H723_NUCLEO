@@ -16,14 +16,20 @@ extern "C" {
 //==============================================================================
 //types:
 
+typedef enum
+{
+	ConsoleWriteCommonMode
 
+} ConsoleWriteModes;
 //==============================================================================
 //functions:
 
 void HermesConsoleInit();
 
-int HermesConsoleWrite(void* data, uint16_t size, uint8_t mode);
-int HermesConsoleRead(uint8_t* data, uint16_t size, uint8_t mode);
+int HermesConsoleWrite(void* in, uint16_t size, ConsoleWriteModes mode);
+int HermesConsoleRead(void* out, uint16_t size, ConsoleWriteModes mode);
+
+void HermesConsoleFlush();
 //==============================================================================
 #ifdef __cplusplus
 }

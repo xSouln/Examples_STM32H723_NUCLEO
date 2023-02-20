@@ -32,6 +32,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "Components.h"
+
+extern REG_TIM_T* Timer2;
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -65,7 +67,14 @@ void MX_FREERTOS_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+//==============================================================================
 
+//override default
+uint32_t HAL_GetTick()
+{
+	return Timer2->Counter / 1000;
+}
+//==============================================================================
 /* USER CODE END 0 */
 
 /**

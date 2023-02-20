@@ -39,7 +39,10 @@
 #include "device_buffer.h"
 #include "RegisterMap.h"
 #include "utilities.h"
-#include "devices.h"    // to get the max size of the Device Table.
+
+ // to get the max size of the Device Table.
+#include "devices.h"
+
 #include "HubFirmwareUpdate.h"
 #include "credentials.h"
 
@@ -54,12 +57,15 @@ typedef enum
     PARSE_ADDRESS,
     PARSE_NUM_VALUES,
     PARSE_VALUES,
+
 } PARSER_STATE;
 //------------------------------------------------------------------------------
+
 typedef enum
 {
     MESSAGE_FOR_HUB,
     MESSAGE_FOR_DEVICE,
+
 } MESSAGE_DESTINATION;
 //==============================================================================
 //externs:

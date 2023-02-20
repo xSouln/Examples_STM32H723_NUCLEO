@@ -137,7 +137,7 @@
 #define CHECKSUM_CHECK_ICMP6 0
 /*-----------------------------------------------------------------------------*/
 /* USER CODE BEGIN 1 */
-#define LWIP_TCPIP_THREAD_ALIVE() osDelay(1)
+#define LWIP_TCPIP_THREAD_ALIVE() osThreadYield()
 /* USER CODE END 1 */
 
 #ifdef __cplusplus

@@ -63,32 +63,47 @@ typedef struct
 {
 	union
 	{
+		uint8_t bootloader_flags_section[1024];
+	};
+
+	union
+	{
+		uint8_t reserved_section1[1024];
+	};
+
+	union
+	{
 		PRODUCT_CONFIGURATION product_configuration;
 		uint8_t product_configuration_section[1024];
 	};
 
 	union
 	{
-		DEVICE_STATUS device_status[MAX_NUMBER_OF_DEVICES];
-		uint8_t device_status_section[1024];
+		PERSISTENT_DATA persisent_data;
+		uint8_t persisent_data_section[256];
 	};
 
 	union
 	{
 		AES_CONFIG aes_config;
-		uint8_t aes_config_section[128];
-	};
-
-	union
-	{
-		PERSISTENT_DATA persistent_data;
-		uint8_t persistent_data_section[128];
+		uint8_t aes_config_section[256];
 	};
 
 	union
 	{
 		FACTORY_TEST_DATA factory_test_data;
-		uint8_t factory_test_data_section[128];
+		uint8_t factory_test_data_section[256];
+	};
+
+	union
+	{
+		uint8_t reserved_section2[1280];
+	};
+
+	union
+	{
+		DEVICE_STATUS device_status[MAX_NUMBER_OF_DEVICES];
+		uint8_t device_status_section[1024];
 	};
 
 } HermesFlashOperationBufferT;
