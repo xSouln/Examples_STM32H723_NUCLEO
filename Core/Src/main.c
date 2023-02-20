@@ -30,18 +30,17 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "Components.h"
-
-extern REG_TIM_T* Timer2;
+#include "dma.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-uint8_t ucHeap[configTOTAL_HEAP_SIZE];// __attribute__((section("._user_ram2_ram")));
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-REG_SPI_T *RF_SPI = SPI3;
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -52,7 +51,12 @@ REG_SPI_T *RF_SPI = SPI3;
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+//==============================================================================
+extern REG_TIM_T* Timer2;
 
+uint8_t ucHeap[configTOTAL_HEAP_SIZE];// __attribute__((section("._user_ram2_ram")));
+REG_SPI_T* RF_SPI = (REG_SPI_T*)SPI3;
+//==============================================================================
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
