@@ -792,129 +792,59 @@
 			<locationURI>PARENT-1-PROJECT_LOC/LWIP/Target/ethernetif.c</locationURI>
 		</link>
 		<link>
-			<name>Components/Hermes/MQTT/AWS/AWS.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/AWS.c</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/AWS.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/AWS.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/aws_iot_jobs_interface.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_jobs_interface.c</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/aws_iot_jobs_json.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_jobs_json.c</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/aws_iot_jobs_topics.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_jobs_topics.c</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/aws_iot_jobs_types.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_jobs_types.c</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/aws_iot_json_utils.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_json_utils.c</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/aws_iot_mqtt_client.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_mqtt_client.c</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/aws_iot_mqtt_client_common_internal.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_mqtt_client_common_internal.c</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/aws_iot_mqtt_client_connect.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_mqtt_client_connect.c</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/aws_iot_mqtt_client_publish.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_mqtt_client_publish.c</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/aws_iot_mqtt_client_subscribe.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_mqtt_client_subscribe.c</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/aws_iot_mqtt_client_unsubscribe.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_mqtt_client_unsubscribe.c</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/aws_iot_mqtt_client_yield.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_mqtt_client_yield.c</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/inc/Backoff.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/Backoff.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/inc/MQTT-Simulator.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/MQTT-Simulator.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/inc/MQTT-Synapse.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/MQTT-Synapse.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/inc/MQTT.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/MQTT.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/inc/MQTT_internal.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/MQTT_internal.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/inc/credentials.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/credentials.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/src/Backoff.c</name>
+			<name>Components/Hermes/MQTT/sources/Backoff.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/MQTT/Backoff.c</locationURI>
 		</link>
 		<link>
-			<name>Components/Hermes/MQTT/src/MQTT-Simulator.c</name>
+			<name>Components/Hermes/MQTT/sources/Backoff.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/Backoff.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/sources/MQTT-Simulator.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/MQTT/MQTT-Simulator.c</locationURI>
 		</link>
 		<link>
-			<name>Components/Hermes/MQTT/src/MQTT-Synapse.c</name>
+			<name>Components/Hermes/MQTT/sources/MQTT-Simulator.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/MQTT-Simulator.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/sources/MQTT-Synapse.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/MQTT/MQTT-Synapse.c</locationURI>
 		</link>
 		<link>
-			<name>Components/Hermes/MQTT/src/MQTT.c</name>
+			<name>Components/Hermes/MQTT/sources/MQTT-Synapse.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/MQTT-Synapse.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/sources/MQTT.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/MQTT/MQTT.c</locationURI>
 		</link>
 		<link>
-			<name>Components/Hermes/MQTT/src/credentials.c</name>
+			<name>Components/Hermes/MQTT/sources/MQTT.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/MQTT.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/sources/MQTT_internal.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/MQTT_internal.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/sources/credentials.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/MQTT/credentials.c</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/sources/credentials.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/credentials.h</locationURI>
 		</link>
 		<link>
 			<name>Middlewares/wolfSSL/wolfSSL/inc/callbacks.h</name>
@@ -987,101 +917,6 @@
 			<locationURI>PARENT-1-PROJECT_LOC/Middlewares/Third_Party/wolfSSL_wolfSSL_wolfSSL/wolfssl/wolfssl/wolfio.h</locationURI>
 		</link>
 		<link>
-			<name>Components/Hermes/MQTT/AWS/include/aws_iot_error.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_error.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/aws_iot_jobs_interface.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_jobs_interface.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/aws_iot_jobs_json.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_jobs_json.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/aws_iot_jobs_topics.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_jobs_topics.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/aws_iot_jobs_types.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_jobs_types.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/aws_iot_json_utils.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_json_utils.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/aws_iot_log.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_log.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/aws_iot_mqtt_client.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_mqtt_client.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/aws_iot_mqtt_client_common_internal.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_mqtt_client_common_internal.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/aws_iot_mqtt_client_interface.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_mqtt_client_interface.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/aws_iot_shadow_actions.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_shadow_actions.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/aws_iot_shadow_interface.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_shadow_interface.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/aws_iot_shadow_json.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_shadow_json.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/aws_iot_shadow_json_data.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_shadow_json_data.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/aws_iot_shadow_key.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_shadow_key.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/aws_iot_version.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_version.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/network_interface.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/network_interface.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/threads_interface.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/threads_interface.h</locationURI>
-		</link>
-		<link>
-			<name>Components/Hermes/MQTT/AWS/include/timer_interface.h</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/timer_interface.h</locationURI>
-		</link>
-		<link>
 			<name>Components/Hermes/MQTT/AWS/platform/network_platform.h</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/platform/CortexM7/tls/network_platform.h</locationURI>
@@ -1100,6 +935,21 @@
 			<name>Components/Hermes/MQTT/AWS/platform/timer_platform.h</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/platform/CortexM7/common/timer_platform.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/sources/AWS.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/AWS.c</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/sources/AWS.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/AWS.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/external_libs/jsmn/jsmn.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/external_libs/jsmn/jsmn.h</locationURI>
 		</link>
 		<link>
 			<name>Middlewares/wolfSSL/wolfSSL/wolfCrypt/Core/aes.c</name>
@@ -2275,6 +2125,161 @@
 			<name>Middlewares/wolfSSL/wolfSSL/wolfSSL/inc/x509v3.h</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/Middlewares/Third_Party/wolfSSL_wolfSSL_wolfSSL/wolfssl/wolfssl/openssl/x509v3.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/aws_iot_error.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_error.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/aws_iot_jobs_interface.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_jobs_interface.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/aws_iot_jobs_json.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_jobs_json.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/aws_iot_jobs_topics.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_jobs_topics.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/aws_iot_jobs_types.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_jobs_types.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/aws_iot_json_utils.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_json_utils.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/aws_iot_log.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_log.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/aws_iot_mqtt_client.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_mqtt_client.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/aws_iot_mqtt_client_common_internal.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_mqtt_client_common_internal.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/aws_iot_mqtt_client_interface.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_mqtt_client_interface.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/aws_iot_shadow_actions.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_shadow_actions.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/aws_iot_shadow_interface.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_shadow_interface.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/aws_iot_shadow_json.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_shadow_json.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/aws_iot_shadow_json_data.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_shadow_json_data.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/aws_iot_shadow_key.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_shadow_key.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/aws_iot_version.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/aws_iot_version.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/network_interface.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/network_interface.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/threads_interface.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/threads_interface.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/inc/timer_interface.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/include/timer_interface.h</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/src/aws_iot_jobs_interface.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_jobs_interface.c</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/src/aws_iot_jobs_json.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_jobs_json.c</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/src/aws_iot_jobs_topics.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_jobs_topics.c</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/src/aws_iot_jobs_types.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_jobs_types.c</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/src/aws_iot_json_utils.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_json_utils.c</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/src/aws_iot_mqtt_client.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_mqtt_client.c</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/src/aws_iot_mqtt_client_common_internal.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_mqtt_client_common_internal.c</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/src/aws_iot_mqtt_client_connect.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_mqtt_client_connect.c</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/src/aws_iot_mqtt_client_publish.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_mqtt_client_publish.c</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/src/aws_iot_mqtt_client_subscribe.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_mqtt_client_subscribe.c</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/src/aws_iot_mqtt_client_unsubscribe.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_mqtt_client_unsubscribe.c</locationURI>
+		</link>
+		<link>
+			<name>Components/Hermes/MQTT/AWS/core/src/aws_iot_mqtt_client_yield.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/MQTT/AWS/src/aws_iot_mqtt_client_yield.c</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>

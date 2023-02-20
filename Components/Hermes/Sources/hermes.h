@@ -271,6 +271,8 @@ extern DebugCounterT DebugCounter;
 //==============================================================================
 //functions:
 
+void HermesComponentInit();
+
 int hermes_app_start(void);
 void zprintf(ZPRINTF_IMPORTANCE test, const char *_Restrict, ...);
 void set_product_state(PRODUCT_STATE state);
