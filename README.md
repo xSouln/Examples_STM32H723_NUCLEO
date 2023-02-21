@@ -6,10 +6,14 @@
   - [Folders](#content)
   - [Additional folders for STM32CubeIDE](#additional-folders-for-stm32cubeide)
 - [Changes and innovations](#changes-and-innovations)
+  - [Launching the application](#launching-the-application)
   - [Memory sections](#memory-sections)
   - [LWIP](#lwip)
   - [ASF Zigbee](#asf-zigbee)
   - [WolfSSL](#wolfssl)
+  - [AWS](#aws)
+  - [Consol](#consol)
+  - [Internal flash manager](#internal-flash-manager)
 - [Programs used](#programs-used)
 
 ### Folders
@@ -37,6 +41,8 @@
 
 ### Additional folders for STM32CubeIDE
 
+### Launching the application
+  - 
 
 ### Memory sections
   - The [linker script](/STM32CubeIDE/STM32H723ZGTX_FLASH.ld) with a description of the regions
@@ -47,10 +53,26 @@
 ### LWIP
   - General
     - The FreeRTOS-Plus-TCP stack has been replaced with LWIP, which is included in the "STM32CubeMX" program makes it easy to configure and there are many examples of use
+  - Initialization files
+    - [lwip.c](/LWIP/App/lwip.c) - lwip initialization
+    - [ethernetif.c](/LWIP/Target/ethernetif.c) - initialization of the transceiver driver and the ethernet module
+  - Configuration files
+    - [lwipopts.h](/LWIP/Target/lwipopts.h) - user settings file - recommended for use
+    - [opt.h](/Middlewares/Third_Party/LwIP/src/include/lwip/opt.h) - shared settings file - not recommended for use
   - Features of use
     - For correct transmission and reception of data, they must be located in the memory sections "RAM_D1" or "RAM_D2" otherwise a DMA error will be caused
-  
+    - When the project is being rebuilt via "STM32CubeMX" - it is necessary to set the definition value "ETH_RX_BUFFER_CNT = 32" in the [ethernetif.c](/LWIP/Target/ethernetif.c) - it cannot be done in the "STM32CubeMX" settings
 
+### ASF Zigbee
+
+### WolfSSL
+  - The library is generated using "STM32CubeMX" using additional Software packs
+  - When rebuilding the project using "STM32CubeMX", it is necessary to delete the file [wolfSSL.I-CUBE-wolfSSL_conf.h]() located in the [wolfSSL](/wolfSSL) folder. The desired configuration file [wolfSSL.I-CUBE-wolfSSL_conf.h](/Components/Hermes/Settings/wolfSSL.I-CUBE-wolfSSL_conf.h) is located in the [Settings](/Components/Hermes/Settings) folder
+
+### Consol
+
+
+### Internal flash manager
 
 
 ### Programs used
