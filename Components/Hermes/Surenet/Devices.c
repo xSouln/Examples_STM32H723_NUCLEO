@@ -44,7 +44,7 @@
 #include "devices.h"
 #include "SureNet.h"
 #include "hermes-time.h"
-#include "flashManager.h"
+#include "InternalFlashManager.h"
 //==============================================================================
 //externs:
 

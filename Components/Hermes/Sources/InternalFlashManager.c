@@ -36,7 +36,7 @@
 /*Other includes*/
 #include "Devices.h"
 #include "stdbool.h"
-#include "flashManager.h"
+#include "InternalFlashManager.h"
 #include "credentials.h"
 #include "utilities.h"
 //==============================================================================

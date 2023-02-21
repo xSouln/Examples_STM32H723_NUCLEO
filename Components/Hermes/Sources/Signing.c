@@ -26,7 +26,7 @@
 #include "Signing.h"
 #include "Server_Buffer.h"
 #include "message_parser.h"
-#include "flashManager.h"
+#include "InternalFlashManager.h"
 #include "wolfssl/wolfcrypt/pwdbased.h"
 #include "wolfssl/wolfcrypt/sha256.h"
 #include "wolfssl/wolfcrypt/hmac.h"

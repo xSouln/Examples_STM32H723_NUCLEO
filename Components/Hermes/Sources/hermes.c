@@ -41,7 +41,7 @@
 // Other includes
 #include "SureNet-interface.h"
 #include "hermes-app.h"
-#include "flashManager.h"
+#include "InternalFlashManager.h"
 #include "../MQTT/MQTT.h"
 #include "SNTP.h"
 #include "leds.h"
