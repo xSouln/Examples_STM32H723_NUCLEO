@@ -66,6 +66,9 @@
 
 extern QueueHandle_t xNvStoreMailboxSend;
 extern EventGroupHandle_t xConnectionStatus_EventGroup;
+
+// If bit 1 is set, hub status updates sent every minute rather than every hour
+extern uint8_t hub_debug_mode;
 //==============================================================================
 //variables:
 
@@ -98,10 +101,10 @@ QueueHandle_t xBufferMessageMailbox;
 QueueHandle_t xSystemStatusMailbox;
 
 static StaticQueue_t xStaticIncomingMQTTMessageMailbox;
-uint8_t ucIncomingMQTTMessageMailboxStorageArea[INCOMING_MQTT_MESSAGE_QUEUE_DEPTH_SMALL * sizeof(MQTT_MESSAGE)] __attribute__((section("._user_dtcmram_ram")));
+uint8_t ucIncomingMQTTMessageMailboxStorageArea[INCOMING_MQTT_MESSAGE_QUEUE_DEPTH_SMALL * sizeof(MQTT_MESSAGE)] MQTT_INCOMING_MESSAGE_MAILBOX_STORAGE;
 
 static StaticQueue_t xStaticOutgoingMQTTMessageMailbox;
-uint8_t ucOutgoingMQTTMessageMailboxStorageArea[1 * sizeof(MQTT_MESSAGE)] __attribute__((section("._user_dtcmram_ram")));
+uint8_t ucOutgoingMQTTMessageMailboxStorageArea[1 * sizeof(MQTT_MESSAGE)] MQTT_OUTGOING_MESSAGE_MAILBOX_STORAGE;
 
 // We put these here to ensure that we don't have to allocate enough space in the
 // hermes_app_task() to provide for them
@@ -404,7 +407,6 @@ void trigger_send_hub_version_info(void)
  * Outputs         :
  * Returns         :
  **************************************************************/
-extern uint8_t hub_debug_mode;	// If bit 1 is set, hub status updates sent every minute rather than every hour
 static void send_hub_report(void)
 {
 	uint8_t msg[48] = {0};

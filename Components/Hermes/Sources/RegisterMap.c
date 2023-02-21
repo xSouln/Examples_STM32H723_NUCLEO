@@ -53,7 +53,25 @@
 // this is how many entries of the DEVICE_TABLE
 // are exposed to the server on reset.
 #define INITIAL_NUMBER_OF_EXPOSED_DEVICES	60
+//==============================================================================
+//types:
 
+// We use this enum to understand pairing mode requests from the Server
+typedef enum
+{
+	// used to be PAIRING_NEAR_FIELD and is used to indicate turning off pairing mode
+	PAIRING_OFF,
+
+	// NOT USED
+	PAIRING_DISTANCE,
+
+	// Server has sent down command to put unit into pairing mode
+	PAIRING_MANUAL_SERVER_INITIATED = 0x02,
+
+	// User has pushed button on the bottom of the Hub
+	PAIRING_MANUAL_HUB_INITIATED = 0x82,
+
+} HUB_PAIRING_MODE;
 //==============================================================================
 //externs:
 
@@ -67,11 +85,10 @@ extern QueueHandle_t		xLedMailbox;
 //variables:
 
 uint8_t number_of_exposed_devices;
-
+uint8_t hub_reg_outgoing_message[MAX_MESSAGE_SIZE_SERVER_BUFFER];
 //==============================================================================
-//variables:
+//prototypes:
 
-// Local Functions
 static void HubReg_Handle_Device_Status(void);
 static void Hub_Registers_Send_Range(uint32_t start_index, uint32_t count);
 
@@ -102,9 +119,7 @@ uint8_t	trigger_get_device_table(uint16_t address);
 void	get_device_table(bool trigger);
 void	update_register_map_device_table_size(uint8_t value);
 uint8_t	HRM_Read_Image_Hash(uint16_t address);
-
-uint8_t hub_reg_outgoing_message[MAX_MESSAGE_SIZE_SERVER_BUFFER];
-
+//------------------------------------------------------------------------------
 // Register Name						Read Handler					Write Handler 				Value						Update Flag		End of Block	Hashed}
 T_HUB_REGISTER_ENTRY hubRegisterBank[HR_LAST_ELEMENT] HUB_REGISTER_BANK_MEM_SECTION =
 {
@@ -155,16 +170,7 @@ T_HUB_REGISTER_ENTRY hubRegisterBank[HR_LAST_ELEMENT] HUB_REGISTER_BANK_MEM_SECT
   [HR_DEVICE_TABLE_NUMBER_CONNECTIONS]	= {	get_num_pairs,				null_write_fn,				0,							false,			true,			true},
 // we'll stuff the connection table entries programatically in clearHubBank()
 };
-
-// We use this enum to understand pairing mode requests from the Server
-typedef enum
-{
-	PAIRING_OFF,		// used to be PAIRING_NEAR_FIELD and is used to indicate turning off pairing mode
-	PAIRING_DISTANCE,	// NOT USED
-	PAIRING_MANUAL_SERVER_INITIATED = 0x02,	// Server has sent down command to put unit into pairing mode
-	PAIRING_MANUAL_HUB_INITIATED = 0x82,	// User has pushed button on the bottom of the Hub
-} HUB_PAIRING_MODE;
-
+//==============================================================================
 /**************************************************************
  * Function Name   : trigger_get_device_table
  * Description     : Gets an up to date copy of the Device Table.

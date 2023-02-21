@@ -253,7 +253,7 @@ xResult ComponentsInit(void* parent)
 	#endif
 */
 	#ifdef TERMINAL_COMPONENT_ENABLE
-	TerminalComponentInit(parent);
+	//TerminalComponentInit(parent);
 	#endif
 
 	#ifdef SUREFLAP_COMPONENT_ENABLE

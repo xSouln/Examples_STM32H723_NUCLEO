@@ -122,7 +122,8 @@
 #define MAC_ZIP_MAX_KEY_USAGE_LIST_ENTRIES      (1)
 #endif /* MAC_SECURITY_ZIP */
 /* === Externals ============================================================ */
-
+#define BMM_BUF_POOL_MEM_SECTION
+#define BMM_BUF_HEADER_MEM_SECTION
 /* === Prototypes =========================================================== */
 
 #ifdef __cplusplus

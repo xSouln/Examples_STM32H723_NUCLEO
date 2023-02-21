@@ -152,7 +152,7 @@ SECTIONS
   } >RAM_D1
 
   /* User_heap_stack section, used to check that there is enough RAM left */
-  ._user_itcmram_stack :
+  ._user_itcmram_section :
   {
     . = ALIGN(8);
     PROVIDE ( end = . );
@@ -163,25 +163,16 @@ SECTIONS
   } >ITCMRAM
   
   /* Modification start */
-  ._user_dtcmram_ram :
+  ._user_dtcmram_section :
   {
     . = ALIGN(4);
-    *(._user_dtcmram_section)
+
     . = ALIGN(4);
   } >DTCMRAM
   /* Modification end */
   
   /* Modification start */
-  ._user_ram2_ram :
-  {
-    . = ALIGN(4);
-    *(._user_ram2_section)
-    . = ALIGN(4);
-  } >RAM_D2
-  /* Modification end */
-  
-  /* Modification start */
-  ._user_ram1_ram :
+  ._user_ram1_section :
   {
     . = ALIGN(4);
     *(.RxDecripSection)
@@ -191,10 +182,19 @@ SECTIONS
   /* Modification end */
   
   /* Modification start */
-  ._user_ram3_ram :
+  ._user_ram2_section :
   {
     . = ALIGN(4);
-    *(._user_ram3_section)
+
+    . = ALIGN(4);
+  } >RAM_D2
+  /* Modification end */
+  
+  /* Modification start */
+  ._user_ram3_section :
+  {
+    . = ALIGN(4);
+
     . = ALIGN(4);
   } >RAM_D3
   /* Modification end */

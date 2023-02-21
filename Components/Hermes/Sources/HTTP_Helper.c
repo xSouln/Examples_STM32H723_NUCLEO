@@ -42,6 +42,15 @@
 #include "api.h"
 #include "dns.h"
 //==============================================================================
+//variables:
+
+// Mutex to prevent re-entry of HTTP Post function
+SemaphoreHandle_t xHTTPPostSemaphoreHandle;
+
+// Shared mailboxes
+QueueHandle_t xHTTPPostRequestMailbox;
+//==============================================================================
+//prototypes:
 
 static bool HTTP_Open_Connection(HTTP_CONNECTION* connection, char* URL);
 static void HTTP_Kill_Connection(HTTP_CONNECTION* connection);
@@ -50,11 +59,6 @@ static bool HTTP_Transmit_Message(WOLFSSL* ssl, char* URL, char* resource, char*
 static bool HTTP_Process_Header(WOLFSSL* ssl, HTTP_RESPONSE_DATA* response_data);
 static bool HTTP_Calculate_Signature(HTTP_CONNECTION* connection, HTTP_RESPONSE_DATA* response_data, DERIVED_KEY_SOURCE rx_key);
 //==============================================================================
-// Mutex to prevent re-entry of HTTP Post function
-SemaphoreHandle_t xHTTPPostSemaphoreHandle;
-
-// Shared mailboxes
-QueueHandle_t xHTTPPostRequestMailbox;
 /**************************************************************
  * Function Name   : HTTP_Post_Task_init
  * Description     : Sets up mailboxes and events for HTTPPostTask

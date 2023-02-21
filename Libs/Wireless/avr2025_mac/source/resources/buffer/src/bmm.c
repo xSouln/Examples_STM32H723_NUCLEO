@@ -82,14 +82,14 @@
 static uint8_t buf_pool[(((TOTAL_NUMBER_OF_LARGE_BUFS * LARGE_BUFFER_SIZE) +
 (TOTAL_NUMBER_OF_SMALL_BUFS * SMALL_BUFFER_SIZE)))];
 #else
-static uint8_t buf_pool[((TOTAL_NUMBER_OF_LARGE_BUFS * LARGE_BUFFER_SIZE))];
+static uint8_t buf_pool[((TOTAL_NUMBER_OF_LARGE_BUFS * LARGE_BUFFER_SIZE))] BMM_BUF_POOL_MEM_SECTION;
 #endif
 
 /*
  * Array of buffer headers
  */
 static buffer_t buf_header[TOTAL_NUMBER_OF_LARGE_BUFS +
-TOTAL_NUMBER_OF_SMALL_BUFS];
+TOTAL_NUMBER_OF_SMALL_BUFS] BMM_BUF_HEADER_MEM_SECTION;
 
 /*
  * Queue of free large buffers

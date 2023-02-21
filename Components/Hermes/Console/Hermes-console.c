@@ -16,19 +16,11 @@
 //==============================================================================
 //defines:
 
-#define HERMES_CONSOL_TX_TASK_SIZE (0x100)
-#define HERMES_CONSOL_TX_TASK_PRIORITY osPriorityNormal
-
-#define HERMES_CONSOL_TASK_SIZE (0x400)
-#define HERMES_CONSOL_TASK_PRIORITY osPriorityNormal
-
 #define HERMES_CONSOL_RX_BUFFER_SIZE_MASK 0x3ff
 #define HERMES_CONSOL_RX_BUFFER_SIZE (HERMES_CONSOL_RX_BUFFER_SIZE_MASK + 1)
-#define HERMES_CONSOL_RX_BUFFER_MEM_LOCATION
 
 #define HERMES_CONSOL_TX_BUFFER_SIZE_MASK 0x1fff
 #define HERMES_CONSOL_TX_BUFFER_SIZE (HERMES_CONSOL_TX_BUFFER_SIZE_MASK + 1)
-#define HERMES_CONSOL_TX_BUFFER_MEM_LOCATION __attribute__((section("._user_dtcmram_ram")));
 //==============================================================================
 //externs:
 
@@ -43,12 +35,12 @@ extern DMA_HandleTypeDef hdma_usart3_tx;
 
 //------------------------------------------------------------------------------
 TaskHandle_t hermes_consol_tx_task_handle;
-StaticTask_t hermes_consol_tx_task_object __attribute__((section("._user_dtcmram_ram")));
-StackType_t hermes_consol_tx_task_stack[HERMES_CONSOL_TX_TASK_SIZE] __attribute__((section("._user_dtcmram_ram")));
+StaticTask_t hermes_consol_tx_task_object HERMES_CONSOL_TX_TASK_STACK_MEM_SECTION;
+StackType_t hermes_consol_tx_task_stack[HERMES_CONSOL_TX_TASK_SIZE] HERMES_CONSOL_TX_TASK_STACK_MEM_SECTION;
 
 TaskHandle_t hermes_consol_task_handle;
-StaticTask_t hermes_consol_task_object __attribute__((section("._user_dtcmram_ram")));
-StackType_t hermes_consol_task_stack[HERMES_CONSOL_TASK_SIZE] __attribute__((section("._user_dtcmram_ram")));
+StaticTask_t hermes_consol_task_object HERMES_CONSOL_TASK_STACK_MEM_SECTION;
+StackType_t hermes_consol_task_stack[HERMES_CONSOL_TASK_SIZE] HERMES_CONSOL_TASK_STACK_MEM_SECTION;
 
 SemaphoreHandle_t hermes_consol_tx_semaphore;
 

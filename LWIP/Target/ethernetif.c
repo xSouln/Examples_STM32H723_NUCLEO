@@ -126,7 +126,10 @@ ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT] __attribute__((section(".TxDecr
 
 /* USER CODE BEGIN 2 */
 HAL_StatusTypeDef transmit_action_result;
+
+//dummy buffer to estimate the occupied space
 uint8_t lwip_mem[MEM_SIZE] __attribute__((section("._user_ram2_section")));
+
 uint8_t mMACAddr[6];
 
 uint32_t eth_dma_errors;

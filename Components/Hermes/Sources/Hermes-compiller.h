@@ -23,38 +23,40 @@ extern "C" {
 //------------------------------------------------------------------------------
 //memories sections:
 
-#define MQTT_STORED_CERTIFICATE_MEM_SECTION __attribute__((section("._user_ram3_ram")))
-#define MQTT_STORED_PRIVATE_KEY_MEM_SECTION __attribute__((section("._user_ram3_ram")))
-#define MQTT_SUREFLAP_CREDENTIALS_MEM_SECTION __attribute__((section("._user_ram3_ram")))
-#define MQTT_CERTIFICATE_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define MQTT_AWS_CLIENT_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define MQTT_STORED_CERTIFICATE_MEM_SECTION __attribute__((section("._user_ram3_section")))
+#define MQTT_STORED_PRIVATE_KEY_MEM_SECTION __attribute__((section("._user_ram3_section")))
+#define MQTT_SUREFLAP_CREDENTIALS_MEM_SECTION __attribute__((section("._user_ram3_section")))
+#define MQTT_CERTIFICATE_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
+#define MQTT_AWS_CLIENT_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
+#define MQTT_INCOMING_MESSAGE_MAILBOX_STORAGE __attribute__((section("._user_dtcmram_section")));
+#define MQTT_OUTGOING_MESSAGE_MAILBOX_STORAGE __attribute__((section("._user_dtcmram_section")));
 
-#define DEVICE_STATUS_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define DEVICE_STATUS_EXTRA_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define DEVICE_STATUS_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
+#define DEVICE_STATUS_EXTRA_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 
-#define SECURITY_KEYS_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define SECRET_KEYS_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define SECURITY_KEYS_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
+#define SECRET_KEYS_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 
-#define SERVER_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define SERVER_BUFFER_MESSAGE_MEM_SECTION// __attribute__((section("._user_dtcmram_ram")))
+#define SERVER_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
+#define SERVER_BUFFER_MESSAGE_MEM_SECTION// __attribute__((section("._user_dtcmram_section")))
 
-#define DEVICE_LIST_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define HFU_RECEIVED_PAGE_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define DEVICE_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define DEVICE_LIST_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
+#define HFU_RECEIVED_PAGE_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
+#define DEVICE_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
+#define DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 
-#define ACKNOWLEDGE_QUEUE_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define DATA_ACKNOWLEDGE_QUEUE_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define RECEIVED_SEQUENCE_NUMBERS_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define ACKNOWLEDGE_QUEUE_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
+#define DATA_ACKNOWLEDGE_QUEUE_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
+#define RECEIVED_SEQUENCE_NUMBERS_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 
-#define SN_RX_PACKET_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define SN_RX_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
-#define SN_DUMMY_CHUNK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define SN_RX_PACKET_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
+#define SN_RX_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
+#define SN_DUMMY_CHUNK_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 
 //when determining memory, there may be problems with binding functions
-#define HUB_REGISTER_BANK_MEM_SECTION// __attribute__((section("._user_dtcmram_ram")))
+#define HUB_REGISTER_BANK_MEM_SECTION// __attribute__((section("._user_dtcmram_section")))
 
-#define HERMES_FLASH_OPERATION_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define HERMES_FLASH_OPERATION_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 //------------------------------------------------------------------------------
 // Task stack sizes in words:
 
@@ -65,35 +67,46 @@ extern "C" {
 
 #define LED_TASK_PRIORITY osPriorityNormal
 #define LED_TASK_STACK_SIZE (0x400/4) //(0x800/4)
-#define LED_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define LED_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 
 #define SNTP_TASK_PRIORITY osPriorityNormal
 #define SNTP_TASK_STACK_SIZE (0x400/4) //(0x400/4)
-#define SNTP_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define SNTP_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 
 #define MQTT_TASK_PRIORITY osPriorityNormal
 #define MQTT_TASK_STACK_SIZE (0x4000/4) //(0x2000/4)
-#define MQTT_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define MQTT_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 
 #define HTTP_TASK_PRIORITY osPriorityNormal
 #define HTTP_POST_TASK_STACK_SIZE (0x2000/4) //(0x800/4)
-#define HTTP_POST_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define HTTP_POST_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 
 #define HFU_TASK_PRIORITY osPriorityNormal
 #define HFU_TASK_STACK_SIZE (0x400/4) //(0x800/4)
-#define HFU_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define HFU_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 
 #define WATCHDOG_TASK_PRIORITY osPriorityNormal
 #define WATCHDOG_TASK_STACK_SIZE (0x200/4)
-#define WATCHDOG_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_ram")))
+#define WATCHDOG_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 
 #define HERMES_TASK_PRIORITY osPriorityNormal
 #define HERMES_APPLICATION_TASK_STACK_SIZE (0x3000/4) //(0x800/4)
-#define HERMES_APPLICATION_TASK_STACK_MEM_SECTION __attribute__((section("._user_itcmram_stack")))
+#define HERMES_APPLICATION_TASK_STACK_MEM_SECTION __attribute__((section("._user_itcmram_section")))
 
 #define SURENET_TASK_PRIORITY osPriorityNormal
 #define SURENET_TASK_STACK_SIZE (0x2000/4) //(0x800/4)
-#define SURENET_TASK_STACK_MEM_SECTION __attribute__((section("._user_itcmram_stack")))
+#define SURENET_TASK_STACK_MEM_SECTION __attribute__((section("._user_itcmram_section")))
+
+#define HERMES_CONSOL_TX_TASK_SIZE (0x100)
+#define HERMES_CONSOL_TX_TASK_PRIORITY osPriorityNormal
+#define HERMES_CONSOL_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_section")));
+
+#define HERMES_CONSOL_TASK_SIZE (0x400)
+#define HERMES_CONSOL_TASK_PRIORITY osPriorityNormal
+#define HERMES_CONSOL_TX_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_section")));
+
+#define HERMES_CONSOL_RX_BUFFER_MEM_LOCATION
+#define HERMES_CONSOL_TX_BUFFER_MEM_LOCATION __attribute__((section("._user_dtcmram_section")));
 //------------------------------------------------------------------------------
 
 

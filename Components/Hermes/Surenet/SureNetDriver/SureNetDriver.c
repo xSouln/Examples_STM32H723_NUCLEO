@@ -160,8 +160,7 @@ RX_BUFFER rx_buffer SN_RX_BUFFER_MEM_SECTION;
 static ASSOCIATION_SUCCESS_INFORMATION assoc_info;
 
 static uint8_t reentrancy_count = 0;
-static volatile int irq_receive;
-static int irq_accepted;
+static volatile bool irq_receive;
 
 // this is the master reference.
 static uint8_t current_channel = RF_CHANNEL1;
@@ -219,12 +218,9 @@ void snd_stack_task(void)
 		zprintf(CRITICAL_IMPORTANCE,"wpan_task() reentered %c times", reentrancy_count + 0x30);
 	}
 
-	//if(irq_accepted < irq_receive)
 	if(irq_receive)
 	{
-		//irq_update_flag = false;
-		//irq_accepted++;
-		irq_receive = 0;
+		irq_receive = false;
 
 		trx_irq_handler();
 	}
@@ -259,10 +255,7 @@ void RF_IRQ_HANDLER(void)
 	extern bool tal_awake_end_flag;
 
     tal_awake_end_flag = true;
-
-    //irq_receive++;
-
-    irq_receive = 1;
+    irq_receive = true;
 }
 //------------------------------------------------------------------------------
 // Initialises the RF Stack
