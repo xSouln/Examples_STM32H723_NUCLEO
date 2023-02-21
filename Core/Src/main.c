@@ -53,8 +53,6 @@
 /* USER CODE BEGIN PV */
 //==============================================================================
 extern REG_TIM_T* Timer2;
-
-uint8_t ucHeap[configTOTAL_HEAP_SIZE];// __attribute__((section("._user_ram2_ram")));
 REG_SPI_T* RF_SPI = (REG_SPI_T*)SPI3;
 //==============================================================================
 /* USER CODE END PV */

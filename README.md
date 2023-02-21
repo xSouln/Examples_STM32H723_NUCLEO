@@ -1,6 +1,6 @@
 # Notes
   The project was generated using the ["STM32CubeMX"]() program for the ["STM32CubeIDE"]() environment
-
+___
 ## Content
 - [Project structure](#notes)
   - [Folders](#content)
@@ -8,6 +8,7 @@
 - [Changes and innovations](#changes-and-innovations)
   - [Launching the application](#launching-the-application)
   - [Memory sections](#memory-sections)
+  - [freeRTOS](#freertos)
   - [LWIP](#lwip)
   - [ASF Zigbee](#asf-zigbee)
   - [WolfSSL](#wolfssl)
@@ -15,7 +16,7 @@
   - [Consol](#consol)
   - [Internal flash manager](#internal-flash-manager)
 - [Programs used](#programs-used)
-
+___
 ### Folders
 - [Components](/Components) - contains the components included in the project.Includes logic, implementations, descriptions
   - [Hermes](/Components/Hermes) - contains the basic logic of the device's "hub"
@@ -38,21 +39,28 @@
       - [FreeRTOS-Plus-CLI](/Middlewares/Third_Party/FreeRTOS/FreeRTOS-Plus-CLI) - added manually
     - [wolfssl](/Middlewares/Third_Party/wolfSSL_wolfSSL_wolfSSL/wolfssl)
   - [STM32CubeIDE](/STM32CubeIDE) - contains a project
-
+___
 ### Additional folders for STM32CubeIDE
-
+___
 ### Launching the application
   - 
-
+___
 ### Memory sections
   - The [linker script](/STM32CubeIDE/STM32H723ZGTX_FLASH.ld) with a description of the regions
   - "Heap" and "Stack" area are placed in the "DTCMRAM" section
-  - The file [Hermes-compiler.c](/Components/Hermes/Sources/Hermes-compiller.h) has been added, which includes definitions of memory areas for tasks, arrays and structures. The file also contains a macros for determining the packaging of structures
+  - The file [Hermes-compiler.h](/Components/Hermes/Sources/Hermes-compiller.h) has been added, which includes definitions of memory areas for tasks, arrays and structures. The file also contains a macros for determining the packaging of structures
   - The MTU is also configured for the correct operation of the DMA with the "RAM_D1" and "RAM_D2" sections
-
+___
+### freeRTOS
+  - The library is configured and generated using the program "STM32CubeMX"
+  - The configuration file [FreeRTOSConfig.h](/Core/Inc/FreeRTOSConfig.h) is located in the [Core](/Core/Inc) folder
+  - The main file of the initialization task is located in the [freertos.c](/Core/Src/freertos.c) file
+  - "ucHeap" for FreeRTOS is declared in the [freertos.c](/Core/Src/freertos.c) file
+___
 ### LWIP
   - General
     - The FreeRTOS-Plus-TCP stack has been replaced with LWIP, which is included in the "STM32CubeMX" program makes it easy to configure and there are many examples of use
+  - The library is configured and generated using the program "STM32CubeMX"
   - Initialization files
     - [lwip.c](/LWIP/App/lwip.c) - lwip initialization
     - [ethernetif.c](/LWIP/Target/ethernetif.c) - initialization of the transceiver driver and the ethernet module
@@ -62,19 +70,27 @@
   - Features of use
     - For correct transmission and reception of data, they must be located in the memory sections "RAM_D1" or "RAM_D2" otherwise a DMA error will be caused
     - When the project is being rebuilt via "STM32CubeMX" - it is necessary to set the definition value "ETH_RX_BUFFER_CNT = 32" in the [ethernetif.c](/LWIP/Target/ethernetif.c) - it cannot be done in the "STM32CubeMX" settings
-
+___
 ### ASF Zigbee
-
+  - The library is located in the [Wireless](/Libs/Wireless) folder
+  - Added additional functions (wrappers) at the code injection site due to the specifics of working with MAC and placed in the [SureNetDriver.c](/Components/Hermes/Surenet/SureNetDriver/SureNetDriver.c) file
+  - Updates to the library interaction layer
+    - [common_sw_timer.c](/Libs/Wireless/avr2025_mac/source/pal/common_sw_timer/common_sw_timer.c) - the library's internal program timer
+    - [trx_access.c](/Libs/Wireless/services/trx_access/trx_access.c) - layer for working with the SPI module
+  - Settings files
+    - [app_config.h](/Libs/Wireless/app_config.h) - configuring buffers
+    - [mac_user_build_config.h](/Libs/Wireless/mac_user_build_config.h) - stack setup
+___
 ### WolfSSL
   - The library is generated using "STM32CubeMX" using additional Software packs
   - When rebuilding the project using "STM32CubeMX", it is necessary to delete the file [wolfSSL.I-CUBE-wolfSSL_conf.h]() located in the [wolfSSL](/wolfSSL) folder. The desired configuration file [wolfSSL.I-CUBE-wolfSSL_conf.h](/Components/Hermes/Settings/wolfSSL.I-CUBE-wolfSSL_conf.h) is located in the [Settings](/Components/Hermes/Settings) folder
-
+___
 ### Consol
 
-
+___
 ### Internal flash manager
 
-
+___
 ### Programs used
 - [STM32CubeMX](https://www.st.com/en/development-tools/stm32cubemx.html) program version 6.6.1
 - [STM32CubeIDE](https://www.st.com/en/development-tools/stm32cubeide.html) program version 1.10.1

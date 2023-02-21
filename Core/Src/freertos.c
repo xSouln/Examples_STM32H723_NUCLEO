@@ -50,7 +50,9 @@ void MX_LWIP_Init(void)
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-
+//==============================================================================
+uint8_t ucHeap[configTOTAL_HEAP_SIZE];
+//==============================================================================
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
