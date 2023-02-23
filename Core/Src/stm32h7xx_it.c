@@ -218,7 +218,11 @@ void USART3_IRQHandler(void)
 void TIM5_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM5_IRQn 0 */
+	extern void common_tc_timer_irq();
 
+	Timer5->Status.UpdateInterrupt = false;
+
+	common_tc_timer_irq();
   /* USER CODE END TIM5_IRQn 0 */
   /* USER CODE BEGIN TIM5_IRQn 1 */
 

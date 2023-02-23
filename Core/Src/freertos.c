@@ -132,8 +132,33 @@ void StartDefaultTask(void *argument)
   /* init code for LWIP */
   MX_LWIP_Init();
   /* USER CODE BEGIN StartDefaultTask */
+  /*
+	extern REG_TIM_T* Timer3;
+	extern REG_TIM_T* Timer12;
 
-  osDelay(pdMS_TO_TICKS(500));
+  Timer3->Control1.CounterEnable = false;
+  Timer12->Control1.CounterEnable = false;
+
+  Timer3->CaptureCompareOutput.Compare3OutputEnable = true;
+  Timer3->BreakAndDeadTime.MainOutputEnable = true;
+
+  Timer12->CaptureCompareOutput.Compare1OutputEnable = true;
+  Timer12->BreakAndDeadTime.MainOutputEnable = true;
+
+  Timer3->Prescaler = 27499;
+  Timer3->Period = 9999;
+
+  Timer3->CaptureCompare3Value = Timer3->Period / 2;
+
+  Timer12->Prescaler = 27499;
+  Timer12->Period = 9999;
+
+  Timer12->CaptureCompare1Value = Timer12->Period / 2;
+
+  Timer3->Control1.CounterEnable = true;
+  Timer12->Control1.CounterEnable = true;
+*/
+  //osDelay(pdMS_TO_TICKS(500));
 
   HermesComponentInit();
   /* Infinite loop */

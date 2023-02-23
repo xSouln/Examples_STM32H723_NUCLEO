@@ -27,33 +27,55 @@
 
 #ifndef __SURENETDRIVER_H__
 #define __SURENETDRIVER_H__
+//==============================================================================
+//includes:
 
 #include "Components.h"
 #include "FreeRTOS.h"   // has some standard definitions
 #include "SureNet-Interface.h"
-
-typedef struct  // used to pass a buffer to be transmitted
-{
-    uint8_t *pucTxBuffer;   // transmit buffer pointer
-    uint64_t uiDestAddr;    // destination address
-    uint8_t ucBufferLength;
-    bool xRequestAck;   // set bit 5 of FCF to 1 if we want an ACK from the other end.
-} TX_BUFFER;
+//==============================================================================
+//defines:
 
 // These #defines are used to create the Beacon Payload
 #define SUREFLAP_HUB                    0x7e
 #define HUB_SUPPORTS_THALAMUS           0x02
 #define HUB_DOES_NOT_SUPPORT_THALAMUS   0x01
 #define HUB_IS_SOLE_PAN_COORDINATOR     0x00
+//==============================================================================
+//includes:
+
+// used to pass a buffer to be transmitted
+typedef struct
+{
+	// transmit buffer pointer
+    uint8_t *pucTxBuffer;
+
+    // destination address
+    uint64_t uiDestAddr;
+
+    uint8_t ucBufferLength;
+
+    // set bit 5 of FCF to 1 if we want an ACK from the other end.
+    bool xRequestAck;
+
+} TX_BUFFER;
+//==============================================================================
+//functions:
 
 BaseType_t snd_init(uint64_t *mac_addr, uint16_t panid, uint8_t channel);
-bool set_beacon_request_data(uint64_t mac_address, uint8_t src_address_mode, uint8_t data); // called by MAC with payload from Beacon Request message from device
+
+// called by MAC with payload from Beacon Request message from device
+bool set_beacon_request_data(uint64_t mac_address, uint8_t src_address_mode, uint8_t data);
 uint16_t fcs_calculate(uint8_t *data, uint8_t len);
 void snd_stack_init(void);
 void snd_stack_task(void);
+void snd_stack_irq_task();
+
 void snd_pairing_mode(PAIRING_REQUEST pairing);
 void snd_set_channel(uint8_t ucChannel);
 uint8_t snd_get_channel(void);
 bool snd_transmit_packet(TX_BUFFER *pcTxBuffer);
 bool snd_have_we_seen_beacon(uint64_t mac_address);
-#endif
+
+//==============================================================================
+#endif //__SURENETDRIVER_H__

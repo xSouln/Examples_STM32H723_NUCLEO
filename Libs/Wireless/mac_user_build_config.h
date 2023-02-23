@@ -20,11 +20,12 @@
 #define MAC_PAN_ID_CONFLICT_NON_PC              (1)
 #define MAC_PURGE_REQUEST_CONFIRM               (0)
 #define MAC_RX_ENABLE_SUPPORT                   (0)
-#define MAC_SCAN_ACTIVE_REQUEST_CONFIRM         (1)
-#define MAC_SCAN_ED_REQUEST_CONFIRM             (1)
-#define MAC_SCAN_ORPHAN_REQUEST_CONFIRM         (1)
+#define MAC_SCAN_ACTIVE_REQUEST_CONFIRM         (0)//1
+#define MAC_SCAN_ED_REQUEST_CONFIRM             (0)//1
+#define MAC_SCAN_ORPHAN_REQUEST_CONFIRM         (0)//1
+
 #ifdef BEACON_SUPPORT
-#define MAC_SCAN_PASSIVE_REQUEST_CONFIRM        (1)
+#define MAC_SCAN_PASSIVE_REQUEST_CONFIRM        (1)//
 #else
 #define MAC_SCAN_PASSIVE_REQUEST_CONFIRM        (0) /* No Passive Scan in
 	                                             * nonbeacon networks */

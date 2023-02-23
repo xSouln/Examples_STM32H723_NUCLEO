@@ -17,6 +17,10 @@ REG_TIM_T* Timer2 = (REG_TIM_T*)TIM2;
 REG_TIM_T* Timer3 = (REG_TIM_T*)TIM3;
 #endif
 
+#ifdef TIM5
+REG_TIM_T* Timer5 = (REG_TIM_T*)TIM5;
+#endif
+
 #ifdef TIM12
 REG_TIM_T* Timer12 = (REG_TIM_T*)TIM12;
 #endif

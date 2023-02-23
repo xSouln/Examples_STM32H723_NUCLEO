@@ -119,6 +119,11 @@ int HermesConsoleWrite(void* in, uint16_t size, ConsoleWriteModes mode)
 	return 0;
 }
 //------------------------------------------------------------------------------
+int HermesConsoleWriteString(char* in)
+{
+	return HermesConsoleWrite(in, strlen(in), 0);
+}
+//------------------------------------------------------------------------------
 static int HermesConsoleMessageCheck(HERMES_MESSAGE_RECEIVED* incomingMessage, uint32_t bytesReceived)
 {
 	//We havent even got enough bytes to match the header
@@ -399,7 +404,7 @@ void HermesConsoleTask(void* arg)
 				zprintf(CRITICAL_IMPORTANCE,"CLI Output too long! - system may become unstable");
 
 				// we still want to know what the output was for debugging purposes
-				consol_output[sizeof(consol_output) - 1] ='\0';
+				consol_output[sizeof(consol_output) - 1] = '\0';
 			}
 
 			// print the partial output
@@ -442,7 +447,7 @@ void HermesConsoleInit()
 								HERMES_CONSOL_TX_TASK_PRIORITY, // Priority at which the task is created.
 								hermes_consol_tx_task_stack, // Array to use as the task's stack.
 								&hermes_consol_tx_task_object);
-
+/*
 	hermes_consol_task_handle =
 			xTaskCreateStatic(HermesConsoleTask, // Function that implements the task.
 								"Console Task", // Text name for the task.
@@ -450,7 +455,7 @@ void HermesConsoleInit()
 								NULL, // Parameter passed into the task.
 								HERMES_CONSOL_TASK_PRIORITY, // Priority at which the task is created.
 								hermes_consol_task_stack, // Array to use as the task's stack.
-								&hermes_consol_task_object);
+								&hermes_consol_task_object);*/
 
 }
 //==============================================================================

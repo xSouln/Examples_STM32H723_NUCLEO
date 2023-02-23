@@ -6,7 +6,11 @@
 extern "C" {
 #endif 
 //==============================================================================
+//includes:
+
 #include "hermes-time.h"
+//==============================================================================
+//defines:
 
 #define WOLFSSL_STM32_CUBEMX
 #define WOLFSSL_STM32H7
@@ -89,14 +93,14 @@ extern "C" {
 //#define WOLFSSL_LWIP
 
 //#define OPENSSL_EXTRA
-extern struct tm *hermes_gmtime_2(time_t *tod);
+extern struct tm *hermes_gmtime(time_t *tod);
 
 // to allow us to redirect gmtime() to a thread-safe form. Changes made to wc_port.h
 #define USER_TIME
 #define HAVE_TM_TYPE
 #define HAVE_TIME_T_TYPE
 //#define TIME_OVERRIDES
-#define XGMTIME(c, t) hermes_gmtime_2((c))
+#define XGMTIME(c, t) hermes_gmtime((c))
 #define XTIME(t) get_UTC_forWolfSSL()
 
 #define TRNG0 RNG

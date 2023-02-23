@@ -11,6 +11,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 
 #include "Components_Config.h"
@@ -40,7 +41,7 @@ extern "C" {
 #define SERVER_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 #define SERVER_BUFFER_MESSAGE_MEM_SECTION// __attribute__((section("._user_dtcmram_section")))
 
-#define DEVICE_LIST_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
+#define DEVICE_LIST_MEM_SECTION //__attribute__((section("._user_dtcmram_section")))
 #define HFU_RECEIVED_PAGE_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 #define DEVICE_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 #define DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
@@ -57,13 +58,11 @@ extern "C" {
 #define HUB_REGISTER_BANK_MEM_SECTION// __attribute__((section("._user_dtcmram_section")))
 
 #define HERMES_FLASH_OPERATION_BUFFER_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
+
+#define HERMES_CONSOL_RX_BUFFER_MEM_LOCATION
+#define HERMES_CONSOL_TX_BUFFER_MEM_LOCATION __attribute__((section("._user_dtcmram_section")));
 //------------------------------------------------------------------------------
 // Task stack sizes in words:
-
-#define LABEL_PRINTER_TASK_STACK_SIZE (0x800/4)
-#define TEST_TASK_STACK_SIZE (0x400/4) //(0x800/4)
-
-#define SHELL_TASK_STACK_SIZE (0x800/4) //(0x1000/4)
 
 #define LED_TASK_PRIORITY osPriorityNormal
 #define LED_TASK_STACK_SIZE (0x400/4) //(0x800/4)
@@ -77,7 +76,7 @@ extern "C" {
 #define MQTT_TASK_STACK_SIZE (0x4000/4) //(0x2000/4)
 #define MQTT_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 
-#define HTTP_TASK_PRIORITY osPriorityNormal
+#define HTTP_POST_TASK_PRIORITY osPriorityNormal
 #define HTTP_POST_TASK_STACK_SIZE (0x2000/4) //(0x800/4)
 #define HTTP_POST_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 
@@ -89,9 +88,17 @@ extern "C" {
 #define WATCHDOG_TASK_STACK_SIZE (0x200/4)
 #define WATCHDOG_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 
-#define HERMES_TASK_PRIORITY osPriorityNormal
-#define HERMES_APPLICATION_TASK_STACK_SIZE (0x3000/4) //(0x800/4)
-#define HERMES_APPLICATION_TASK_STACK_MEM_SECTION __attribute__((section("._user_itcmram_section")))
+#define HERMES_APP_TASK_PRIORITY osPriorityNormal
+#define HERMES_APP_TASK_STACK_SIZE (0x3000/4) //(0x800/4)
+#define HERMES_APP_TASK_STACK_MEM_SECTION __attribute__((section("._user_itcmram_section")))
+
+#define TEST_TASK_PRIORITY osPriorityNormal
+#define TEST_TASK_STACK_SIZE (0x200/4)
+#define TEST_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
+
+#define LABEL_PRINTER_TASK_PRIORITY osPriorityNormal
+#define LABEL_PRINTER_TASK_STACK_SIZE (0x1000/4)
+#define LABEL_PRINTER_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 
 #define SURENET_TASK_PRIORITY osPriorityNormal
 #define SURENET_TASK_STACK_SIZE (0x2000/4) //(0x800/4)
@@ -104,9 +111,6 @@ extern "C" {
 #define HERMES_CONSOL_TASK_SIZE (0x400)
 #define HERMES_CONSOL_TASK_PRIORITY osPriorityNormal
 #define HERMES_CONSOL_TX_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_section")));
-
-#define HERMES_CONSOL_RX_BUFFER_MEM_LOCATION
-#define HERMES_CONSOL_TX_BUFFER_MEM_LOCATION __attribute__((section("._user_dtcmram_section")));
 //------------------------------------------------------------------------------
 
 

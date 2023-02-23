@@ -2,7 +2,7 @@
 *
 * SUREFLAP CONFIDENTIALITY & COPYRIGHT NOTICE
 *
-* Copyright © 2013-2021 Sureflap Limited.
+* Copyright ï¿½ 2013-2021 Sureflap Limited.
 * All Rights Reserved.
 *
 * All information contained herein is, and remains the property of Sureflap 
@@ -19,9 +19,10 @@
 * Purpose:  Reads die temperature of processor.
 *           
 **************************************************************************/
-
 #ifndef __TEMP_H__
 #define __TEMP_H__
+//==============================================================================
+//defines:
 
 #define DEMO_TEMPMON TEMPMON
 #define DEMO_TEMP_PANIC_IRQn TEMP_PANIC_IRQn
@@ -29,8 +30,9 @@
 #define DEMO_TEMP_PANIC_IRQHandler TEMP_PANIC_IRQHandler
 #define DEMO_HIGHALARMTEMP 42U
 #define DEMO_LOWALARMTEMP 40U
-
+//==============================================================================
+//functions:
 
 uint32_t get_temperature(void);
-
-#endif
+//==============================================================================
+#endif //__TEMP_H__

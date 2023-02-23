@@ -22,9 +22,13 @@
 #ifndef __SERVER_BUFFER_H__
 #define __SERVER_BUFFER_H__
 //==============================================================================
+//includes:
+
 #include "../MQTT/MQTT.h"
 #include "hermes.h"
 //==============================================================================
+//defines:
+
 #define MAX_MESSAGE_SIZE_SERVER_BUFFER 512
 
 #define PRINT_SERVER_BUFFER	false
@@ -34,7 +38,9 @@
 #else
 #define sbuffer_printf(...)
 #endif
-//------------------------------------------------------------------------------
+//==============================================================================
+//types:
+
 typedef struct
 {
 	// pointer to message as text string.
@@ -45,7 +51,8 @@ typedef struct
 
 } SERVER_MESSAGE;
 //==============================================================================
-// initialise our buffer
+//functions:
+
 void server_buffer_init(void);
 
 // Add this message and topic
@@ -54,6 +61,6 @@ bool server_buffer_process_reflected_message(char *message);
 MQTT_MESSAGE* server_buffer_get_next_message(void);
 
 // dump valid messages out of the UART
-void			server_buffer_dump();
+void server_buffer_dump();
 //==============================================================================
 #endif //__SERVER_BUFFER_H__

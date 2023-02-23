@@ -60,7 +60,7 @@
 #include "pal.h"
 #include "app_config.h"
 
-#include "debug.h"
+#include "Hermes-console.h"
 //==============================================================================
 #define PAIRING_MODE_TIME					(90 * usTICK_SECONDS)
 #define	PAIRING_MODE_TIME_BEACON_REQUEST 	(10 * usTICK_SECONDS)
@@ -100,15 +100,6 @@ typedef struct associated_device_tag
 
 }associated_device_t;
 //------------------------------------------------------------------------------
-// Note that beacon_request_device_data.xx is not actually used, it is just stored. A hook could be added
-// to pass it out higher up the stack if a need was found for the information.
-BEACON_REQUEST_DEVICE_DATA beacon_request_device_data =
-{
-	.mac_addr = 0,
-	.device_channel = 0,
-	.device_platform = INVALID_DEVICE
-};
-//------------------------------------------------------------------------------
 
 typedef enum
 {
@@ -128,6 +119,16 @@ typedef struct
 } PAIRING_MODE_TIMEOUT;
 //------------------------------------------------------------------------------
 
+typedef enum
+{
+	DEVICE_ASSIGNED_STATE_NEW,
+	DEVICE_ASSIGNED_STATE_IS_PRESENT,
+	DEVICE_ASSIGNED_STATE_FULL,
+
+} DEVICE_ASSIGNED_STATE;
+//==============================================================================
+//variables:
+
 static uint8_t Beacon_Payload[] =
 {
 	SUREFLAP_HUB,
@@ -142,11 +143,23 @@ static PAIRING_REQUEST requested_pairing_mode =
 	PAIRING_REQUEST_SOURCE_UNKNOWN
 };
 //------------------------------------------------------------------------------
+
+// Note that beacon_request_device_data.xx is not actually used, it is just stored. A hook could be added
+// to pass it out higher up the stack if a need was found for the information.
+volatile BEACON_REQUEST_DEVICE_DATA beacon_request_device_data =
+{
+	.mac_addr = 0,
+	.device_channel = 0,
+	.device_platform = INVALID_DEVICE
+};
+
+//------------------------------------------------------------------------------
+
 //local copy of pan_id
 uint16_t pan_id;
 uint64_t request_mac_addr;
 
-PAIRING_MODE_TIMEOUT pairing_mode_timeout = { 0, false };
+volatile PAIRING_MODE_TIMEOUT pairing_mode_timeout = { 0, false };
 
 // used to indicate whether an update to the beacon payload is part of the
 // initialisation (false) (and therefore the callback it triggers performs the next
@@ -160,20 +173,21 @@ RX_BUFFER rx_buffer SN_RX_BUFFER_MEM_SECTION;
 static ASSOCIATION_SUCCESS_INFORMATION assoc_info;
 
 static uint8_t reentrancy_count = 0;
-static volatile bool irq_receive;
+static volatile bool irq_receive = false;
 
 // this is the master reference.
 static uint8_t current_channel = RF_CHANNEL1;
 static uint8_t current_channel_page = 0;
+
 //This array stores all device related information.
-static associated_device_t device_list[MAX_NUMBER_OF_DEVICES] DEVICE_LIST_MEM_SECTION;
+static associated_device_t device_list[MAX_NUMBER_OF_DEVICES] DEVICE_LIST_MEM_SECTION = { 0 };
 
 // ------------------------------0-------------------10--------15--------20----------26
 int8_t TX_Power_Per_Channel[] = {4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,-8};
 //==============================================================================
 // private functions:
 
-static bool assign_new_short_addr(uint64_t addr64, uint16_t *addr16);
+static int assign_new_short_addr(uint64_t addr64, uint16_t *addr16);
 //==============================================================================
 //functions:
 
@@ -181,6 +195,8 @@ static bool assign_new_short_addr(uint64_t addr64, uint16_t *addr16);
 BaseType_t snd_init(uint64_t *mac_addr, uint16_t panid, uint8_t channel)
 {
     BaseType_t xReturn = pdPASS;
+
+    memset(device_list, 0, sizeof(associated_device_t) * MAX_NUMBER_OF_DEVICES);
 
 	pan_id = panid;
 
@@ -190,21 +206,40 @@ BaseType_t snd_init(uint64_t *mac_addr, uint16_t panid, uint8_t channel)
 
 	for (uint8_t i = 0; i < 10; i++)
 	{
-		snd_stack_task();
-		osDelay(10);
+		wpan_task();
+		osDelay(5);
 	}
 
 	wpan_mlme_set_req(macIeeeAddress, &request_mac_addr);
 
 	for (uint8_t i = 0; i < 10; i++)
 	{
-		snd_stack_task();
-		osDelay(10);
+		wpan_task();
+		osDelay(5);
 	}
 
 	snd_set_channel(channel);
+/*
+	for (uint8_t i = 0; i < 10; i++)
+	{
+		wpan_task();
+		osDelay(5);
+	}
+*/
+	bool paring_mode = true;
+	//wpan_mlme_set_req(macAssociationPermit, &paring_mode);
 
     return xReturn;
+}
+//------------------------------------------------------------------------------
+void snd_stack_irq_task()
+{
+	if(irq_receive)
+	{
+		irq_receive = false;
+
+		trx_irq_handler();
+	}
 }
 //------------------------------------------------------------------------------
 // This task is the SureNet Driver task. All activity relating to the Atmel AT86RF233 IC is handled in this task except
@@ -218,16 +253,11 @@ void snd_stack_task(void)
 		zprintf(CRITICAL_IMPORTANCE,"wpan_task() reentered %c times", reentrancy_count + 0x30);
 	}
 
-	if(irq_receive)
-	{
-		irq_receive = false;
-
-		trx_irq_handler();
-	}
-
 	reentrancy_count++;
 	wpan_task();
 	reentrancy_count--;
+
+	snd_stack_irq_task();
 	
 	// handle timeout of pairing mode
 	if(pairing_mode_timeout.active)
@@ -348,6 +378,7 @@ void snd_pairing_mode(PAIRING_REQUEST pairing)
 	// the request is to go into pairing mode
 	// && the last request was less than 10 seconds ago
 	// && the last request was to end pairing mode (i.e. successful pairing probably)
+
 	if((pairing.source == PAIRING_REQUEST_SOURCE_SERVER)
 	&& pairing.enable
 	&& ((get_microseconds_tick() - requested_pairing_mode.timestamp) < PAIRING_SERVER_REQUEST_LOCKOUT_TIME)
@@ -357,9 +388,13 @@ void snd_pairing_mode(PAIRING_REQUEST pairing)
 		// drop the request as it may be a delayed message from the server
 		return;
 	}
+
+	HermesConsoleWriteString("snd_pairing_mode: true\r");
+
 	// SureNetDriver record of most recent request
     requested_pairing_mode = pairing;
 	requested_pairing_mode.timestamp = get_microseconds_tick();
+
     wpan_mlme_set_req(macAssociationPermit, &pairing.enable);
 }
 
@@ -377,9 +412,9 @@ bool snd_transmit_packet(TX_BUFFER *pcTxBuffer)
 
     xDestinationAddress.PANId = pan_id;
     xDestinationAddress.AddrMode = WPAN_ADDRMODE_LONG;
-    xDestinationAddress.Addr.long_address=pcTxBuffer->uiDestAddr;
+    xDestinationAddress.Addr.long_address = pcTxBuffer->uiDestAddr;
 
-    if (pcTxBuffer->xRequestAck==true)
+    if (pcTxBuffer->xRequestAck == true)
     {
         tx_options = WPAN_TXOPT_ACK;
     }
@@ -483,7 +518,7 @@ void usr_mlme_get_conf(uint8_t status, uint8_t PIBAttribute, void *PIBAttributeV
 void set_beacon_payload(void *payload, bool update)
 {
 	// will call back to usr_mlme_set_conf()
-	wpan_mlme_set_req(macBeaconPayload,payload);
+	wpan_mlme_set_req(macBeaconPayload, payload);
 	beacon_payload_update = update;
 }
 //------------------------------------------------------------------------------
@@ -591,13 +626,13 @@ void usr_mlme_associate_ind(uint64_t DeviceAddress,
 
     zprintf(LOW_IMPORTANCE,
     		"ASSOCIATION REQUEST from %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X with capability 0x%02X type %d rssi 0x%02X\r\n",
-			(uint8_t)(DeviceAddress>>56),
-			(uint8_t)(DeviceAddress>>48),
-			(uint8_t)(DeviceAddress>>40),
-			(uint8_t)(DeviceAddress>>32),
-			(uint8_t)(DeviceAddress>>24),
-			(uint8_t)(DeviceAddress>>16),
-			(uint8_t)(DeviceAddress>>8),
+			(uint8_t)(DeviceAddress >> 56),
+			(uint8_t)(DeviceAddress >> 48),
+			(uint8_t)(DeviceAddress >> 40),
+			(uint8_t)(DeviceAddress >> 32),
+			(uint8_t)(DeviceAddress >> 24),
+			(uint8_t)(DeviceAddress >> 16),
+			(uint8_t)(DeviceAddress >> 8),
 			(uint8_t)DeviceAddress,
 			CapabilityInformation,
 			dev_type,
@@ -615,18 +650,26 @@ void usr_mlme_associate_ind(uint64_t DeviceAddress,
 	uint16_t associate_short_addr = macShortAddress_def;
 
 	//if (is_mac_in_pairing_table(mac_address) == true)
-	if (assign_new_short_addr(DeviceAddress, &associate_short_addr))
+	if (assign_new_short_addr(DeviceAddress, &associate_short_addr) != -1)
     {
 		wpan_mlme_associate_resp(DeviceAddress, associate_short_addr, ASSOCIATION_SUCCESSFUL);
+
+		for (uint8_t i = 0; i < 5; i++)
+		{
+			wpan_task();
+			osDelay(5);
+		}
+
+		HermesConsoleWriteString("usr_mlme_associate_ind: true\r");
 	}
     else
     {
         zprintf(HIGH_IMPORTANCE, "PAN FULL\r\n");
+        HermesConsoleWriteString("usr_mlme_associate_ind: false\r");
 
         // PAN_ACCESS_DENIED
 		wpan_mlme_associate_resp(DeviceAddress, associate_short_addr, PAN_AT_CAPACITY);
 	}
-
 }
 
 //------------------------------------------------------------------------------
@@ -730,7 +773,7 @@ void usr_mcps_data_ind(wpan_addr_spec_t *SrcAddrSpec,
 // Probably pointless, but part of the reference code.
 // Assigns a 16bit address for every new 64bit address. But we don't
 // really care about those, so just have to go through the motion.
-static bool assign_new_short_addr(uint64_t addr64, uint16_t *addr16)
+static int assign_new_short_addr(uint64_t addr64, uint16_t *addr16)
 {
 	uint8_t i;
 
@@ -748,7 +791,8 @@ static bool assign_new_short_addr(uint64_t addr64, uint16_t *addr16)
 		{
 			// Assign the previously assigned short address again
 			*addr16 = device_list[i].short_addr;
-			return true;
+
+			return 0;
 		}
 	}
 
@@ -756,18 +800,20 @@ static bool assign_new_short_addr(uint64_t addr64, uint16_t *addr16)
 	{
 		if (device_list[i].short_addr == 0x0000)
 		{
-			*addr16 = CPU_ENDIAN_TO_LE16(i + 0x0001);
 			//get next short address
-			device_list[i].short_addr = CPU_ENDIAN_TO_LE16(i + 0x0001);
+			device_list[i].short_addr = i + 1;
+
 			 // store extended address
 			device_list[i].ieee_addr = addr64;
 
-			return true;
+			*addr16 = device_list[i].short_addr;
+
+			return 1;
 		}
 	}
 
 	// If we are here, no short address could be assigned.
-	return false;
+	return -1;
 }
 //------------------------------------------------------------------------------
 //Note this gets called for a variety of reasons, indicated by STATUS.
@@ -800,11 +846,15 @@ void usr_mlme_comm_status_ind(wpan_addr_spec_t *SrcAddrSpec,
         	// this should always be true
         	// call back to say association successful
             sn_device_pairing_success(&assoc_info);
+
+            HermesConsoleWriteString("usr_mlme_comm_status_ind: true\r");
         }
         else
         {
         	// This is probably because an already paired device has re-associated, so we don't
 			// have any record in assoc_info.association_Addr of this association negotiation.
+
+        	HermesConsoleWriteString("usr_mlme_comm_status_ind: false\r");
         }
     }
 	else if (status == MAC_TRANSACTION_EXPIRED)
@@ -831,8 +881,11 @@ bool snd_have_we_seen_beacon(uint64_t mac_address)
 {
     if (beacon_request_device_data.mac_addr == mac_address)
 	{
+    	HermesConsoleWriteString("snd_have_we_seen_beacon: true\r");
         return true;
 	}
+
+    HermesConsoleWriteString("snd_have_we_seen_beacon: false\r");
     return false;
 }
 //------------------------------------------------------------------------------
@@ -861,13 +914,13 @@ bool set_beacon_request_data(uint64_t mac_address, uint8_t src_address_mode, uin
 	bool send_beacon = mode.enable;
 
     zprintf(LOW_IMPORTANCE,"BEACON REQUEST from %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\r\n",
-    		(uint8_t)(mac_address>>56),
-			(uint8_t)(mac_address>>48),
-			(uint8_t)(mac_address>>40),
-			(uint8_t)(mac_address>>32),
-			(uint8_t)(mac_address>>24),
-			(uint8_t)(mac_address>>16),
-			(uint8_t)(mac_address>>8),
+    		(uint8_t)(mac_address >> 56),
+			(uint8_t)(mac_address >> 48),
+			(uint8_t)(mac_address >> 40),
+			(uint8_t)(mac_address >> 32),
+			(uint8_t)(mac_address >> 24),
+			(uint8_t)(mac_address >> 16),
+			(uint8_t)(mac_address >> 8),
 			(uint8_t)mac_address);
 
 	if(send_beacon)
@@ -887,13 +940,13 @@ bool set_beacon_request_data(uint64_t mac_address, uint8_t src_address_mode, uin
 	{
         beacon_request_device_data.device_platform = NON_THALAMUS_BASED_DEVICE;
 		Beacon_Payload[BEACON_PAYLOAD_SUREFLAP_VERSION] = HUB_DOES_NOT_SUPPORT_THALAMUS;
-		set_beacon_payload (Beacon_Payload, true);
+		set_beacon_payload(Beacon_Payload, true);
 	}
     else
 	{
         beacon_request_device_data.device_platform = THALAMUS_BASED_DEVICE;
 		Beacon_Payload[BEACON_PAYLOAD_SUREFLAP_VERSION] = HUB_SUPPORTS_THALAMUS;
-		set_beacon_payload (Beacon_Payload, true);
+		set_beacon_payload(Beacon_Payload, true);
 	}
 
     if(are_we_paired_with_source(mac_address))
@@ -912,6 +965,9 @@ bool set_beacon_request_data(uint64_t mac_address, uint8_t src_address_mode, uin
 //------------------------------------------------------------------------------
 bool usr_mac_process_beacon_request(uint64_t mac_address, uint8_t src_address_mode, uint8_t data)
 {
+	//return false;
+	HermesConsoleWriteString("usr_mac_process_beacon_request\r");
+
 	return set_beacon_request_data(mac_address, src_address_mode, data);
 }
 //==============================================================================

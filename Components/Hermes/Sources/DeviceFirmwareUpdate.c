@@ -77,72 +77,122 @@
 #include "DeviceFirmwareUpdate.h"
 #include "HTTP_Helper.h"
 #include "devices.h"
-#include "utilities.h"	// for crc16Calc()
-#include "../MQTT/MQTT.h"	// for get_mqtt_connection_state() so we can hold off DFU unless we are connected.
 
-#define MAX_PAGE_FETCH_ATTEMPTS			100		// If the Server hasn't given us the f/w page in this
-												// many attempts, we give up and empty the queue entry
-#define MAXIMUM_CACHE_AGE				(2*60*usTICK_SECONDS)	// a cache entry older than this is assumed to be stale.
-																// This is somewhat empirically derived. A 'normal' update
-																// takes about 17 minutes for a 80K image, so a 4K page
-																// should have a life of very approximately 1 minute.
+// for crc16Calc()
+#include "utilities.h"
 
-#define HTTP_HEADER_MAX_SIZE			300	// sort of empirically derived (measured number = 236)
+// for get_mqtt_connection_state() so we can hold off DFU unless we are connected.
+#include "../MQTT/MQTT.h"
+//==============================================================================
+//defines:
+
+// If the Server hasn't given us the f/w page in this
+// many attempts, we give up and empty the queue entry
+#define MAX_PAGE_FETCH_ATTEMPTS			100
+
+// a cache entry older than this is assumed to be stale.
+// This is somewhat empirically derived. A 'normal' update
+// takes about 17 minutes for a 80K image, so a 4K page
+// should have a life of very approximately 1 minute.
+#define MAXIMUM_CACHE_AGE				(2 * 60 * usTICK_SECONDS)
+
+// sort of empirically derived (measured number = 236)
+#define HTTP_HEADER_MAX_SIZE			300
 #define CHUNKS_PER_PAGE					32
 #define MAX_PAGE_SIZE					((CHUNK_SIZE)*CHUNKS_PER_PAGE)
+
 // next group relate to the header in a received page from the Server
 // Header = "CCCC 11111111 2222 33333333 4444 VV " - total 36 chars
 // If the CRC (CCCC in above) and it's delimiter are removed, then the total length becomes 31
 // If there is no subsequent payload, then there is no trailing space either, so the total length becomes 30.
-#define PAGE_HEADER_SIZE				36	// this is for the 6 parameters
-#define HEADER_ERASE_ADDRESS 			5	// offset of first byte to be CRC'd
-#define HEADER_WITHOUT_CRC_LEN			(PAGE_HEADER_SIZE - HEADER_ERASE_ADDRESS)	// header without CRC or it's delimiter space
-#define HEADER_WITHOUT_CRC_OR_PAYLOAD_LEN	(HEADER_WITHOUT_CRC_LEN - 1)	// header without CRC, it's delimiter, and the delimiter at the end of the header
+
+// this is for the 6 parameters
+#define PAGE_HEADER_SIZE				36
+
+// offset of first byte to be CRC'd
+#define HEADER_ERASE_ADDRESS 			5
+
+// header without CRC or it's delimiter space
+#define HEADER_WITHOUT_CRC_LEN			(PAGE_HEADER_SIZE - HEADER_ERASE_ADDRESS)
+
+// header without CRC, it's delimiter, and the delimiter at the end of the header
+#define HEADER_WITHOUT_CRC_OR_PAYLOAD_LEN	(HEADER_WITHOUT_CRC_LEN - 1)
 
 #define DFU_GATEKEEPER_TIMEOUT	(usTICK_SECONDS * 60)
-#define HTTP_REQUEST_TIMEOUT	(usTICK_SECONDS * 65)	// time to wait for an HTTP response
-// local variables
-uint8_t received_page[HTTP_HEADER_MAX_SIZE + PAGE_HEADER_SIZE + MAX_PAGE_SIZE];	// should be 4688 bytes
-char *URL = "hub.api.surehub.io";
-char *resource = "/api/firmware";
-char contents[128];	// this is the request string for the HTTP Post Request - must be persistent as accessed from other task.
 
-// For the DFU_queue, we use the same indexing system as the Device Table.
-DEVICE_RCVD_SEGS_PARAMETERS_QUEUE DFU_queue[MAX_NUMBER_OF_DEVICES];
+// time to wait for an HTTP response
+#define HTTP_REQUEST_TIMEOUT	(usTICK_SECONDS * 65)
+//==============================================================================
+//types:
 
+// each page has a max of 4K of actual program data. So 96K in a iDSCF is 24 pages
 typedef struct
-{	// each page has a max of 4K of actual program data. So 96K in a iDSCF is 24 pages
-	uint64_t		device_mac;		// target device
-	uint32_t		last_used;		// timestamp when this firmware cache entry was last read from
-	bool 			in_use;
-	bool 			last_page;		// not clear whether this means empty page, or final page with data in it...
-	uint8_t 		number_of_chunks;	// max of 32
-	uint8_t			page_number;	// maximum target code size is 1Mbyte (4K*256)
-	uint8_t 		page[MAX_PAGE_SIZE];	// actual data
-} DEVICE_FIRMWARE_PAGE;
+{
+	// target device
+	uint64_t		device_mac;
 
-typedef enum	// DFU state machine
+	// timestamp when this firmware cache entry was last read from
+	uint32_t		last_used;
+	bool 			in_use;
+
+	// not clear whether this means empty page, or final page with data in it...
+	bool 			last_page;
+
+	// max of 32
+	uint8_t 		number_of_chunks;
+
+	// maximum target code size is 1Mbyte (4K*256)
+	uint8_t			page_number;
+
+	// actual data
+	uint8_t 		page[MAX_PAGE_SIZE];
+
+} DEVICE_FIRMWARE_PAGE;
+//------------------------------------------------------------------------------
+// DFU state machine
+typedef enum
 {
 	DFU_STATE_SEARCH,
 	DFU_STATE_CACHE_CHECK,
 	DFU_STATE_SEND_CHUNK,
-	DFU_STATE_WAIT_FOR_HTTP_RESPONSE,	
+	DFU_STATE_WAIT_FOR_HTTP_RESPONSE,
+
 }DFU_STATE;
 
-DEVICE_FIRMWARE_PAGE	firmware_cache[DEVICE_FIRMWARE_CACHE_ENTRIES];
-
+//------------------------------------------------------------------------------
 typedef struct
 {
 	uint64_t 	mac;
 	uint32_t 	timestamp;
 	bool		active;
-} DFU_REQUEST_CONTROL;
 
-DFU_REQUEST_CONTROL DFU_request_control[DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES];
+} DFU_REQUEST_CONTROL;
+//==============================================================================
+//externs:
 
 extern PRODUCT_CONFIGURATION product_configuration;
 extern QueueHandle_t xHTTPPostRequestMailbox;
-// local functions
+//==============================================================================
+//variables:
+
+// local variables
+// should be 4688 bytes
+uint8_t received_page[HTTP_HEADER_MAX_SIZE + PAGE_HEADER_SIZE + MAX_PAGE_SIZE];
+DEVICE_FIRMWARE_PAGE firmware_cache[DEVICE_FIRMWARE_CACHE_ENTRIES];
+
+char *URL = "hub.api.surehub.io";
+char *resource = "/api/firmware";
+
+// this is the request string for the HTTP Post Request - must be persistent as accessed from other task.
+static char contents[128];
+
+// For the DFU_queue, we use the same indexing system as the Device Table.
+DEVICE_RCVD_SEGS_PARAMETERS_QUEUE DFU_queue[MAX_NUMBER_OF_DEVICES];
+
+DFU_REQUEST_CONTROL DFU_request_control[DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES];
+//==============================================================================
+//prototypes:
+
 void DFU_queue_add(DEVICE_RCVD_SEGS_PARAMETERS_MAILBOX *params);
 bool DFU_cache_check(uint8_t device_index, uint16_t chunk_addr);
 uint8_t DFU_cache_fetch(uint8_t device_index, uint16_t chunk_addr, bool send_secret_key);
@@ -152,6 +202,8 @@ void DFU_cache_flush(uint64_t device_mac);
 bool DFU_parse_received_page(uint8_t device_index, uint8_t cache_entry, uint16_t chunk_address);
 void DFU_gatekeeper_done(uint64_t mac);
 BaseType_t DFU_Gatekeeper(uint64_t mac);
+//==============================================================================
+//functions:
 
 /**************************************************************
  * Function Name   : DFU_init
@@ -163,17 +215,19 @@ BaseType_t DFU_Gatekeeper(uint64_t mac);
 void DFU_init(void)
 {
 	uint8_t i;
-	for (i=0; i<DEVICE_FIRMWARE_CACHE_ENTRIES; i++)
+	for (i = 0; i < DEVICE_FIRMWARE_CACHE_ENTRIES; i++)
 	{
 		firmware_cache[i].in_use = false;
 	}
-	for( i=0; i<DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES; i++)
+
+	for(i = 0; i < DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES; i++)
 	{
 		DFU_request_control[i].mac = 0;
 		DFU_request_control[i].timestamp = 0;	
 		DFU_request_control[i].active = false;		
 	}
-	memset(DFU_queue,0,sizeof(DFU_queue));
+
+	memset(DFU_queue, 0, sizeof(DFU_queue));
 }
 
 /**************************************************************
@@ -198,21 +252,27 @@ void DFU_Handler(void)
 	
 	switch(DFU_state)
 	{
-		case DFU_STATE_SEARCH:	// find next device with outstanding request
-			device_no = (device_no+1) % MAX_NUMBER_OF_DEVICES;	// ensures we always advance
+		case DFU_STATE_SEARCH:
+			// find next device with outstanding request
+
+			// ensures we always advance
+			device_no = (device_no+1) % MAX_NUMBER_OF_DEVICES;
 			device_initial = device_no;
 			do
 			{
-				if (DFU_queue[device_no].in_use==true)	// found one
+				// found one
+				if (DFU_queue[device_no].in_use)
 				{
 					DFU_queue[device_no].attempts++;
-					if( (DFU_queue[device_no].attempts<MAX_PAGE_FETCH_ATTEMPTS) && 
-						(MQTT_STATE_CONNECTED == get_mqtt_connection_state() ))	// Only bother with f/w update if connected.
+
+					// Only bother with f/w update if connected.
+					if((DFU_queue[device_no].attempts<MAX_PAGE_FETCH_ATTEMPTS)
+					&& (MQTT_STATE_CONNECTED == get_mqtt_connection_state()))
 					{
 						zprintf(LOW_IMPORTANCE,"DFU: Found queued request\r\n");
-					DFU_state = DFU_STATE_CACHE_CHECK;
-					break;
-				}
+						DFU_state = DFU_STATE_CACHE_CHECK;
+						break;
+					}
 					else
 					{
 						zprintf(LOW_IMPORTANCE,"DFU: Abandoning request - too many retries\r\n");
@@ -222,60 +282,94 @@ void DFU_Handler(void)
 				}
 				// else skip forwards
 				device_no = (device_no+1) % MAX_NUMBER_OF_DEVICES;
-			}while (device_no != device_initial);				
+			}
+			while (device_no != device_initial);
 			// if we get here, we remain in this state as we never found any outstanding requests
 			break;
-		case DFU_STATE_CACHE_CHECK:	// see if the data we require has already been cached
+
+		case DFU_STATE_CACHE_CHECK:
+			// see if the data we require has already been cached
+
 			if (DFU_cache_check(device_no,DFU_queue[device_no].chunk_address) == false)
-			{	// data being requested is not in the cache
+			{
+				// data being requested is not in the cache
 				zprintf(LOW_IMPORTANCE,"DFU: Cache miss - requesting data from server\r\n");
 				cache_entry = DFU_cache_fetch(device_no,DFU_queue[device_no].chunk_address, send_secret_next_time);
 				request_sent_timestamp = get_microseconds_tick();
-				DFU_state = DFU_STATE_WAIT_FOR_HTTP_RESPONSE;	// Wait for HTTP Post task to get the data and notify us
+
+				// Wait for HTTP Post task to get the data and notify us
+				DFU_state = DFU_STATE_WAIT_FOR_HTTP_RESPONSE;
 				break;
 			}
 			zprintf(LOW_IMPORTANCE,"DFU: Cache hit - found chunk in cache\r\n");			
 			DFU_state = DFU_STATE_SEND_CHUNK;
 			break;
-		case DFU_STATE_WAIT_FOR_HTTP_RESPONSE:	// wait for HTTP Post Request task to notify us that it has a result
-			notify_response = xTaskNotifyWait(0,0,(uint32_t *)&http_request_result,0);
-			if ((notify_response == pdTRUE) || ((get_microseconds_tick()-request_sent_timestamp)>HTTP_REQUEST_TIMEOUT))
-			{	// we got a response or a timeout		
+
+		case DFU_STATE_WAIT_FOR_HTTP_RESPONSE:
+			// wait for HTTP Post Request task to notify us that it has a result
+
+			notify_response = xTaskNotifyWait(0, 0, (uint32_t *)&http_request_result, 0);
+
+			if ((notify_response == pdTRUE) || ((get_microseconds_tick() - request_sent_timestamp) > HTTP_REQUEST_TIMEOUT))
+			{
+				// we got a response or a timeout
 				if ((notify_response == pdTRUE) && (http_request_result == true))
-				{	// if the call was successful, populate the cache entry
+				{
+					// if the call was successful, populate the cache entry
 					send_secret_next_time = false;
-					zprintf(LOW_IMPORTANCE,"DFU: Received firmware page for device index %d, cache location=%d chunk address=0x%04x...\r\n",device_no,cache_entry,DFU_queue[device_no].chunk_address);
-					if (DFU_parse_received_page(device_no, cache_entry, DFU_queue[device_no].chunk_address)==true)
+
+					zprintf(LOW_IMPORTANCE,"DFU: Received firmware page for device index %d, cache location=%d chunk address=0x%04x...\r\n",
+							device_no,
+							cache_entry,
+							DFU_queue[device_no].chunk_address);
+
+					if (DFU_parse_received_page(device_no, cache_entry, DFU_queue[device_no].chunk_address))
 					{
-						DFU_state = DFU_STATE_SEND_CHUNK;	// got data in cache, so send it
+						// got data in cache, so send it
+						DFU_state = DFU_STATE_SEND_CHUNK;
 					}
 					else
 					{
 						zprintf(LOW_IMPORTANCE,"DFU: Data rejected\r\n");
-						DFU_state = DFU_STATE_SEARCH;	// was a problem with the received data
+						// was a problem with the received data
+						DFU_state = DFU_STATE_SEARCH;
 					}
 				}
 				else
-				{ // either a failure from the HTTP fetcher or a timeout
-					send_secret_next_time = true;	// maybe keys are out of synch?
+				{
+					// either a failure from the HTTP fetcher or a timeout
+					// maybe keys are out of synch?
+					send_secret_next_time = true;
 					zprintf(LOW_IMPORTANCE,"DFU: Did not receive page from server\r\n");
-					DFU_state = DFU_STATE_SEARCH;	// couldn't get the data					
+
+					// couldn't get the data
+					DFU_state = DFU_STATE_SEARCH;
 				}
 			}
 			else
-			{	 // no notification yet, so wait here until either we get one, or we timeout.
+			{
+				// no notification yet, so wait here until either we get one, or we timeout.
 				DFU_state = DFU_STATE_WAIT_FOR_HTTP_RESPONSE;
 			}
 			break;
+
 		case DFU_STATE_SEND_CHUNK:
 			zprintf(LOW_IMPORTANCE,"DFU: Sending chunk to device\r\n");
 			DFU_prepare_chunk(&device_firmware_chunk, device_no, DFU_queue[device_no].chunk_address);
-			surenet_send_firmware_chunk(&device_firmware_chunk);	// This makes the chunk available for the Hub Conversation state machine to send at the next opportunity
-			DFU_queue[device_no].in_use = false;	// clear queue entry
-			DFU_state = DFU_STATE_SEARCH;	// all done
+
+			// This makes the chunk available for the Hub Conversation state machine to send at the next opportunity
+			surenet_send_firmware_chunk(&device_firmware_chunk);
+
+			// clear queue entry
+			DFU_queue[device_no].in_use = false;
+
+			// all done
+			DFU_state = DFU_STATE_SEARCH;
 			break;
+
 		default:
-			DFU_state = DFU_STATE_SEARCH;	// error, go back to start
+			// error, go back to start
+			DFU_state = DFU_STATE_SEARCH;
 			break;
 	}
 }
@@ -295,34 +389,47 @@ void DFU_prepare_chunk(DEVICE_FIRMWARE_CHUNK *chunk,uint8_t device_index, uint16
 	uint64_t device_mac;
 	
 	requested_page = chunk_address / CHUNKS_PER_PAGE;	
-	chunk_offset = chunk_address-(requested_page*CHUNKS_PER_PAGE);
+	chunk_offset = chunk_address - (requested_page*CHUNKS_PER_PAGE);
 	device_mac = DFU_queue[device_index].device_mac;
 	
-	for (i=0; i<DEVICE_FIRMWARE_CACHE_ENTRIES; i++)
+	for (i = 0; i < DEVICE_FIRMWARE_CACHE_ENTRIES; i++)
 	{
-		if ((firmware_cache[i].in_use == true) && \
-			(firmware_cache[i].device_mac == device_mac) && \
-			(firmware_cache[i].page_number == requested_page))
+		if ((firmware_cache[i].in_use)
+		&& (firmware_cache[i].device_mac == device_mac)
+		&& (firmware_cache[i].page_number == requested_page))
 		{
 			if ((firmware_cache[i].last_page == true) || (chunk_offset>=firmware_cache[i].number_of_chunks))
-			{	//a chunk has been requested which is not within this page. The only reason for this is if
+			{
+				//a chunk has been requested which is not within this page. The only reason for this is if
 				// the page is not 'full'. This means we have reached the end of the firmware image.
 				// We send a chunk of length 0 in this case to indicate we have no data.
-				firmware_cache[i].last_used = get_microseconds_tick();	// record when this cache entry was last used.
+
+				// record when this cache entry was last used.
+				firmware_cache[i].last_used = get_microseconds_tick();
 				chunk->device_index = device_index;
 				chunk->chunk_address = chunk_address;
-				chunk->len = 0;	// empty chunk
-				DFU_gatekeeper_done(device_mac);	// empty entry in gatekeeper list
+
+				// empty chunk
+				chunk->len = 0;
+
+				// empty entry in gatekeeper list
+				DFU_gatekeeper_done(device_mac);
 				zprintf(LOW_IMPORTANCE,"Indicating empty chunk\r\n");
 				return;					
 			}
 			else
-			{ // a chunk has been requested which is within the number of chunks in this page
-				firmware_cache[i].last_used = get_microseconds_tick();	// record when this cache entry was last used.
-				memcpy(chunk->chunk_data,&firmware_cache[i].page[chunk_offset*CHUNK_SIZE],CHUNK_SIZE);
+			{
+				// a chunk has been requested which is within the number of chunks in this page
+
+				// record when this cache entry was last used.
+				firmware_cache[i].last_used = get_microseconds_tick();
+
+				memcpy(chunk->chunk_data, &firmware_cache[i].page[chunk_offset * CHUNK_SIZE], CHUNK_SIZE);
 				chunk->device_index = device_index;
 				chunk->chunk_address = chunk_address;
-				chunk->len = CHUNK_SIZE;	// always the same, a full chunk!
+
+				// always the same, a full chunk!
+				chunk->len = CHUNK_SIZE;
 				return;
 			}
 		}
@@ -348,19 +455,24 @@ bool DFU_cache_check(uint8_t device_index, uint16_t chunk_address)
 	requested_page = chunk_address / CHUNKS_PER_PAGE;	
 	device_mac = DFU_queue[device_index].device_mac;
 	
-	for (i=0; i<DEVICE_FIRMWARE_CACHE_ENTRIES; i++)
+	for (i = 0; i<DEVICE_FIRMWARE_CACHE_ENTRIES; i++)
 	{
-		if ((firmware_cache[i].in_use == true) && \
-			(firmware_cache[i].device_mac == device_mac) && \
-			(firmware_cache[i].page_number == requested_page) && \
-			((get_microseconds_tick() - firmware_cache[i].last_used) < MAXIMUM_CACHE_AGE))
-		{	// Note we return a cache hit even if the chunk is past the end of valid
+		if ((firmware_cache[i].in_use)
+		&& (firmware_cache[i].device_mac == device_mac)
+		&& (firmware_cache[i].page_number == requested_page)
+		&& ((get_microseconds_tick() - firmware_cache[i].last_used) < MAXIMUM_CACHE_AGE))
+		{
+			// Note we return a cache hit even if the chunk is past the end of valid
 			// data because we detect this in DFU_Prepare_Chunk() and send a length of 0 (indicating we have reached the end)
 			// Also return true if the cache is valid but empty (indicating we have reached the end as well)
-			return true;	// found cache hit
+
+			// found cache hit
+			return true;
 		}
 	}
-	return false;	// cache miss
+
+	// cache miss
+	return false;
 }
 
 /**************************************************************
@@ -374,7 +486,7 @@ bool DFU_cache_check(uint8_t device_index, uint16_t chunk_address)
 uint8_t DFU_cache_fetch(uint8_t device_index, uint16_t chunk_address, bool send_secret_key)
 {
 	uint8_t i;
-	uint8_t cache_entry=0xff;
+	uint8_t cache_entry = 0xff;
 	uint32_t requested_page;
 	uint32_t oldest;
 	uint64_t device_mac;
@@ -383,11 +495,12 @@ uint8_t DFU_cache_fetch(uint8_t device_index, uint16_t chunk_address, bool send_
 	device_mac = DFU_queue[device_index].device_mac;
 	
 	// look for an empty cache entry
-	for (i=0; i<DEVICE_FIRMWARE_CACHE_ENTRIES; i++)
+	for (i = 0; i < DEVICE_FIRMWARE_CACHE_ENTRIES; i++)
 	{
-		if (firmware_cache[i].in_use==false)
+		if (firmware_cache[i].in_use == false)
 		{
-			cache_entry=i;	// found one
+			// found one
+			cache_entry = i;
 			break;
 		}
 	}
@@ -396,25 +509,32 @@ uint8_t DFU_cache_fetch(uint8_t device_index, uint16_t chunk_address, bool send_
 	{	// all cache entries used, so find the oldest one
 		oldest = get_microseconds_tick() - firmware_cache[0].last_used;
 		cache_entry = 0;
-		for (i=1; i<DEVICE_FIRMWARE_CACHE_ENTRIES; i++)
+		for (i = 1; i < DEVICE_FIRMWARE_CACHE_ENTRIES; i++)
 		{
-			if ((get_microseconds_tick()-firmware_cache[i].last_used)> oldest)
+			if ((get_microseconds_tick() - firmware_cache[i].last_used) > oldest)
 			{
-				oldest = get_microseconds_tick()-firmware_cache[i].last_used;
+				oldest = get_microseconds_tick() - firmware_cache[i].last_used;
 				cache_entry = i;
 			}
 		}
 	}
 	
-	firmware_cache[cache_entry].in_use = false;	//this will be changed to true when the page gets written to the cache
+	//this will be changed to true when the page gets written to the cache
+	firmware_cache[cache_entry].in_use = false;
+
 	// obtain the data from the server
-	DFU_FetchFirmwareFromServer((char *)received_page, device_mac, \
-							(char *)product_configuration.serial_number, requested_page, \
-							DFU_queue[device_index].device_type, send_secret_key);	
+	DFU_FetchFirmwareFromServer((char *)received_page,
+								device_mac,
+								(char *)product_configuration.serial_number,
+								requested_page,
+								DFU_queue[device_index].device_type,
+								send_secret_key);
 		
 	// this is sent off as a message to the HTTP Post Request task, so we don't block 
 	// this task waiting for the reply.
-	return cache_entry;	// so the main loop knows where to store this result.
+
+	// so the main loop knows where to store this result.
+	return cache_entry;
 }
 
 /**************************************************************
@@ -447,13 +567,22 @@ bool DFU_parse_received_page(uint8_t device_index, uint8_t cache_entry, uint16_t
 	if (NULL == data_start)
 	{
 		zprintf(HIGH_IMPORTANCE,"HTTP header with no firmware received - assuming because end of firmware image\r\n");
-		firmware_cache[cache_entry].last_page = false;	// doesn't matter
+
+		// doesn't matter
+		firmware_cache[cache_entry].last_page = false;
+
 		firmware_cache[cache_entry].in_use = false;		
 		return false;
 	}
 
 	// parse the header
-    sscanf((char *)data_start, "%x %x %x %x %x %x", (unsigned int *)&crc_sent, (unsigned int *)&erase_addr, (unsigned int *)&erase_count, (unsigned int *)&prog_addr, (unsigned int *)&prog_count, (unsigned int *)&ver);
+    sscanf((char *)data_start, "%x %x %x %x %x %x",
+    		(unsigned int *)&crc_sent,
+			(unsigned int *)&erase_addr,
+			(unsigned int *)&erase_count,
+			(unsigned int *)&prog_addr,
+			(unsigned int *)&prog_count,
+			(unsigned int *)&ver);
 	
 	if ((ver & 0xff) != 0x02)
 	{
@@ -500,7 +629,7 @@ bool DFU_parse_received_page(uint8_t device_index, uint8_t cache_entry, uint16_t
  * Outputs         :
  * Returns         :
  **************************************************************/
-void DFU_FetchFirmwareFromServer(char *buf, uint64_t mac, char*serial, uint32_t page, T_DEVICE_TYPE type, bool send_secret_key)
+void DFU_FetchFirmwareFromServer(char *buf, uint64_t mac, char* serial, uint32_t page, T_DEVICE_TYPE type, bool send_secret_key)
 {
 	char 						mac_addr_string[20];
 	HTTP_POST_Request_params 	http_post_request_params;
@@ -508,31 +637,52 @@ void DFU_FetchFirmwareFromServer(char *buf, uint64_t mac, char*serial, uint32_t 
 	uint8_t 					*SharedSecret;
 	uint64_t 					time_since_epoch_ms;
 	int32_t						encrypted_data;
+
+	uint8_t* str = (uint8_t*)contents;
+
 	mac = swap64(mac);
-	snprintf(mac_addr_string, sizeof(mac_addr_string), "%08X%08X ", (uint32_t)(mac>>32), (uint32_t)mac);
+	snprintf(mac_addr_string, sizeof(mac_addr_string), "%08X%08X ", (uint32_t)(mac >> 32), (uint32_t)mac);
 	get_UTC_ms(&time_since_epoch_ms);
 	
-    memset(contents, 0, sizeof(contents));	// not sure this is necessary
+	// not sure this is necessary
+    memset(contents, 0, sizeof(contents));
 
-	if( false == send_secret_key)
-	{	// Send a 'normal' request
-	    snprintf(contents, sizeof(contents), \
-			"serial_number=%s&mac_address=%s&product_id=%d&page=%d&bootloader_version=&bv=&tv=%llu\0",
-			serial, mac_addr_string, type, page, time_since_epoch_ms);		
-	} else
-	{ // Need to send the shared secret just in case we are out of synch.
-		SharedSecret = GetSharedSecret();	// pointer to 16 byte array
-	    snprintf(contents, sizeof(contents), \
-			"serial_number=%s&mac_address=%s&product_id=%d&page=%d&bootloader_version=&bv=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x&tv=%llu\0",
-			serial, mac_addr_string, type, page, \
-			SharedSecret[0],SharedSecret[1],SharedSecret[2],SharedSecret[3], \
-			SharedSecret[4],SharedSecret[5],SharedSecret[6],SharedSecret[7], \
-			SharedSecret[8],SharedSecret[9],SharedSecret[10],SharedSecret[11], \
-			SharedSecret[12],SharedSecret[13],SharedSecret[14],SharedSecret[15], \
-			time_since_epoch_ms);
+	if(!send_secret_key)
+	{
+		// Send a 'normal' request
+		str += sprintf(str,
+						//"serial_number=%s&mac_address=%s&product_id=%d&page=%d&bootloader_version=&bv=&tv=%llu\0",
+						"serial_number=%s&mac_address=%s&product_id=%d&page=%d&bootloader_version=&bv=&tv=",
+						serial,
+						mac_addr_string,
+						type,
+						page);
+
+		str += xConverterUInt64ToStr(str, time_since_epoch_ms);
+	}
+	else
+	{
+		// Need to send the shared secret just in case we are out of synch.
+
+		// pointer to 16 byte array
+		SharedSecret = GetSharedSecret();
+
+		sprintf(str,
+			//"serial_number=%s&mac_address=%s&product_id=%d&page=%d&bootloader_version=&bv=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x&tv=%llu\0",
+	    	"serial_number=%s&mac_address=%s&product_id=%d&page=%d&bootloader_version=&bv=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x&tv=",
+			serial, mac_addr_string, type, page,
+			SharedSecret[0], SharedSecret[1], SharedSecret[2], SharedSecret[3],
+			SharedSecret[4], SharedSecret[5], SharedSecret[6], SharedSecret[7],
+			SharedSecret[8], SharedSecret[9], SharedSecret[10], SharedSecret[11],
+			SharedSecret[12], SharedSecret[13], SharedSecret[14], SharedSecret[15]);
+
+		str += xConverterUInt64ToStr(str, time_since_epoch_ms);
 	}
 	
-	zprintf(LOW_IMPORTANCE,"DFU: Request : %s\r\n",contents);
+	//end str
+	*str = 0;
+
+	zprintf(LOW_IMPORTANCE, "DFU: Request : %s\r\n", contents);
 	
 	http_post_request_params.URL = URL;
 	http_post_request_params.resource = resource;
@@ -541,13 +691,15 @@ void DFU_FetchFirmwareFromServer(char *buf, uint64_t mac, char*serial, uint32_t 
 	http_post_request_params.response_size = sizeof(received_page);
 	http_post_request_params.xClientTaskHandle = xTaskGetCurrentTaskHandle();
 	http_post_request_params.tx_key_source = DERIVED_KEY_CURRENT;
-	http_post_request_params.rx_key_source = DERIVED_KEY_CURRENT;	// assume for DFU that no key changes are going to occur
+	http_post_request_params.rx_key_source = DERIVED_KEY_CURRENT; // assume for DFU that no key changes are going to occur
 	http_post_request_params.encrypted_data = &encrypted_data;
 	http_post_request_params.bytes_read = NULL;
 	
 	// ask HTTP_Post_Request task to get the data and notify us when it has the answer
-	xTaskNotifyWait(0,0,&notify_response,0);	// clear any pending notifications
 	
+	// clear any pending notifications
+	xTaskNotifyWait(0, 0, &notify_response, 0);
+
 	xQueueSend(xHTTPPostRequestMailbox, &http_post_request_params, 0);	
 	// If this fails, the DFU state machine will try again.
 }
@@ -587,29 +739,33 @@ BaseType_t DFU_Gatekeeper(uint64_t mac)
 	uint8_t i;
 	
 	// first look for an existing entry for this mac, and update it if found
-	for( i=0; i<DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES; i++)
+	for(i = 0; i < DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES; i++)
 	{
-		if( (true == DFU_request_control[i].active) && \
-			(mac == DFU_request_control[i].mac))
+		if(DFU_request_control[i].active
+		&& (mac == DFU_request_control[i].mac))
 		{
 			DFU_request_control[i].timestamp = get_microseconds_tick();
 			zprintf(LOW_IMPORTANCE,"DFU: Request allowed from in-progress Device\r\n");
-			return pdPASS;	// Allow DFU to proceed
+
+			// Allow DFU to proceed
+			return pdPASS;
 		}
 	}
 	
 	// if we get here, then this is a new Device
 	// First check for an empty or stale slot that can be utilised
-	for( i=0; i<DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES; i++)
+	for(i = 0; i < DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES; i++)
 	{
-		if( (false == DFU_request_control[i].active) ||
-			((get_microseconds_tick()-DFU_request_control[i].timestamp)> DFU_GATEKEEPER_TIMEOUT))
+		if(!DFU_request_control[i].active
+		|| ((get_microseconds_tick() - DFU_request_control[i].timestamp) > DFU_GATEKEEPER_TIMEOUT))
 		{
 			DFU_request_control[i].timestamp = get_microseconds_tick();
 			DFU_request_control[i].active = true;
 			DFU_request_control[i].mac = mac;
 			zprintf(LOW_IMPORTANCE,"DFU: Request allowed from new Device\r\n");
-			return pdPASS; // Allow DFU to proceed
+
+			// Allow DFU to proceed
+			return pdPASS;
 		}
 	}
 	// If we get here, our device is new, and there is no available slot in 
@@ -632,8 +788,8 @@ void surenet_device_rcvd_segs_cb(DEVICE_RCVD_SEGS_PARAMETERS_MAILBOX *params)
 	uint32_t requested_chunk_address;
 	uint64_t device_mac;
 	
-	requested_chunk_address = (params->rcvd_segs_params.fetch_chunk_upper<< 8) + \
-								 params->rcvd_segs_params.fetch_chunk_lower;	// 16 bit chunk address
+	requested_chunk_address = (params->rcvd_segs_params.fetch_chunk_upper<< 8)
+			+ params->rcvd_segs_params.fetch_chunk_lower;	// 16 bit chunk address
 	device_mac = params->device_mac;
 		
 	if( pdPASS == DFU_Gatekeeper(params->device_mac))
@@ -644,7 +800,9 @@ void surenet_device_rcvd_segs_cb(DEVICE_RCVD_SEGS_PARAMETERS_MAILBOX *params)
 	}
 	else
 	{
-		zprintf(LOW_IMPORTANCE,"DFU: Rejecting request from device %08x%08x\r\n", (uint32_t)((device_mac&0xffffffff00000000)>>32),(uint32_t)device_mac);
+		zprintf(LOW_IMPORTANCE,"DFU: Rejecting request from device %08x%08x\r\n",
+				(uint32_t)((device_mac & 0xffffffff00000000) >> 32),
+				(uint32_t)device_mac);
 	}
 }
 
@@ -695,3 +853,4 @@ void DFU_cache_flush(uint64_t device_mac)
 		}
 	}
 }
+//==============================================================================

@@ -2,7 +2,7 @@
 *
 * SUREFLAP CONFIDENTIALITY & COPYRIGHT NOTICE
 *
-* Copyright © 2013-2021 Sureflap Limited.
+* Copyright ï¿½ 2013-2021 Sureflap Limited.
 * All Rights Reserved.
 *
 * All information contained herein is, and remains the property of Sureflap 
@@ -21,7 +21,9 @@
 **************************************************************************/
 #ifndef __RESET_HANDLER__
 #define __RESET_HANDLER__
+//==============================================================================
+//functions:
 
 void DisplayResetStatus(void);
-
+//==============================================================================
 #endif

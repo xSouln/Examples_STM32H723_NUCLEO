@@ -125,4 +125,4 @@ bool SNTP_DidUpdateFail(void);
 bool SNTP_AwaitUpdate(bool MakeRequest, uint32_t TimeToWait);
 bool SNTP_GetTime(void);
 //==============================================================================
-#endif
+#endif //__SNTP_H__

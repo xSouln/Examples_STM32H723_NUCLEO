@@ -78,6 +78,12 @@ QueueHandle_t xSendDeviceStatusMailbox;
 // EventGroup to communicate with SureNet
 extern EventGroupHandle_t xSurenet_EventGroup;
 
+// display a muted notification if there is no data waiting
+bool SDAN_QUIET_MODE		= true;
+
+// don't show the muted notification
+bool SDAN_VERY_QUIET_MODE	= true;
+
 /**************************************************************
  * Function Name   : Surenet_Interface_Handler
  * Description     : This function must be polled in the same context as the application
@@ -480,6 +486,7 @@ __weak void surenet_clear_message_cb(uint32_t current_request_handle)
  * Outputs         :
  * Returns         : TRUE if the message could be processed (SureNet will return an ACK), FALSE if not (NACK).
  **************************************************************/
+/*
 __weak SN_DATA_RECEIVED_RESPONSE surenet_data_received_cb(RECEIVED_PACKET *rx_packet)
 {
 	// We could do some additional sanity checking to be sure that the data is not corrupted. For example:
@@ -489,7 +496,7 @@ __weak SN_DATA_RECEIVED_RESPONSE surenet_data_received_cb(RECEIVED_PACKET *rx_pa
     zprintf(LOW_IMPORTANCE, "surenet_data_received_cb():\r\n");
     return SN_ACCEPTED;
 }
-
+*/
 /**************************************************************
  * Function Name   : surenet_pairing_mode_change_cb
  * Description     : Called when Pairing Mode has changed, including the automatic
@@ -511,6 +518,7 @@ __weak void surenet_pairing_mode_change_cb(PAIRING_REQUEST new_state)
  * Outputs         :
  * Returns         :
  **************************************************************/
+/*
 __weak void surenet_device_pairing_success_cb(ASSOCIATION_SUCCESS_INFORMATION *assoc_info)
 {
     uint64_t mac_addr;
@@ -519,6 +527,7 @@ __weak void surenet_device_pairing_success_cb(ASSOCIATION_SUCCESS_INFORMATION *a
     zprintf(LOW_IMPORTANCE,"%08x\r\n", (uint32_t)(mac_addr&0xffffffff));
     return;
 }
+*/
 
 /**************************************************************
  * Function Name   : surenet_device_awake_notification()
@@ -528,8 +537,6 @@ __weak void surenet_device_pairing_success_cb(ASSOCIATION_SUCCESS_INFORMATION *a
  * Outputs         : Source address and data. Note not all elements are useful!
  * Returns         :
  **************************************************************/
-bool SDAN_QUIET_MODE		= true;			// display a muted notification if there is no data waiting
-bool SDAN_VERY_QUIET_MODE	= true;			// don't show the muted notification
 __weak void surenet_device_awake_notification_cb(DEVICE_AWAKE_MAILBOX *device_awake_mailbox)
 {
 	const char* data_status[] = {
@@ -553,7 +560,7 @@ __weak void surenet_device_awake_notification_cb(DEVICE_AWAKE_MAILBOX *device_aw
 		zprintf(LOW_IMPORTANCE,"time: %02d:%02d voltage=%dmV rssi=%d ",
 				device_awake_mailbox->payload.device_hours,
 				device_awake_mailbox->payload.device_minutes & 0x7f,
-				device_awake_mailbox->payload.battery_voltage*32,
+				device_awake_mailbox->payload.battery_voltage * 32,
 				device_awake_mailbox->payload.device_rssi);
 
 		zprintf(LOW_IMPORTANCE,"%s\r\n", data_status[device_awake_mailbox->payload.device_data_status]);
@@ -584,7 +591,6 @@ __weak void surenet_device_awake_notification_cb(DEVICE_AWAKE_MAILBOX *device_aw
 		}
 	}
 }
-
 /**************************************************************
  * Function Name   : surenet_ping_response_cb
  * Description     : Called when a ping response is received from a device.

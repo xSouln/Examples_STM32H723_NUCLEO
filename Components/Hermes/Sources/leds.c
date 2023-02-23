@@ -59,10 +59,13 @@
 // - LED_MODE_DIM, LED_PATTERN_ALTERNATE = 5%
 
 // Driver task for LEDs
+//==============================================================================
+//includes:
+
 #include "Components.h"
 #include <stdlib.h>
 
-/* FreeRTOS kernel includes. */
+// FreeRTOS kernel includes.
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
@@ -71,41 +74,70 @@
 // Other includes
 #include "leds.h"
 #include "tim.h"
-
-QueueHandle_t xLedMailbox;
+//==============================================================================
+//defines:
 
 // These are the default brightnesses of the various LED patterns.
 // If the pattern is initiated with LED_MODE==LED_MODE_DIM, then
 // the brightness is multiplied by the DIMMING_FACTOR.
 #define BRIGHTNESS_FULL		100
-#define BRIGHTNESS_NORMAL	20	// Percent 
+#define BRIGHTNESS_NORMAL	20 // Percent
 #define BRIGHTNESS_OFF		0
 
-#define DIMMING_FACTOR		5	// Percent
+#define DIMMING_FACTOR		5 // Percent
+//==============================================================================
+//externs:
 
-/******* Static Functions *******/
-static bool		LED_Progress_Stage(bool initial);
-static void 	LED_Start_Pattern(LED_MODE new_mode, LED_COLOUR new_colour, \
-				LED_PATTERN_TYPE new_pattern, uint32_t new_duration);
-static bool		LED_Approach_Target(void);
+extern REG_TIM_T* Timer3;
+extern REG_TIM_T* Timer12;
+//==============================================================================
+//variables:
+
+QueueHandle_t xLedMailbox;
+//------------------------------------------------------------------------------
+static LED_PATTERN_STAGE solid_pattern_def = { BOTH_LEDS, BRIGHTNESS_NORMAL, 0, 1, LED_STAGE_STOP };
+
+static LED_PATTERN_STAGE alt_pattern_def[] =
+{
+	{ LEFT_LED, BRIGHTNESS_FULL, 1000, 100, LED_STAGE_MOVE_ON },
+	{ RIGHT_LED, BRIGHTNESS_FULL, 1000, 100, LED_STAGE_LOOP_TO_START }
+};
+
+static LED_PATTERN_STAGE pulse_pattern_def[] =
+{
+	{ BOTH_LEDS, BRIGHTNESS_FULL, 0, 1,	LED_STAGE_MOVE_ON },
+	{ BOTH_LEDS, BRIGHTNESS_OFF, 0,	1, LED_STAGE_LOOP_TO_START }
+};
+
+static LED_PATTERN_STAGE flash_pattern_def[] =
+{
+	{ BOTH_LEDS, BRIGHTNESS_FULL, 1000, 100, LED_STAGE_MOVE_ON },
+	{ BOTH_LEDS, BRIGHTNESS_OFF, 1000, 100, LED_STAGE_LOOP_TO_START }
+};
+
+static LED_PATTERN_STAGE fast_flash_pattern_def[] =
+{
+	{ BOTH_LEDS, BRIGHTNESS_FULL, 250, 100, LED_STAGE_MOVE_ON},
+	{ BOTH_LEDS, BRIGHTNESS_OFF, 250, 100, LED_STAGE_LOOP_TO_START}
+};
+
+static LED_PATTERN_STAGE solid_left_def = { LEFT_LED, BRIGHTNESS_FULL, 0, 100, LED_STAGE_STOP };
+static LED_PATTERN_STAGE solid_right_def = { RIGHT_LED, BRIGHTNESS_FULL, 0, 100, LED_STAGE_STOP };
+static LED_PATTERN_STAGE max_pattern_def = { BOTH_LEDS, BRIGHTNESS_FULL, 0, 1, LED_STAGE_STOP };
+
+static LED_PATTERN_STAGE vfast_flash_pattern_def[] =
+{
+	{ BOTH_LEDS, BRIGHTNESS_FULL, 100, 100, LED_STAGE_MOVE_ON },
+	{ BOTH_LEDS, BRIGHTNESS_OFF, 100, 100, LED_STAGE_LOOP_TO_START }
+};
+
+//------------------------------------------------------------------------------
+static bool LED_Progress_Stage(bool initial);
+static void LED_Start_Pattern(LED_MODE new_mode, LED_COLOUR new_colour, LED_PATTERN_TYPE new_pattern, uint32_t new_duration);
+static bool LED_Approach_Target(void);
 static uint32_t	LED_Implement_Pattern(void);
-												// side,brightness %,delay,approach_rate,behaviour
-static LED_PATTERN_STAGE	solid_pattern_def			= {	 BOTH_LEDS, BRIGHTNESS_NORMAL,0,	1,	LED_STAGE_STOP};
-static LED_PATTERN_STAGE	alt_pattern_def[] 			= { {LEFT_LED, 	BRIGHTNESS_FULL,1000,100,LED_STAGE_MOVE_ON},
-		 													{RIGHT_LED,	BRIGHTNESS_FULL,1000,100,LED_STAGE_LOOP_TO_START} };
-static LED_PATTERN_STAGE	pulse_pattern_def[]			= {	{BOTH_LEDS,	BRIGHTNESS_FULL,0,	1,	LED_STAGE_MOVE_ON},
-		 													{BOTH_LEDS,	BRIGHTNESS_OFF,	0,	1,	LED_STAGE_LOOP_TO_START} };
-static LED_PATTERN_STAGE	flash_pattern_def[]			= {	{BOTH_LEDS, BRIGHTNESS_FULL,1000,100,LED_STAGE_MOVE_ON},
-															{BOTH_LEDS, BRIGHTNESS_OFF,	1000,100,LED_STAGE_LOOP_TO_START} };
-static LED_PATTERN_STAGE	fast_flash_pattern_def[]	= {	{BOTH_LEDS, BRIGHTNESS_FULL,250,100,LED_STAGE_MOVE_ON},
-															{BOTH_LEDS, BRIGHTNESS_OFF,	250,100,LED_STAGE_LOOP_TO_START} };
-static LED_PATTERN_STAGE	solid_left_def				= { LEFT_LED, 	BRIGHTNESS_FULL, 0, 100, LED_STAGE_STOP };
-static LED_PATTERN_STAGE	solid_right_def				= { RIGHT_LED,  BRIGHTNESS_FULL, 0, 100, LED_STAGE_STOP };
-static LED_PATTERN_STAGE	max_pattern_def				= {	 BOTH_LEDS, BRIGHTNESS_FULL,0,	1,	 LED_STAGE_STOP};
-static LED_PATTERN_STAGE	vfast_flash_pattern_def[]	= {	{BOTH_LEDS, BRIGHTNESS_FULL,100,100,LED_STAGE_MOVE_ON},
-															{BOTH_LEDS, BRIGHTNESS_OFF,	100,100,LED_STAGE_LOOP_TO_START} };
 
-static const LED_PATTERN_TYPE_DEF	led_pattern_defs[] = 
+static const LED_PATTERN_TYPE_DEF led_pattern_defs[] =
 {
 	{ LED_PATTERN_SOLID, 	 sizeof(solid_pattern_def)/sizeof(LED_PATTERN_STAGE),	&solid_pattern_def },
 	{ LED_PATTERN_ALTERNATE, sizeof(alt_pattern_def)/sizeof(LED_PATTERN_STAGE),		alt_pattern_def },
@@ -117,19 +149,24 @@ static const LED_PATTERN_TYPE_DEF	led_pattern_defs[] =
 	{ LED_PATTERN_MAX, 	 	 sizeof(solid_pattern_def)/sizeof(LED_PATTERN_STAGE),	&max_pattern_def },
 	{ LED_PATTERN_VFAST_FLASH,sizeof(vfast_flash_pattern_def)/sizeof(LED_PATTERN_STAGE),	vfast_flash_pattern_def},
 };
-
+//------------------------------------------------------------------------------
 static const LED_BRIGHTNESS	led_side_masks[]	= {{ LED_BOTH_MASK }, { LED_LEFT_MASK }, { LED_RIGHT_MASK }};
 static const LED_BRIGHTNESS	led_colour_masks[]	= {{ LED_RED_MASK }, { LED_GREEN_MASK }, { LED_ORANGE_MASK }, { LED_OFF_MASK }};
 static const LED_BRIGHTNESS	led_colour_divs[]	= {{ LED_RED_DIVS }, { LED_GREEN_DIVS }, { LED_ORANGE_DIVS }, { LED_OFF_DIVS }};
-
+//------------------------------------------------------------------------------
 static LED_BRIGHTNESS	led_current_brightness	= { 0 }; // Starts off.
 static LED_BRIGHTNESS	led_target_brightness	= { 0 }; // Derived from Pattern, or driven directly.
 static LED_PATTERN		led_current_pattern		= {COLOUR_BACKSTOP, LED_MODE_NORMAL, NULL, LED_PATTERN_NO_STAGE, NULL, EMPTY_TIMER, false, false, EMPTY_TIMER};
 static LED_PATTERN		led_fallback_pattern;
-
+//------------------------------------------------------------------------------
 const char* led_mode_strings[]		= { "off", "dim", "normal" };
 const char* led_pattern_strings[] 	= { "solid", "alternate", "pulse", "flash", "fastflash" , "left", "right", "max", "vfast"};
 const char*	led_colour_strings[] 	= { "red", "green", "orange"};
+//==============================================================================
+//prototypes:
+
+//==============================================================================
+//functions:
 
 /**************************************************************
  * Function Name   : LED_Start_Pattern
@@ -239,7 +276,8 @@ static bool LED_Progress_Stage(bool initial)
 		calculated_target_brightness = led_current_pattern.stage->brightness;
 		switch (led_current_pattern.mode)
 		{
-			case LED_MODE_DIM: // reduce target brightness if in DIM mode.
+			case LED_MODE_DIM:
+				// reduce target brightness if in DIM mode.
 				calculated_target_brightness = calculated_target_brightness * DIMMING_FACTOR / 100;
 				break;
 
@@ -263,9 +301,6 @@ static bool LED_Approach_Target(void)
 	uint32_t	i;
 	int32_t		diff;
 	LED_BRIGHTNESS	altered_brightness;
-	
-	extern REG_TIM_T* Timer3;
-	extern REG_TIM_T* Timer12;
 
 	if(led_current_brightness.full == led_target_brightness.full)
 	{
@@ -301,13 +336,7 @@ static bool LED_Approach_Target(void)
 
 		altered_brightness.bytes[i] = led_current_brightness.bytes[i] / led_colour_divs[led_current_pattern.colour].bytes[i];
 	}
-	/*
-	PWM_UpdatePwmDutycycle(BOARD_PWM_BASEADDR, kPWM_Module_1, kPWM_PwmA, kPWM_SignedCenterAligned, altered_brightness.bytes[LED_LEFT_GREEN]);
-	PWM_UpdatePwmDutycycle(BOARD_PWM_BASEADDR, kPWM_Module_1, kPWM_PwmB, kPWM_SignedCenterAligned, altered_brightness.bytes[LED_RIGHT_GREEN]);
-	PWM_UpdatePwmDutycycle(BOARD_PWM_BASEADDR, kPWM_Module_2, kPWM_PwmB, kPWM_SignedCenterAligned, LED_MAX_BRIGHTNESS-altered_brightness.bytes[LED_LEFT_RED]);
-	PWM_UpdatePwmDutycycle(BOARD_PWM_BASEADDR, kPWM_Module_0, kPWM_PwmA, kPWM_SignedCenterAligned, LED_MAX_BRIGHTNESS-altered_brightness.bytes[LED_RIGHT_RED]);
-	PWM_SetPwmLdok(BOARD_PWM_BASEADDR, kPWM_Control_Module_0 | kPWM_Control_Module_1 | kPWM_Control_Module_2, true);
-	*/
+
 	Timer3->Control1.CounterEnable = false;
 	Timer12->Control1.CounterEnable = false;
 
@@ -416,7 +445,16 @@ void LED_Request_Pattern(LED_MODE mode, LED_COLOUR colour, LED_PATTERN_TYPE patt
 void led_task(void *pvParameters)
 {
 	LED_PATTERN_REQUEST	incoming_pattern;
-	uint32_t			to_delay = LED_UPDATE_INTERVAL;
+	uint32_t to_delay = LED_UPDATE_INTERVAL;
+
+	Timer3->Control1.CounterEnable = false;
+	Timer12->Control1.CounterEnable = false;
+
+	Timer3->CaptureCompareOutput.Compare3OutputEnable = true;
+	Timer3->BreakAndDeadTime.MainOutputEnable = true;
+
+	Timer12->CaptureCompareOutput.Compare1OutputEnable = true;
+	Timer12->BreakAndDeadTime.MainOutputEnable = true;
 	
 	while(true)
 	{
@@ -443,3 +481,4 @@ void led_driver_init(void)
 {
     xLedMailbox = xQueueCreate(3, sizeof(LED_PATTERN_REQUEST));
 }
+//==============================================================================

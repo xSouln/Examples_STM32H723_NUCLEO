@@ -96,11 +96,12 @@ TaskHandle_t xSNTPTaskHandle;
 TaskHandle_t xHermesAppTaskHandle;
 TaskHandle_t xMQTTTaskHandle;
 TaskHandle_t xWatchdogTaskHandle;
+TaskHandle_t xLabelPrinterTaskHandle;
 //------------------------------------------------------------------------------
 //static tasks attributes:
 
-StaticTask_t hermes_app_task_buffer HERMES_APPLICATION_TASK_STACK_MEM_SECTION;
-StackType_t hermes_app_task_stack[HERMES_APPLICATION_TASK_STACK_SIZE] HERMES_APPLICATION_TASK_STACK_MEM_SECTION;
+StaticTask_t hermes_app_task_buffer HERMES_APP_TASK_STACK_MEM_SECTION;
+StackType_t hermes_app_task_stack[HERMES_APP_TASK_STACK_SIZE] HERMES_APP_TASK_STACK_MEM_SECTION;
 
 StaticTask_t hermes_mqtt_task_buffer MQTT_TASK_STACK_MEM_SECTION;
 StackType_t hermes_mqtt_task_stack[MQTT_TASK_STACK_SIZE] MQTT_TASK_STACK_MEM_SECTION;
@@ -116,6 +117,12 @@ StackType_t hermes_http_post_task_stack[HTTP_POST_TASK_STACK_SIZE] HTTP_POST_TAS
 
 StaticTask_t hermes_watch_dog_task_buffer WATCHDOG_TASK_STACK_MEM_SECTION;
 StackType_t hermes_watch_dog_task_stack[WATCHDOG_TASK_STACK_SIZE] WATCHDOG_TASK_STACK_MEM_SECTION;
+
+StaticTask_t hermes_test_task_buffer TEST_TASK_STACK_MEM_SECTION;
+StackType_t hermes_test_task_stack[TEST_TASK_STACK_SIZE] TEST_TASK_STACK_MEM_SECTION;
+
+StaticTask_t hermes_label_printer_task_buffer LABEL_PRINTER_TASK_STACK_MEM_SECTION;
+StackType_t hermes_label_printer_task_stack[LABEL_PRINTER_TASK_STACK_SIZE] LABEL_PRINTER_TASK_STACK_MEM_SECTION;
 //------------------------------------------------------------------------------
 
 //Global variable with some useful product information within. Initialised from Flash on boot.
@@ -143,7 +150,6 @@ DebugCounterT DebugCounter;
 //==============================================================================
 //prototypes:
 
-static void shell_task(void *pvParameters);
 void init_watchdog();
 
 /* The CLI commands are defined in CLI-commands.c. */
@@ -151,13 +157,24 @@ void vRegisterBasicCLICommands(void);
 void vRegisterCLICommands(void);
 
 void write_product_configuration(void);
-static void StartUpTask(void *pvParameters);
 static void watchdog_task(void *pvParameters);
 static void service_watchdog(void);
 
 void Core_detect(void);
 //==============================================================================
 //functions:
+
+int HermesStart_HFU_Task()
+{
+	return 0;
+}
+//------------------------------------------------------------------------------
+
+int HermesStart_TestTask()
+{
+	return 0;
+}
+//------------------------------------------------------------------------------
 
 int HermesStart_SNTP_Task()
 {
@@ -171,6 +188,21 @@ int HermesStart_SNTP_Task()
 								&hermes_sntp_task_buffer);
 
 	return xHTTPPostTaskHandle == NULL ? 0 : -1;
+}
+//------------------------------------------------------------------------------
+
+int HermesStart_LabelPrinterTask()
+{
+	xLabelPrinterTaskHandle =
+			xTaskCreateStatic(label_task, // Function that implements the task.
+								"label printer task", // Text name for the task.
+								LABEL_PRINTER_TASK_STACK_SIZE, // Number of indexes in the xStack array.
+								NULL, // Parameter passed into the task.
+								LABEL_PRINTER_TASK_PRIORITY, // Priority at which the task is created.
+								hermes_label_printer_task_stack, // Array to use as the task's stack.
+								&hermes_label_printer_task_buffer);
+
+	return xLedTaskTaskHandle == NULL ? 0 : -1;
 }
 //------------------------------------------------------------------------------
 
@@ -189,14 +221,14 @@ int HermesStart_LedTask()
 }
 //------------------------------------------------------------------------------
 
-int HermesStart_HermesAppTask()
+int HermesStart_AppTask()
 {
 	xHermesAppTaskHandle =
 			xTaskCreateStatic(hermes_app_task, // Function that implements the task.
 								"Hermes Application", // Text name for the task.
-								HERMES_APPLICATION_TASK_STACK_SIZE, // Number of indexes in the xStack array.
+								HERMES_APP_TASK_STACK_SIZE, // Number of indexes in the xStack array.
 								NULL, // Parameter passed into the task.
-								HERMES_TASK_PRIORITY, // Priority at which the task is created.
+								HERMES_APP_TASK_PRIORITY, // Priority at which the task is created.
 								hermes_app_task_stack, // Array to use as the task's stack.
 								&hermes_app_task_buffer);
 
@@ -211,7 +243,7 @@ int HermesStart_HTTP_PostTask()
 								"HTTP Post", // Text name for the task.
 								HTTP_POST_TASK_STACK_SIZE, // Number of indexes in the xStack array.
 								NULL, // Parameter passed into the task.
-								HTTP_TASK_PRIORITY, // Priority at which the task is created.
+								HTTP_POST_TASK_PRIORITY, // Priority at which the task is created.
 								hermes_http_post_task_stack, // Array to use as the task's stack.
 								&hermes_http_post_task_buffer);
 
@@ -255,7 +287,6 @@ void HermesInit_ProductNotConfiguredMode()
 
 	shouldICryptFlag = false;
 	shouldIPackageFlag = false;
-
 	printLevel = LOW_IMPORTANCE;
 
 	zprintf(MEDIUM_IMPORTANCE,"\r\n\r\nSure Petcare Hub - 'Hermes'\r\n---------------------------\r\n");
@@ -272,6 +303,9 @@ void HermesInit_ProductBlankMode()
 
 	// Limit the CLI messages when communicating with Programmer
 	printLevel = MEDIUM_IMPORTANCE;
+
+	HermesStart_LedTask();
+	HermesStart_TestTask();
 }
 //------------------------------------------------------------------------------
 
@@ -286,12 +320,18 @@ void HermesInit_ProductTestedMode()
 
 	zprintf(MEDIUM_IMPORTANCE,"\r\n\r\nSure Petcare Hub - 'Hermes'\r\n---------------------------\r\n");
 	zprintf(MEDIUM_IMPORTANCE,"PRODUCT_TESTED - expecting Label Printer\r\n");
+
+	HermesStart_LedTask();
+	HermesStart_LabelPrinterTask();
 }
 //------------------------------------------------------------------------------
 
 void HermesInit_ProductConfiguredMode()
 {
+	// everything set up, now I am ready for a customer
+
 	shouldIPackageFlag = SHOULD_I_PACKAGE;
+
 	//true for AES Encryption
 	shouldICryptFlag = false;
 
@@ -311,6 +351,21 @@ void HermesInit_ProductConfiguredMode()
 	DisplayResetStatus();
 	Core_detect();
 
+	// everything set up, now I am ready for a customer
+/*
+	if(immediate_firmware_update)
+	{
+		return;
+	}
+*/
+	surenet_init(&rfmac, product_configuration.rf_pan_id, initial_RF_channel);
+
+	HermesStart_SNTP_Task();
+	HermesStart_LedTask();
+	HermesStart_AppTask();
+	//HermesStart_HTTP_PostTask();
+	//HermesStart_MQTT_Task();
+
 	// from nvm
 	set_led_brightness(get_led_brightness(), false);
 
@@ -327,31 +382,69 @@ void HermesInit_FirmwareUpdatedMode()
 	// kick off a Hub Firmware Update
 	extern EventGroupHandle_t xConnectionStatus_EventGroup;
 	xEventGroupWaitBits(xConnectionStatus_EventGroup, CONN_STATUS_NETWORK_UP, false, false, portMAX_DELAY );
-	while(false == SNTP_AwaitUpdate(true, portMAX_DELAY));
+	while(false == SNTP_AwaitUpdate(true, portMAX_DELAY))
+	{
+
+	}
 	HFU_trigger(true);
+}
+//------------------------------------------------------------------------------
+
+void HermesInitSelectedMode()
+{
+	HermesInit_ProductConfiguredMode();
+
+	return;
+
+	switch (product_configuration.product_state)
+	{
+		case PRODUCT_NOT_CONFIGURED:
+			HermesInit_ProductNotConfiguredMode();
+			break;
+
+		case PRODUCT_BLANK:
+			HermesInit_ProductBlankMode();
+			break;
+
+		case PRODUCT_TESTED:
+			HermesInit_ProductTestedMode();
+			break;
+
+		case PRODUCT_CONFIGURED:
+			HermesInit_ProductConfiguredMode();
+			break;
+
+		default:
+			// Not sure what to do here - something's gone wrong with Flash
+			printLevel = LOW_IMPORTANCE;
+
+			zprintf(MEDIUM_IMPORTANCE,"\r\n\r\nSure Petcare Hub - 'Hermes'\r\n---------------------------\r\n");
+			zprintf(MEDIUM_IMPORTANCE,"CONFIGURATION CORRUPTED\r\n");
+
+			break;
+	}
 }
 //------------------------------------------------------------------------------
 
 void HermesComponentInit()
 {
+	HermesConsoleInit();
+
+	HermesFlashInit();
+	HermesFlashReadData();
+	HermesFlashReadProductConfig(&product_configuration);
+
+	RandMutex = xSemaphoreCreateMutex();
+
 	// Register the command line commands with the CLI
 	vRegisterBasicCLICommands();
-	HermesConsoleInit();
 
 	osDelay(pdMS_TO_TICKS(100));
 
 	xNetworkInterfaceInitialise();
 
-	HermesFlashInit();
-
-	HermesFlashReadData();
-
-	RandMutex = xSemaphoreCreateMutex();
-
 	wolfSSL_Init();
 	wc_SetTimeCb(wc_time);
-
-	HermesFlashReadProductConfig(&product_configuration);
 
 	if(product_configuration.rf_pan_id == 0xff
 	|| product_configuration.rf_mac == 0xffffffffffffffff
@@ -372,57 +465,12 @@ void HermesComponentInit()
 
 		product_configuration.sanity_state = PRODUCT_CONFIGURED;
 		product_configuration.product_state = PRODUCT_CONFIGURED;
+		product_configuration.rf_mac_mangle = true;
 
 		HermesFlashSetProductConfig(&product_configuration);
 		HermesFlashSaveData();
 	}
 
-	initial_RF_channel = INITIAL_CHANNEL;
-
-	// generate a truly random Shared Secret to be shared with the Server
-	GenerateSharedSecret(SHARED_SECRET_CURRENT);
-
-	// Used for signing data transfers between Hub and Server.
-	GenerateDerivedKey(DERIVED_KEY_CURRENT);
-
-	osDelay(pdMS_TO_TICKS(100));
-
-	hermes_app_init();
-	led_driver_init();
-	SNTP_Init();
-	HTTPPostTask_init();
-
-	//BABEL_set_aes_key(product_configuration.serial_number);
-	//BABEL_aes_encrypt_init();
-
-	shouldIPackageFlag = SHOULD_I_PACKAGE;
-
-	//true for AES Encryption
-	shouldICryptFlag = false;
-
-	surenet_init(&rfmac, product_configuration.rf_pan_id, initial_RF_channel);
-
-	osDelay(pdMS_TO_TICKS(100));
-
-	HermesStart_SNTP_Task();
-	HermesStart_LedTask();
-	HermesStart_HermesAppTask();
-	HermesStart_HTTP_PostTask();
-	HermesStart_MQTT_Task();
-	//HermesStart_WatchdogTask();
-}
-//------------------------------------------------------------------------------
-/**************************************************************
- * Function Name   : StartUpTask
- * Description     : This handles the retrieval of config data from flash
- *                 : and then the startup of all the other tasks.
- *                 : When complete, it kills itself.
- * Inputs          :
- * Outputs         :
- * Returns         :
- **************************************************************/
-static void StartUpTask(void *pvParameters)
-{
 	// we mangle it by putting 0xfffe in the middle, and use the 6 byte Ethernet one around it
 	if(product_configuration.rf_mac_mangle)
 	{
@@ -443,59 +491,43 @@ static void StartUpTask(void *pvParameters)
 		rfmac = product_configuration.rf_mac;
 	}
 
-
-    // swap RF channels if button held down for >5 secs
+	 // swap RF channels if button held down for >5 secs
 	if(!rf_channel_override)
 	{
-		/*
-		initial_RF_channel = pNvPersistent->RF_channel;
-		*/
+		initial_RF_channel = INITIAL_CHANNEL;
 	}
 	else
 	{
 		initial_RF_channel = RF_CHANNEL1 ? RF_CHANNEL3 : RF_CHANNEL1;
 	}
 
-	switch (product_configuration.product_state)
-	{
-		case PRODUCT_NOT_CONFIGURED:
+	initial_RF_channel = INITIAL_CHANNEL;
 
-			break;
+	// generate a truly random Shared Secret to be shared with the Server
+	GenerateSharedSecret(SHARED_SECRET_CURRENT);
 
-		case PRODUCT_BLANK:
+	// Used for signing data transfers between Hub and Server.
+	GenerateDerivedKey(DERIVED_KEY_CURRENT);
 
-			break;
+	osDelay(pdMS_TO_TICKS(100));
 
-		case PRODUCT_TESTED:
+	hermes_app_init();
+	led_driver_init();
+	SNTP_Init();
+	HTTPPostTask_init();
 
-			break;
+	shouldIPackageFlag = SHOULD_I_PACKAGE;
 
-		case PRODUCT_CONFIGURED:
+	//true for AES Encryption
+	shouldICryptFlag = false;
 
-			if(!immediate_firmware_update)
-			{
+	osDelay(pdMS_TO_TICKS(100));
 
-			}
-			else
-			{
+	//HermesStart_WatchdogTask();
 
-			}
-			break;
-
-		default:
-			// Not sure what to do here - something's gone wrong with Flash
-        	printLevel = LOW_IMPORTANCE;
-
-        	zprintf(MEDIUM_IMPORTANCE,"\r\n\r\nSure Petcare Hub - 'Hermes'\r\n---------------------------\r\n");
-			zprintf(MEDIUM_IMPORTANCE,"CONFIGURATION CORRUPTED\r\n");
-
-			break;
-	}
-
-	// my work is done, now I fly to Switzerland.
-	vTaskDelete(NULL);
+	HermesInitSelectedMode();
 }
-
+//------------------------------------------------------------------------------
 /**************************************************************
  * Function Name   : set_product_state
  * Description     : Sets product state and writes to flash. To be called
@@ -559,49 +591,6 @@ void write_product_configuration(void)
 	HermesFlashSaveData();
 }
 //------------------------------------------------------------------------------
-// quick and dirty task written by Chris to give a shell-like Debug interface.
-// uses FreeRTOS CLI
-// It gets timesliced by other tasks of the same priority, and pre-empted by higher priority tasks.
-char output[256];
-static void shell_task(void *pvParameters)
-{
-    BaseType_t result;
-    char input[256];
-
-    // just wait for other initialisation messages to be emitted
-    vTaskDelay(pdMS_TO_TICKS(1000));
-
-    zprintf(MEDIUM_IMPORTANCE,"\r\nEnter 'help' for help\r\n");
-
-    while(1)
-    {
-        zprintf(CRITICAL_IMPORTANCE, "HERMES >");
-        //LOG_ReadLine((uint8_t *)input, sizeof(input));
-        zprintf(CRITICAL_IMPORTANCE, "\r\n");
-
-        do
-        {
-        	// process input and generate some output
-		    //result = FreeRTOS_CLIProcessCommand( input, output, sizeof(output) );
-			if(strlen(output) > 256)
-			{
-				zprintf(CRITICAL_IMPORTANCE,"CLI Output too long! - system may become unstable");
-
-				// we still want to know what the output was for debugging purposes
-				output[sizeof(output) - 1] = '\0';
-			}
-
-			// print the partial output
-            zprintf(CRITICAL_IMPORTANCE, output);
-
-        }
-        while(result == pdTRUE); // keep looping around until all output has been generated
-
-        // give up CPU for 100ms
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
-}
-//------------------------------------------------------------------------------
 /* Initialise watchdog - only do once, at startup */
 void init_watchdog(void)
 {
@@ -659,6 +648,8 @@ void zprintf(ZPRINTF_IMPORTANCE importanceLevel, const char *arg0, ...)
     va_list args;
 	char *zbuffer;
 	HERMES_UART_HEADER *header;
+
+	return;
 
 	if(!strlen(arg0))
 	{
@@ -842,35 +833,13 @@ void initSureNetByProgrammer(void)
  **************************************************************/
 void connectToServer(void)
 {
-    HFU_init();
-    HTTPPostTask_init();
-    SNTP_Init();
-/*
-    if( xTaskCreate(SNTP_Task, "SNTP Task", SNTP_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-    {
-        zprintf(CRITICAL_IMPORTANCE, "SNTP Task creation failed!\r\n");
-    }
-
-    if( xTaskCreate(hermes_app_task, "Hermes Application", HERMES_APPLICATION_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-    {
-        zprintf(CRITICAL_IMPORTANCE, "Hermes Application task creation failed!\r\n");
-    }
-
-    if( xTaskCreate(MQTT_Task, "MQTT", MQTT_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, NULL) != pdPASS )
-    {
-        zprintf(CRITICAL_IMPORTANCE,"MQTT Task creation failed!\r\n");
-    }
-
-    if (xTaskCreate(HTTPPostTask, "HTTP Post", HTTP_POST_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &xHTTPPostTaskHandle) != pdPASS)
-    {
-        zprintf(CRITICAL_IMPORTANCE,"HTTP Post task creation failed!.\r\n");
-    }
-
-    if (xTaskCreate(HFU_task, "Hub Firmware Update", HFU_TASK_STACK_SIZE, NULL, NORMAL_TASK_PRIORITY, &xHFUTaskHandle) != pdPASS)
-    {
-        zprintf(CRITICAL_IMPORTANCE,"Hub Firmware Update task creation failed!.\r\n");
-    }
-*/
+	/*
+    HermesStart_SNTP_Task();
+    HermesStart_AppTask();
+    HermesStart_MQTT_Task();
+    HermesStart_HTTP_PostTask();
+    HermesStart_HFU_Task();
+    */
 }
 
 /**************************************************************

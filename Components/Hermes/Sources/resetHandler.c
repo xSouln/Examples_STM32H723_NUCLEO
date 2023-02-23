@@ -22,42 +22,35 @@
 #include "hermes.h"
 #include "resetHandler.h"
 #include "temperature.h"
-/*******************************************************************************
- * Definitions
- ******************************************************************************/
-/*******************************************************************************
- * Prototypes
- ******************************************************************************/
+//==============================================================================
+//prototypes:
 
-/*******************************************************************************
- * Variables
- ******************************************************************************/
-
-/*******************************************************************************
-* Code
-******************************************************************************/
-// Private functions
 void print_reset_cause(uint32_t value);
+//==============================================================================
 
 void DisplayResetStatus(void)
 {
 
 }
 
+//------------------------------------------------------------------------------
 void print_reset_cause(uint32_t value)
 {
  	uint32_t temperature;
   	uint8_t i;
 	
-	char *reset_reasons[] = {"Power up", \
-							 "CPU Lockup", \
-							 "csu", \
-							 "User", \
-							 "Watchdog", \
-							 "JTAG", \
-							 "JTAG software", \
-							 "Watchdog 3", \
-							 "Temperature"};
+	char *reset_reasons[] =
+	{
+			"Power up",
+			"CPU Lockup",
+			"csu",
+			"User",
+			"Watchdog",
+			"JTAG",
+			"JTAG software",
+			"Watchdog 3",
+			"Temperature"
+	};
 
 	/*
 	if((SRC_SRSR_WDOG_RST_B_MASK&value)!=0)
@@ -67,17 +60,17 @@ void print_reset_cause(uint32_t value)
 */
 	zprintf(LOW_IMPORTANCE,"Reset cause(s): ");
 
-	if( 0 == value)
+	if(!value)
 	{
 		zprintf(LOW_IMPORTANCE," None");
 	}
 	else
 	{
 		value = value << 1;
-		for (i=0; i<9; i++)
+		for (i = 0; i < 9; i++)
 		{
 			value = value >> 1;		
-			if (1 == (value & 1))
+			if (value & 1)
 			{
 				zprintf(LOW_IMPORTANCE,"%s ",reset_reasons[i]);
 			}
@@ -85,11 +78,10 @@ void print_reset_cause(uint32_t value)
 	}
 	zprintf(LOW_IMPORTANCE,"\r\n");
 	
-	if (1 == (value & 1))
+	if (value & 1)
 	{
 		temperature = get_temperature();
 		zprintf(LOW_IMPORTANCE,"Die temperature: %dC\r\n",temperature);
 	}
 }
-
-
+//==============================================================================

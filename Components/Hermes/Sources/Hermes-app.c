@@ -62,6 +62,42 @@
 
 #include "Hermes/Console/Hermes-console.h"
 //==============================================================================
+//types:
+
+typedef enum
+{
+	LEVEL_BASIC,
+	LEVEL_RF_CONNECTION,
+	LEVEL_NETWORK_CONNECTION,
+	LEVEL_PAIRING,
+	LEVEL_FORCED_FW_UPDATE,
+	LEVEL_TEST,
+	LEVEL_BACKSTOP,
+
+} PRIORITY_LEVEL;
+//------------------------------------------------------------------------------
+
+typedef struct
+{
+	bool				active;
+	LED_COLOUR			colour;
+	LED_PATTERN_TYPE	pattern;
+	uint32_t			duration;
+
+} LED_VIEW;
+//------------------------------------------------------------------------------
+
+typedef enum
+{
+	BUTTON_HANDLER_IDLE,
+	BUTTON_HANDLER_START_PRESSED_TIMER,
+	BUTTON_HANDLER_PRESSED,
+	BUTTON_HANDLER_WAIT_PAIRING,
+	BUTTON_HANDLER_START_RELEASE_TIMER,
+	BUTTON_HANDLER_WAIT_RELEASE,
+
+} BUTTON_HANDLER_STATE;
+//==============================================================================
 //externs:
 
 extern QueueHandle_t xNvStoreMailboxSend;
@@ -71,6 +107,20 @@ extern EventGroupHandle_t xConnectionStatus_EventGroup;
 extern uint8_t hub_debug_mode;
 //==============================================================================
 //variables:
+
+// should always be true!
+LED_VIEW led_view[LEVEL_BACKSTOP] =
+{
+	{ true, COLOUR_GREEN, LED_PATTERN_SOLID , 0 },
+	{ false, COLOUR_RED, LED_PATTERN_SOLID , 0 },
+	{ false, COLOUR_RED, LED_PATTERN_SOLID , 0 },
+	{ false, COLOUR_RED, LED_PATTERN_SOLID , 0 },
+	{ false, COLOUR_RED, LED_PATTERN_SOLID , 0 },
+	{ false, COLOUR_RED, LED_PATTERN_SOLID , 0 }
+};
+//------------------------------------------------------------------------------
+// This is the system brightness level
+LED_MODE brightness = LED_MODE_DIM;
 
 uint8_t uptime_min_count = 0;
 
@@ -195,7 +245,7 @@ void hermes_app_task(void *pvParameters)
 		if(SNTP_IsTimeValid())
 		{
 			// process any firmware update activity
-			////DFU_Handler();
+			DFU_Handler();
 		}
 
 		// Check for any registers whose values need to be sent to the Server
@@ -291,8 +341,10 @@ void hermes_app_task(void *pvParameters)
 					// we were previously OK.
 					// Change LEDs to Red to indicate a problem
 					process_system_event(STATUS_BLOCKING_TEST_BAD);
+
 					// note when we turned the LEDs red.
 					blocking_test_failure_start = get_microseconds_tick();
+
 					// flip state flag to indicate that we have an error condition
 					blocking_test_ok = false;
 				}
@@ -505,20 +557,23 @@ void surenet_ping_response_cb(PING_STATS *ping_result)
  **************************************************************/
 void surenet_pairing_mode_change_cb(PAIRING_REQUEST new_state)
 {
-	if( true != new_state.enable )
+	if(!new_state.enable)
 	{
 		trigger_delayed_pairing_mode_disabled_event = true;
 		trigger_delayed_pairing_mode_disabled_event_timestamp = get_microseconds_tick();
-		HubReg_SetPairingMode(new_state);	// always tell server we have exited pairing mode
-	} else
+		// always tell server we have exited pairing mode
+		HubReg_SetPairingMode(new_state);
+	}
+	else
 	{
-		switch (new_state.source)
+		switch ((int)new_state.source)
 		{
 			case PAIRING_REQUEST_SOURCE_SERVER:
 			case PAIRING_REQUEST_SOURCE_BUTTON:
 			case PAIRING_REQUEST_SOURCE_CLI:
 				process_system_event(STATUS_PAIRING_MODE_ENABLED);
-				HubReg_SetPairingMode(new_state);	// change register value and notify server
+				// change register value and notify server
+				HubReg_SetPairingMode(new_state);
 				break;
 		}
 	}
@@ -531,16 +586,6 @@ void surenet_pairing_mode_change_cb(PAIRING_REQUEST new_state)
  *                 : then the Hub goes into pairing mode. If it's held for more than 10 seconds
  *                 : then the Hub clears it's pairing table/
  **************************************************************/
-typedef enum
-{
-	BUTTON_HANDLER_IDLE,
-	BUTTON_HANDLER_START_PRESSED_TIMER,
-	BUTTON_HANDLER_PRESSED,
-	BUTTON_HANDLER_WAIT_PAIRING,
-	BUTTON_HANDLER_START_RELEASE_TIMER,
-	BUTTON_HANDLER_WAIT_RELEASE,
-
-} BUTTON_HANDLER_STATE;
 //------------------------------------------------------------------------------
 void button_handler(void)
 {
@@ -630,32 +675,6 @@ void button_handler(void)
  * current one. So they fall outside the priority system, and are sent to the
  * LED driver immediately (with a timeout)
  */
-typedef enum
-{
-	LEVEL_BASIC,
-	LEVEL_RF_CONNECTION,
-	LEVEL_NETWORK_CONNECTION,
-	LEVEL_PAIRING,
-	LEVEL_FORCED_FW_UPDATE,
-	LEVEL_TEST,
-	LEVEL_BACKSTOP,
-} PRIORITY_LEVEL;
-//------------------------------------------------------------------------------
-typedef struct
-{
-	bool				active;
-	LED_COLOUR			colour;
-	LED_PATTERN_TYPE	pattern;
-	uint32_t			duration;
-} LED_VIEW;
-//------------------------------------------------------------------------------
-LED_VIEW led_view[LEVEL_BACKSTOP] =  {  { true, COLOUR_GREEN, LED_PATTERN_SOLID , 0}, // should always be true!
-										{ false, COLOUR_RED, LED_PATTERN_SOLID , 0},
-										{ false, COLOUR_RED, LED_PATTERN_SOLID , 0},
-										{ false, COLOUR_RED, LED_PATTERN_SOLID , 0},
-										{ false, COLOUR_RED, LED_PATTERN_SOLID , 0},
-										{ false, COLOUR_RED, LED_PATTERN_SOLID , 0}};
-LED_MODE brightness = LED_MODE_DIM; // This is the system brightness level
 /**************************************************************
  * Function Name   : update_led_view
  * Description     : Examines the priority list of LED states and
@@ -669,29 +688,54 @@ LED_MODE brightness = LED_MODE_DIM; // This is the system brightness level
  **************************************************************/
 void update_led_view(void)
 {
-	if( true == led_view[LEVEL_TEST].active)
+	if(led_view[LEVEL_TEST].active)
 	{
-		LED_Request_Pattern(LED_MODE_NORMAL, led_view[LEVEL_TEST].colour, \
-			led_view[LEVEL_TEST].pattern, led_view[LEVEL_TEST].duration);
-	} else if( true == led_view[LEVEL_FORCED_FW_UPDATE].active)
+		LED_Request_Pattern(LED_MODE_NORMAL,
+							led_view[LEVEL_TEST].colour,
+							led_view[LEVEL_TEST].pattern,
+							led_view[LEVEL_TEST].duration);
+	}
+	else if(led_view[LEVEL_FORCED_FW_UPDATE].active)
 	{
-		LED_Request_Pattern(LED_MODE_NORMAL, led_view[LEVEL_FORCED_FW_UPDATE].colour, \
-			led_view[LEVEL_FORCED_FW_UPDATE].pattern, led_view[LEVEL_FORCED_FW_UPDATE].duration);
-	} else if( true == led_view[LEVEL_PAIRING].active)
+		LED_Request_Pattern(LED_MODE_NORMAL,
+				led_view[LEVEL_FORCED_FW_UPDATE].colour,
+				led_view[LEVEL_FORCED_FW_UPDATE].pattern,
+				led_view[LEVEL_FORCED_FW_UPDATE].duration);
+
+	}
+	else if(led_view[LEVEL_PAIRING].active)
 	{
-		LED_Request_Pattern(LED_MODE_NORMAL, led_view[LEVEL_PAIRING].colour, \
-			led_view[LEVEL_PAIRING].pattern, led_view[LEVEL_PAIRING].duration);
-	} else if( true == led_view[LEVEL_NETWORK_CONNECTION].active)
+		LED_Request_Pattern(LED_MODE_NORMAL,
+				led_view[LEVEL_PAIRING].colour,
+				led_view[LEVEL_PAIRING].pattern,
+				led_view[LEVEL_PAIRING].duration);
+
+	}
+	else if(led_view[LEVEL_NETWORK_CONNECTION].active)
 	{
-		LED_Request_Pattern(LED_MODE_NORMAL, led_view[LEVEL_NETWORK_CONNECTION].colour, \
-			led_view[LEVEL_NETWORK_CONNECTION].pattern, led_view[LEVEL_NETWORK_CONNECTION].duration);
-	} else if( true == led_view[LEVEL_RF_CONNECTION].active)
+		LED_Request_Pattern(LED_MODE_NORMAL,
+				led_view[LEVEL_NETWORK_CONNECTION].colour,
+				led_view[LEVEL_NETWORK_CONNECTION].pattern,
+				led_view[LEVEL_NETWORK_CONNECTION].duration);
+
+	}
+	else if(led_view[LEVEL_RF_CONNECTION].active)
 	{
-		LED_Request_Pattern(LED_MODE_NORMAL, led_view[LEVEL_RF_CONNECTION].colour, \
-			led_view[LEVEL_RF_CONNECTION].pattern, led_view[LEVEL_RF_CONNECTION].duration);
-	} else	// we assume that the basic level is 'live'
-	LED_Request_Pattern(brightness, led_view[LEVEL_BASIC].colour, \
-		led_view[LEVEL_BASIC].pattern, led_view[LEVEL_BASIC].duration);
+		LED_Request_Pattern(LED_MODE_NORMAL,
+				led_view[LEVEL_RF_CONNECTION].colour,
+				led_view[LEVEL_RF_CONNECTION].pattern,
+				led_view[LEVEL_RF_CONNECTION].duration);
+
+	}
+	else
+	{
+		// we assume that the basic level is 'live'
+
+		LED_Request_Pattern(brightness,
+				led_view[LEVEL_BASIC].colour,
+				led_view[LEVEL_BASIC].pattern,
+				led_view[LEVEL_BASIC].duration);
+	}
 }
 
 /**************************************************************
@@ -793,10 +837,12 @@ void process_system_event(SYSTEM_STATUS_EVENTS event)
 			led_view[LEVEL_RF_CONNECTION].pattern 	= LED_PATTERN_ALTERNATE;
 			led_view[LEVEL_RF_CONNECTION].duration 	= 0;
 			break;
-		case STATUS_DISPLAY_SUCCESS:			// Command from Server to indicate animal activity
+		case STATUS_DISPLAY_SUCCESS:
+			// Command from Server to indicate animal activity
 			LED_Request_Pattern(LED_MODE_NORMAL, COLOUR_GREEN, LED_PATTERN_FAST_FLASH, 450);
 			break;
-		case STATUS_FIRMWARE_UPDATING:	// This is when the Server forces an immediate update. There is no return
+		case STATUS_FIRMWARE_UPDATING:
+			// This is when the Server forces an immediate update. There is no return
 			led_view[LEVEL_FORCED_FW_UPDATE].active 	= true;
 			led_view[LEVEL_FORCED_FW_UPDATE].colour 	= COLOUR_RED;
 			led_view[LEVEL_FORCED_FW_UPDATE].pattern 	= LED_PATTERN_MAX;
@@ -819,9 +865,15 @@ void process_system_event(SYSTEM_STATUS_EVENTS event)
 void set_led_brightness(LED_MODE value, bool store)
 {
 	brightness = value;
-    if(true == store)
-    store_led_brightness(value); // put the brightness setting in persistent store
-	update_led_view();	// assert any change in value
+
+    if(store)
+    {
+    	// put the brightness setting in persistent store
+    	store_led_brightness(value);
+    }
+
+    // assert any change in value
+	update_led_view();
 }
 
 /**************************************************************
@@ -853,10 +905,11 @@ void surenet_device_pairing_success_cb(ASSOCIATION_SUCCESS_INFORMATION *assoc_in
     mac_addr = assoc_info->association_addr;
     zprintf(LOW_IMPORTANCE,"surenet_device_pairing_success_cb() Remote Device :%08x", (uint32_t)((mac_addr&0xffffffff00000000)>>32));
     zprintf(LOW_IMPORTANCE,"%08x\r\n", (uint32_t)(mac_addr&0xffffffff));
-//	zprintf(CRITICAL_IMPORTANCE,"surenet_device_pairing_success_cb() - source = %d\r\n",assoc_info->source);
+    //zprintf(CRITICAL_IMPORTANCE,"surenet_device_pairing_success_cb() - source = %d\r\n",assoc_info->source);
 
 	switch(assoc_info->source)
-	{	// flash LEDs if pairing completed and was initiated by one of the following
+	{
+		// flash LEDs if pairing completed and was initiated by one of the following
 		case PAIRING_REQUEST_SOURCE_SERVER:
 		case PAIRING_REQUEST_SOURCE_BUTTON:
 		case PAIRING_REQUEST_SOURCE_CLI:

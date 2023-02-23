@@ -93,7 +93,6 @@ void set_utc_to_compile_time(void)
 }
 //------------------------------------------------------------------------------
 // Since GPT1 is counting at 1MHz, a delay measured in microseconds is very easy!
-// Note actually counting at 62.5MHz/63 = 992KHz.
 void delay_us(uint32_t delay)
 {
     uint32_t start = TIM2->CNT;
@@ -106,8 +105,8 @@ void delay_us(uint32_t delay)
 //------------------------------------------------------------------------------
 void delay_ms(uint32_t delay)
 {
-	// calibrated for 992KHz timer
-    delay_us(delay * 1008);
+	// calibrated for 1000KHz timer
+    delay_us(delay * 1000);
 }
 //------------------------------------------------------------------------------
 uint32_t get_microseconds_tick(void)
@@ -206,7 +205,7 @@ bool get_gmt(uint32_t utc_secs, HERMES_TIME_GMT* out)
 	out->minute = x.tm_min;
 	out->second = x.tm_sec;
 
-	if(x.tm_year>15)
+	if(x.tm_year > 15)
 	{
 		//sanity check in case time not synchronised yet
 		return true;
@@ -216,15 +215,6 @@ bool get_gmt(uint32_t utc_secs, HERMES_TIME_GMT* out)
 }
 //------------------------------------------------------------------------------
 struct tm *hermes_gmtime(time_t *tod)
-{
-	struct tm *retval;
-	portENTER_CRITICAL();
-	retval = gmtime(tod);
-	portEXIT_CRITICAL();
-	return retval;
-}
-//------------------------------------------------------------------------------
-struct tm *hermes_gmtime_2(time_t *tod)
 {
 	struct tm *retval;
 	portENTER_CRITICAL();
@@ -243,6 +233,6 @@ int time_string(char *str)
 {
 	HERMES_TIME_GMT time;
 	get_gmt(UTC, &time);
-	return sprintf(str,"%02d:%02d:%02d ",time.hour,time.minute,time.second);
+	return sprintf(str, "%02d:%02d:%02d ", time.hour, time.minute, time.second);
 }
 //==============================================================================

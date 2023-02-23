@@ -37,14 +37,26 @@
 #include "Server_Buffer.h"
 #include "DeviceToServer.h"
 #include "message_parser.h"
+//==============================================================================
+//defines:
 
 // This is 2 bytes for command, 2 for length and 1 for parity
 #define MESSAGE_OVERHEAD	5
-
-// Local functions
-void packet_dump(RECEIVED_PACKET *rx_packet);
+//==============================================================================
+//externs:
 
 extern uint8_t hub_debug_mode;
+//==============================================================================
+//variables:
+
+
+//==============================================================================
+//prototypes:
+
+void packet_dump(RECEIVED_PACKET *rx_packet);
+//==============================================================================
+//functions:
+
 /**************************************************************
  * Function Name   : surenet_data_received_cb
  * Description     : Process messages received over SureNet from a device
@@ -56,11 +68,14 @@ SN_DATA_RECEIVED_RESPONSE surenet_data_received_cb(RECEIVED_PACKET *rx_packet)
 {
 	T_MESSAGE *rx_message;	
 	SERVER_MESSAGE server_message;
+
 	// the largest message that can arrive from a device is
-	uint8_t message_body[30 + T_MESSAGE_PAYLOAD_SIZE*3];
+	uint8_t message_body[30 + T_MESSAGE_PAYLOAD_SIZE * 3];
+
 	// a THALAMUS_MULTIPLE which could be MESSAGE_PAYLOAD_SIZE
     server_message.message_ptr = message_body;
-	uint16_t registerNumber,length;
+
+	uint16_t registerNumber, length;
 	uint16_t i,pos;
 	static uint8_t server_msg_index = 0;
 	SN_DATA_RECEIVED_RESPONSE retval = SN_ACCEPTED;
@@ -140,7 +155,7 @@ SN_DATA_RECEIVED_RESPONSE surenet_data_received_cb(RECEIVED_PACKET *rx_packet)
 				// build string containing list of values
 				for(i = 0; i<length; i++)
 				{
-					pos+=sprintf((char *)&message_body[pos]," %02x",rx_message->payload[4+i]);
+					pos += sprintf((char *)&message_body[pos]," %02x",rx_message->payload[4+i]);
 				}
 
 				server_message.source_mac = rx_packet->packet.header.source_address;

@@ -130,8 +130,8 @@ void hermesTestTask(void *pvParameters)
             
         }
         
-        
-        if (xTaskNotifyWait(3, 0, &notifyValue, 100 ) == pdTRUE)                  // nominal time to wait for notification, or use portMAX_DELAY if blocking
+        // nominal time to wait for notification, or use portMAX_DELAY if blocking
+        if (xTaskNotifyWait(3, 0, &notifyValue, 100 ) == pdTRUE)
         {
             uint32_t flashEvent = notifyValue;
             if (flashEvent == FM_NAK)
@@ -146,7 +146,8 @@ void hermesTestTask(void *pvParameters)
                 } 
                 else
                 {
-                    hermesTestProcessResponse();                                       // ACK received, process repsonse
+                	// ACK received, process repsonse
+                    hermesTestProcessResponse();
                 }
             }
         }

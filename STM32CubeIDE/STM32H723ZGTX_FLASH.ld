@@ -165,9 +165,9 @@ SECTIONS
   /* Modification start */
   ._user_dtcmram_section :
   {
-    . = ALIGN(4);
+    . = ALIGN(8);
 
-    . = ALIGN(4);
+    . = ALIGN(8);
   } >DTCMRAM
   /* Modification end */
   
@@ -184,18 +184,18 @@ SECTIONS
   /* Modification start */
   ._user_ram2_section :
   {
-    . = ALIGN(4);
+    . = ALIGN(8);
 
-    . = ALIGN(4);
+    . = ALIGN(8);
   } >RAM_D2
   /* Modification end */
   
   /* Modification start */
   ._user_ram3_section :
   {
-    . = ALIGN(4);
+    . = ALIGN(8);
 
-    . = ALIGN(4);
+    . = ALIGN(8);
   } >RAM_D3
   /* Modification end */
 

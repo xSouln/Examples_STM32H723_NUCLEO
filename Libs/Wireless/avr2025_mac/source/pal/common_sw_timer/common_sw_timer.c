@@ -54,7 +54,7 @@ extern bool sys_sleep;
 //==============================================================================
 //externs:
 
-extern REG_TIM_T* Timer4;
+extern REG_TIM_T* Timer5;
 extern REG_TIM_T* Timer2;
 //==============================================================================
 /*
@@ -101,7 +101,7 @@ static void load_hw_timer(uint8_t timer_id);
 //used in "stm32h7xx_it.c"
 void common_tc_timer_irq()
 {
-	Timer4->DMAOrInterrupts.UpdateInterruptEnable = false;
+	Timer5->DMAOrInterrupts.UpdateInterruptEnable = false;
 
 	if (running_timers > 0)
 	{
@@ -113,18 +113,18 @@ void common_tc_timer_irq()
 //------------------------------------------------------------------------------
 static void common_tc_delay(uint32_t microseconds)
 {
-	Timer4->Control1.CounterEnable = false;
+	Timer5->Control1.CounterEnable = false;
 
-	Timer4->Counter = 0;
-	Timer4->Period = microseconds;
+	Timer5->Counter = 0;
+	Timer5->Period = microseconds;
 
-	Timer4->DMAOrInterrupts.UpdateInterruptEnable = true;
-	Timer4->Control1.CounterEnable = true;
+	Timer5->DMAOrInterrupts.UpdateInterruptEnable = true;
+	Timer5->Control1.CounterEnable = true;
 }
 //------------------------------------------------------------------------------
 static void common_tc_compare_stop()
 {
-	Timer4->DMAOrInterrupts.UpdateInterruptEnable = false;
+	Timer5->DMAOrInterrupts.UpdateInterruptEnable = false;
 }
 //------------------------------------------------------------------------------
 static inline uint32_t gettime(void)
@@ -143,7 +143,7 @@ status_code_t sw_timer_get_id(uint8_t *timer_id)
 
 	return ERR_NO_TIMER;
 }
-
+//------------------------------------------------------------------------------
 status_code_t sw_timer_start(uint8_t timer_id,
 		uint32_t timer_count,
 		sw_timeout_type_t timeout_type,
@@ -199,7 +199,7 @@ status_code_t sw_timer_start(uint8_t timer_id,
 	start_absolute_timer(timer_id, point_in_time, timer_cb, param_cb);
 	return STATUS_OK;
 }
-
+//------------------------------------------------------------------------------
 uint32_t sw_timer_get_residual_time(uint8_t timer_id)
 {
 	uint32_t res_time;
@@ -213,7 +213,7 @@ uint32_t sw_timer_get_residual_time(uint8_t timer_id)
 
 	return res_time;
 }
-
+//------------------------------------------------------------------------------
 static void start_absolute_timer(uint8_t timer_id,
 		uint32_t point_in_time,
 		FUNC_PTR handler_cb,
@@ -291,7 +291,7 @@ static void start_absolute_timer(uint8_t timer_id,
 	//! is modified
 	LEAVE_SW_TIMER_CRITICAL_REGION();
 }
-//==============================================================================
+//------------------------------------------------------------------------------
 static void load_hw_timer(uint8_t timer_id)
 {
 	if (NO_TIMER != timer_id) {
@@ -315,7 +315,7 @@ static void load_hw_timer(uint8_t timer_id)
 		common_tc_compare_stop();
 	}
 }
-
+//------------------------------------------------------------------------------
 bool sw_timer_is_running(uint8_t timer_id)
 {
 	if (NULL == timer_array[timer_id].timer_cb) {
@@ -324,7 +324,7 @@ bool sw_timer_is_running(uint8_t timer_id)
 
 	return true;
 }
-
+//------------------------------------------------------------------------------
 status_code_t sw_timer_stop(uint8_t timer_id)
 {
 	bool timer_stop_request_status = false;
@@ -487,17 +487,17 @@ status_code_t sw_timer_stop(uint8_t timer_id)
 
 	return ERR_TIMER_NOT_RUNNING;
 }
-
+//------------------------------------------------------------------------------
 uint32_t sw_timer_get_time(void)
 {
 	return gettime();
 }
-
+//------------------------------------------------------------------------------
 static inline bool compare_time(uint32_t t1, uint32_t t2)
 {
 	return ((t2 - t1) < INT32_MAX);
 }
-
+//------------------------------------------------------------------------------
 static void prog_ocr(void)
 {
 	uint16_t timeout_high;
@@ -520,7 +520,7 @@ static void prog_ocr(void)
 
 	LEAVE_SW_TIMER_CRITICAL_REGION();
 }
-
+//------------------------------------------------------------------------------
 static void internal_timer_handler(void)
 {
 	/*
@@ -562,7 +562,7 @@ static void internal_timer_handler(void)
 		}
 	}
 }
-
+//------------------------------------------------------------------------------
 void sw_timer_run_residual_time(uint32_t offset)
 {
 	/* Run the software timer call back now */
@@ -577,14 +577,14 @@ void sw_timer_run_residual_time(uint32_t offset)
 				param_cb);
 	}
 }
-
+//------------------------------------------------------------------------------
 uint32_t sw_timer_next_timer_expiry_duration(void)
 {
 	return ((NO_TIMER ==
 	       running_timer_queue_head) ? false : (sw_timer_get_residual_time(
 	       running_timer_queue_head)));
 }
-
+//------------------------------------------------------------------------------
 void hw_overflow_cb(void)
 {
 	/*	ioport_toggle_pin(J2_PIN3); */
@@ -601,7 +601,7 @@ void hw_overflow_cb(void)
 
 	#endif
 }
-
+//------------------------------------------------------------------------------
 void hw_expiry_cb(void)
 {
 	if (running_timers > 0) {
@@ -617,7 +617,7 @@ void hw_expiry_cb(void)
 }
 
 #endif /* #if (TOTAL_NUMBER_OF_SW_TIMERS > 0) */
-
+//------------------------------------------------------------------------------
 void sw_timer_init(void)
 {
 #if (TOTAL_NUMBER_OF_SW_TIMERS > 0)
@@ -651,7 +651,7 @@ void sw_timer_init(void)
 
 #endif /* #if (TOTAL_NUMBER_OF_SW_TIMERS > 0) */
 }
-
+//------------------------------------------------------------------------------
 void sw_timer_service(void)
 {
 #if (TOTAL_NUMBER_OF_SW_TIMERS > 0)

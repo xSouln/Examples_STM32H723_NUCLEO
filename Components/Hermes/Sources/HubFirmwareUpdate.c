@@ -638,6 +638,6 @@ void dump(uint8_t *addr, uint8_t lines)
  			zprintf(CRITICAL_IMPORTANCE,".");
     }
   	zprintf(CRITICAL_IMPORTANCE,"\r\n");
-	DbgConsole_Flush();
+	HermesConsoleFlush();
   }
 }

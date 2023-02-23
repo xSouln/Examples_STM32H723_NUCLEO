@@ -39,24 +39,12 @@
 #include "api.h"
 #include "dns.h"
 //==============================================================================
-//static bool	SNTP_GetTime(void);
-//EventGroupHandle_t	xSNTP_EventGroup;
 NTP_StatusT NTP_Status;
 //==============================================================================
 void SNTP_Task(void *pvParameters)
 {
-    EventBits_t xEventBits;
-
 	while(true)
 	{
-		/*
-		xEventBits = xEventGroupWaitBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_REQUESTED, pdFALSE, pdFALSE, SNTP_AUTO_INTERVAL);
-
-		if(SNTP_EVENT_UPDATE_REQUESTED & xEventBits)
-		{
-			SNTP_GetTime();
-		}
-*/
 		if (NTP_Status.State == NTP_STATE_REQUEST_UPDATE)
 		{
 			NTP_Status.State = NTP_STATE_IN_PROGRESS;
@@ -76,13 +64,11 @@ void SNTP_Init(void)
 //------------------------------------------------------------------------------
 bool SNTP_IsTimeValid(void)
 {
-	//return (SNTP_EVENT_TIME_VALID & xEventGroupGetBits(xSNTP_EventGroup)) != 0;
 	return NTP_Status.Result == NTP_RESULT_SUCCESS;
 }
 //------------------------------------------------------------------------------
 bool SNTP_DidUpdateFail(void)
 {
-	//return (SNTP_EVENT_UPDATE_FAILED & xEventGroupGetBits(xSNTP_EventGroup)) != 0;
 	return NTP_Status.Result == NTP_RESULT_ERROR;
 }
 //------------------------------------------------------------------------------
@@ -96,20 +82,6 @@ void SNTP_RequestUpdate()
 //------------------------------------------------------------------------------
 bool SNTP_AwaitUpdate(bool MakeRequest, uint32_t TimeToWait)
 {
-	/*
-	EventBits_t xEventBits = xEventGroupGetBits(xSNTP_EventGroup);
-	if(MakeRequest && !(SNTP_EVENT_UPDATE_UNDERWAY & xEventBits))
-	{
-		xEventGroupClearBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_FAILED | SNTP_EVENT_TIME_VALID);
-		xEventGroupSetBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_REQUESTED);
-	}
-
-	xEventBits = xEventGroupWaitBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_FAILED | SNTP_EVENT_TIME_VALID, pdFALSE, pdFALSE, TimeToWait);
-	if(!TimeToWait || (SNTP_EVENT_TIME_VALID & xEventBits))
-	{
-		return true;
-	}
-*/
 	SNTP_RequestUpdate();
 
 	while (NTP_Status.State != NTP_STATE_STOPPED)
@@ -132,9 +104,6 @@ bool SNTP_GetTime(void)
 	NTP_PACKET* request = 0;
 	struct timeval timeout = { 0 };
 	ip_addr_t addr = { 0 };
-
-	//xEventGroupClearBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_FAILED | SNTP_EVENT_TIME_VALID);
-	//xEventGroupSetBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_UNDERWAY);
 
 	sntp_printf("\r\n\t@@@@@@@ Starting SNTP @@@@@@@\r\n");
 
@@ -251,21 +220,7 @@ bool SNTP_GetTime(void)
 
 	shutdown(sntpSocket, SHUT_RDWR);
 	closesocket(sntpSocket);
-/*
-	// Signal that we're done. Note: doesn't mean the time is good.
-	xEventGroupClearBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_REQUESTED | SNTP_EVENT_UPDATE_UNDERWAY);
 
-	if(success)
-	{
-		// Signal that the time is good.
-		xEventGroupSetBits(xSNTP_EventGroup, SNTP_EVENT_TIME_VALID);
-	}
-	else
-	{
-		// ...Or that it's not.
-		xEventGroupSetBits(xSNTP_EventGroup, SNTP_EVENT_UPDATE_FAILED);
-	}
-*/
 	if(request)
 	{
 		mem_free(request);

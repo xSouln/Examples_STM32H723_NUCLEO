@@ -28,6 +28,7 @@ void HermesConsoleInit();
 
 int HermesConsoleWrite(void* in, uint16_t size, ConsoleWriteModes mode);
 int HermesConsoleRead(void* out, uint16_t size, ConsoleWriteModes mode);
+int HermesConsoleWriteString(char* in);
 
 void HermesConsoleFlush();
 //==============================================================================

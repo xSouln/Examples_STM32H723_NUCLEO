@@ -49,7 +49,7 @@
 /* === Macros =============================================================== */
 
 /** Defines the number of timers used by the application. */
-#define NUMBER_OF_APP_TIMERS        (4)
+#define NUMBER_OF_APP_TIMERS        (20)
 
 /** Defines the total number of timers used by the application and the layers
  * below. */
@@ -57,7 +57,7 @@
 	NUMBER_OF_TOTAL_STACK_TIMERS)
 
 /** Defines the number of additional large buffers used by the application */
-#define NUMBER_OF_LARGE_APP_BUFS    (10)
+#define NUMBER_OF_LARGE_APP_BUFS    (20)
 
 /** Defines the number of additional small buffers used by the application */
 #define NUMBER_OF_SMALL_APP_BUFS    (0)

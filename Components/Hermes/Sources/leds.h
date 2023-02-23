@@ -130,6 +130,7 @@ typedef struct
 	LED_PATTERN_TYPE			type;
 	uint8_t						num_stages;
 	const LED_PATTERN_STAGE*	stages;
+
 } LED_PATTERN_TYPE_DEF;
 //------------------------------------------------------------------------------
 // This is the brightness level
@@ -139,6 +140,7 @@ typedef enum
 	LED_MODE_DIM,	
 	LED_MODE_NORMAL,
 	LED_MODE_BACKSTOP
+
 } LED_MODE;
 //------------------------------------------------------------------------------
 typedef struct

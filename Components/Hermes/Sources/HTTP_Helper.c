@@ -59,6 +59,8 @@ static bool HTTP_Transmit_Message(WOLFSSL* ssl, char* URL, char* resource, char*
 static bool HTTP_Process_Header(WOLFSSL* ssl, HTTP_RESPONSE_DATA* response_data);
 static bool HTTP_Calculate_Signature(HTTP_CONNECTION* connection, HTTP_RESPONSE_DATA* response_data, DERIVED_KEY_SOURCE rx_key);
 //==============================================================================
+//functions:
+
 /**************************************************************
  * Function Name   : HTTP_Post_Task_init
  * Description     : Sets up mailboxes and events for HTTPPostTask
@@ -68,7 +70,8 @@ static bool HTTP_Calculate_Signature(HTTP_CONNECTION* connection, HTTP_RESPONSE_
  **************************************************************/
 void HTTPPostTask_init(void)
 {
-	xHTTPPostRequestMailbox = xQueueCreate(1,sizeof(HTTP_POST_Request_params));   // incoming mailbox queue for HTTP Post requests
+	// incoming mailbox queue for HTTP Post requests
+	xHTTPPostRequestMailbox = xQueueCreate(1,sizeof(HTTP_POST_Request_params));
 	xHTTPPostSemaphoreHandle = xSemaphoreCreateMutex();
 }
 
@@ -209,7 +212,7 @@ bool HTTP_POST_Request(char* URL,
 			HTTP_Read_Content(&connection, &response_data);
 
 		}
-		while( false );
+		while(false);
 
 		HTTP_Kill_Connection(&connection);
 
@@ -219,7 +222,7 @@ bool HTTP_POST_Request(char* URL,
 			*bytes_read = connection.bytes_read;
 		}
 		
-		if( 0 < connection.bytes_read)
+		if(connection.bytes_read > 0)
 		{
 			// tut tut, assumes a text reply, not true for f/w images!
 			http_printf(HTTP_LINE "Response Received: %s\r\n", response_buffer);
@@ -440,7 +443,7 @@ static bool HTTP_Read_Content(HTTP_CONNECTION* connection, HTTP_RESPONSE_DATA* r
 				chunk_size = strtoul(chunk_size_hex, NULL, 16); // this handles the stray \r
 				chunk_bytes_read = 0;
 
-				if( 0 == chunk_size )
+				if(!chunk_size)
 				{
 					end_of_response = true;
 				}
@@ -495,7 +498,7 @@ static bool HTTP_Read_Content(HTTP_CONNECTION* connection, HTTP_RESPONSE_DATA* r
 
 	return true;
 }
-
+//------------------------------------------------------------------------------
 static bool HTTP_Transmit_Message(WOLFSSL* ssl, char* URL, char* resource, char* contents, char* signature, DERIVED_KEY_SOURCE tx_key)
 {
 	const char*	postHeader1		= "POST ";
@@ -504,14 +507,15 @@ static bool HTTP_Transmit_Message(WOLFSSL* ssl, char* URL, char* resource, char*
 	const char* signatureHeader	= "\r\nX-Signature: ";
 	// Padding to allow extra length characters.
 	char		postLength[8];
-	static char http_request_buffer[1024];
 
 	// In-place replacement, hence the padding above.
 	snprintf(postLength, sizeof(postLength), "%d\r\n\r\n", strlen(contents));
-	uint32_t total_length = strlen(postHeader1) + strlen(resource) +
-							strlen(postHeader2) + strlen(URL) +
-							strlen(postHeader3) + strlen(postLength) +
-							strlen(contents);
+
+	uint32_t total_length = strlen(postHeader1) + strlen(resource)
+							+ strlen(postHeader2) + strlen(URL)
+							+ strlen(postHeader3) + strlen(postLength)
+							+ strlen(contents);
+
 	if(tx_key != DERIVED_KEY_NONE)
 	{
 		// add in length of signature
@@ -523,56 +527,37 @@ static bool HTTP_Transmit_Message(WOLFSSL* ssl, char* URL, char* resource, char*
 	zprintf(LOW_IMPORTANCE, "%s%s", signatureHeader, signature);
 	zprintf(LOW_IMPORTANCE, "%s%s%s\r\n", postHeader3, postLength, contents);
 
-	memset(http_request_buffer, 0, sizeof(http_request_buffer));
-
-	char* ptr = http_request_buffer;
-
 	uint32_t transmitted_length = 0;
-
+/*
 	int result = wolfSSL_connect(ssl);
 
 	if (result != WOLFSSL_SUCCESS)
 	{
 		result = wolfSSL_get_error(ssl, 0);
 
-		result += 1;
-
 		http_printf(HTTP_LINE "Connection Error. %d/%d bytes sent.\r\n", transmitted_length, total_length);
 		return false;
 	}
-
+*/
 	transmitted_length += wolfSSL_write(ssl, postHeader1, strlen(postHeader1));
 	transmitted_length += wolfSSL_write(ssl, resource, strlen(resource));
 	transmitted_length += wolfSSL_write(ssl, postHeader2, strlen(postHeader2));
 	transmitted_length += wolfSSL_write(ssl, URL, strlen(URL));
-
-	ptr += sprintf(ptr, "%s", postHeader1);
-	ptr += sprintf(ptr, "%s", resource);
-	ptr += sprintf(ptr, "%s", postHeader2);
-	ptr += sprintf(ptr, "%s", URL);
 
 	if(DERIVED_KEY_NONE != tx_key)
 	{
 		// add in length of signature
 		transmitted_length += wolfSSL_write(ssl, signatureHeader, strlen(signatureHeader));
 		transmitted_length += wolfSSL_write(ssl, signature, strlen(signature));
-
-		ptr += sprintf(ptr, "%s", signatureHeader);
-		ptr += sprintf(ptr, "%s", signature);
 	}
 
 	transmitted_length += wolfSSL_write(ssl, postHeader3, strlen(postHeader3));
 	transmitted_length += wolfSSL_write(ssl, postLength, strlen(postLength));
 	transmitted_length += wolfSSL_write(ssl, contents, strlen(contents));
 
-	ptr += sprintf(ptr, "%s", postHeader3);
-	ptr += sprintf(ptr, "%s", postLength);
-	ptr += sprintf(ptr, "%s", contents);
-
 	if(total_length != transmitted_length)
 	{
 		http_printf(HTTP_LINE "Transmission Error. %d/%d bytes sent.\r\n", transmitted_length, total_length);
-		*ptr = 0;
 		return false;
 	}
 
@@ -580,7 +565,7 @@ static bool HTTP_Transmit_Message(WOLFSSL* ssl, char* URL, char* resource, char*
 
 	return true;
 }
-
+//------------------------------------------------------------------------------
 static bool HTTP_Process_Header(WOLFSSL* ssl, HTTP_RESPONSE_DATA* response_data)
 {
 	const char transfer_encoding[]	= "transfer-encoding: chunked";
@@ -673,7 +658,9 @@ static bool HTTP_Process_Header(WOLFSSL* ssl, HTTP_RESPONSE_DATA* response_data)
 		{
 			zprintf(LOW_IMPORTANCE,"Server Error: %s\r\n",line_buffer);
 			response_data->server_error = true;
-			end_of_header_reached = true;	// there will be nothing more from the Server.
+
+			// there will be nothing more from the Server.
+			end_of_header_reached = true;
 		}
 		else if(memcmp(receivedSignatureHeader,(const char*)line_buffer, strlen(receivedSignatureHeader)) == 0)
 		{
@@ -805,13 +792,10 @@ static bool HTTP_Calculate_Signature(HTTP_CONNECTION* connection, HTTP_RESPONSE_
 			bptr = block_to_sign;
 			if(response_data->got_update)
 			{
-				//bptr += sprintf((char *)bptr,"%s", xupdate_s);
-
 				memcpy(bptr, xupdate_s, sizeof_str(xupdate_s));
 				bptr += sizeof_str(xupdate_s);
 			}
 
-			//bptr += sprintf((char*)bptr, "%s%llu;", xtime_s, response_data->message_time);
 			memcpy(bptr, xtime_s, sizeof_str(xtime_s));
 			bptr += sizeof_str(xtime_s);
 			bptr += xConverterUInt64ToStr(bptr, response_data->message_time);
@@ -824,8 +808,6 @@ static bool HTTP_Calculate_Signature(HTTP_CONNECTION* connection, HTTP_RESPONSE_
 			}
 
 			bptr += sprintf(bptr, "%s%d;", content, bytes_to_sign);
-			//bptr += sprintf((char*)bptr, "%d;", bytes_to_sign);
-			//bptr += sprintf((char*)bptr, "%s%s;", content, "d");
 
 			memcpy(bptr, response_data->buffer, bytes_to_sign);
 			bptr += bytes_to_sign;
@@ -857,3 +839,4 @@ static bool HTTP_Calculate_Signature(HTTP_CONNECTION* connection, HTTP_RESPONSE_
 
 	return false;
 }
+//==============================================================================

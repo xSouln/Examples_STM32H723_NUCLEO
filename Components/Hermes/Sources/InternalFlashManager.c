@@ -22,11 +22,7 @@
 *            
 **************************************************************************/
 /* Standard includes. */
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <ctype.h>
+#include "InternalFlashManager.h"
 
 /* FreeRTOS+IP includes. */
 #include "FreeRTOS.h"
@@ -35,8 +31,6 @@
 
 /*Other includes*/
 #include "Devices.h"
-#include "stdbool.h"
-#include "InternalFlashManager.h"
 #include "credentials.h"
 #include "utilities.h"
 //==============================================================================
@@ -59,67 +53,14 @@ QueueHandle_t xNvStoreMailboxResp;
 //start address is 896000
 #define HERMES_FLASH_OFFSET_ADDRESS 0x20000 * 7
 //==============================================================================
-typedef struct
-{
-	union
-	{
-		uint8_t bootloader_flags_section[1024];
-	};
-
-	union
-	{
-		uint8_t reserved_section1[1024];
-	};
-
-	union
-	{
-		PRODUCT_CONFIGURATION product_configuration;
-		uint8_t product_configuration_section[1024];
-	};
-
-	union
-	{
-		PERSISTENT_DATA persisent_data;
-		uint8_t persisent_data_section[256];
-	};
-
-	union
-	{
-		AES_CONFIG aes_config;
-		uint8_t aes_config_section[256];
-	};
-
-	union
-	{
-		FACTORY_TEST_DATA factory_test_data;
-		uint8_t factory_test_data_section[256];
-	};
-
-	union
-	{
-		uint8_t reserved_section2[1280];
-	};
-
-	union
-	{
-		DEVICE_STATUS device_status[MAX_NUMBER_OF_DEVICES];
-		uint8_t device_status_section[1024];
-	};
-
-} HermesFlashOperationBufferT;
-//==============================================================================
 static SemaphoreHandle_t FlashOperationMutex = 0;
 
-static struct
-{
-	uint32_t OperationBufferChanged : 1;
-
-} FlashOperationStates;
+HermesFlashManagerT HermesFlashManager;
 
 HermesFlashOperationBufferT HermesFlashOperationBuffer HERMES_FLASH_OPERATION_BUFFER_MEM_SECTION;
-/*******************************************************************************
- * Flash Manager Initialisation
- ******************************************************************************/
+//==============================================================================
+//functions:
+
 static void HermesFlashOperationLock()
 {
 	xSemaphoreTake(FlashOperationMutex, portMAX_DELAY);
@@ -243,38 +184,44 @@ static FlashOperationResultT HermesWriteOperationBuffer()
 			sizeof(HermesFlashOperationBuffer));
 }
 //------------------------------------------------------------------------------
-int HermesFlashSaveData()
+FlashOperationResultT HermesFlashSaveData()
 {
 	HermesFlashOperationLock();
 
 	HermesFlashErase();
 	HermesWriteOperationBuffer();
+	HermesFlashManager.State.OperationBufferChanged = false;
 
 	HermesFlashOperationUnlock();
 
 	return 0;
 }
 //------------------------------------------------------------------------------
-int HermesFlashReadData()
+FlashOperationResultT HermesFlashReadData()
 {
+	HermesFlashOperationLock();
+
 	HermesReadOperationBuffer();
+	HermesFlashManager.State.OperationBufferChanged = false;
+
+	HermesFlashOperationUnlock();
 
 	return 0;
 }
 //------------------------------------------------------------------------------
-int HermesFlashSetProductConfig(PRODUCT_CONFIGURATION* in)
+FlashOperationResultT HermesFlashSetProductConfig(PRODUCT_CONFIGURATION* in)
 {
 	HermesFlashOperationLock();
 
 	memcpy(&HermesFlashOperationBuffer.product_configuration, in, sizeof(PRODUCT_CONFIGURATION));
-	FlashOperationStates.OperationBufferChanged = true;
+	HermesFlashManager.State.OperationBufferChanged = true;
 
 	HermesFlashOperationUnlock();
 
 	return 0;
 }
 //------------------------------------------------------------------------------
-int HermesFlashReadProductConfig(PRODUCT_CONFIGURATION* out)
+FlashOperationResultT HermesFlashReadProductConfig(PRODUCT_CONFIGURATION* out)
 {
 	uint32_t offset = HERMES_FLASH_OFFSET_ADDRESS;
 	offset += (uint32_t)&HermesFlashOperationBuffer.product_configuration - (uint32_t)&HermesFlashOperationBuffer;
@@ -285,24 +232,68 @@ int HermesFlashReadProductConfig(PRODUCT_CONFIGURATION* out)
 	return 0;
 }
 //------------------------------------------------------------------------------
-int HermesFlashSetDeviceTable(DEVICE_STATUS* in)
+FlashOperationResultT HermesFlashSetDeviceTable(DEVICE_STATUS* in)
 {
 	HermesFlashOperationLock();
 
 	memcpy(&HermesFlashOperationBuffer.device_status, in, sizeof(HermesFlashOperationBuffer.device_status));
-	FlashOperationStates.OperationBufferChanged = true;
+	HermesFlashManager.State.OperationBufferChanged = true;
 
 	HermesFlashOperationUnlock();
 
 	return 0;
 }
 //------------------------------------------------------------------------------
-int HermesFlashReadDeviceTable(DEVICE_STATUS* out)
+FlashOperationResultT HermesFlashReadDeviceTable(DEVICE_STATUS* out)
 {
 	uint32_t offset = HERMES_FLASH_OFFSET_ADDRESS;
 	offset += (uint32_t)&HermesFlashOperationBuffer.device_status - (uint32_t)&HermesFlashOperationBuffer;
 
 	HermesFlashReadEx(offset, out, sizeof(HermesFlashOperationBuffer.device_status));
+
+	return 0;
+}
+//------------------------------------------------------------------------------
+FlashOperationResultT HermesFlashSetPersisentData(PERSISTENT_DATA* in)
+{
+	HermesFlashOperationLock();
+
+	memcpy(&HermesFlashOperationBuffer.persisent_data, in, sizeof(HermesFlashOperationBuffer.persisent_data));
+	HermesFlashManager.State.OperationBufferChanged = true;
+
+	HermesFlashOperationUnlock();
+
+	return 0;
+}
+//------------------------------------------------------------------------------
+FlashOperationResultT HermesFlashReadPersisentData(PERSISTENT_DATA* out)
+{
+	uint32_t offset = HERMES_FLASH_OFFSET_ADDRESS;
+	offset += (uint32_t)&HermesFlashOperationBuffer.persisent_data - (uint32_t)&HermesFlashOperationBuffer;
+
+	HermesFlashReadEx(offset, out, sizeof(HermesFlashOperationBuffer.persisent_data));
+
+	return 0;
+}
+//------------------------------------------------------------------------------
+FlashOperationResultT HermesFlashSetFactoryTestData(FACTORY_TEST_DATA* in)
+{
+	HermesFlashOperationLock();
+
+	memcpy(&HermesFlashOperationBuffer.factory_test_data, in, sizeof(HermesFlashOperationBuffer.factory_test_data));
+	HermesFlashManager.State.OperationBufferChanged = true;
+
+	HermesFlashOperationUnlock();
+
+	return 0;
+}
+//------------------------------------------------------------------------------
+FlashOperationResultT HermesFlashReadFactoryTestData(FACTORY_TEST_DATA* out)
+{
+	uint32_t offset = HERMES_FLASH_OFFSET_ADDRESS;
+	offset += (uint32_t)&HermesFlashOperationBuffer.factory_test_data - (uint32_t)&HermesFlashOperationBuffer;
+
+	HermesFlashReadEx(offset, out, sizeof(HermesFlashOperationBuffer.factory_test_data));
 
 	return 0;
 }
@@ -316,6 +307,10 @@ int HermesFlashReadDeviceTable(DEVICE_STATUS* out)
 FlashOperationResultT HermesFlashInit(void)
 {
 	FlashOperationMutex = xSemaphoreCreateMutex();
+
+	HermesFlashManager.Buffer = &HermesFlashOperationBuffer;
+
+	memset(&HermesFlashOperationBuffer, 0, sizeof(HermesFlashOperationBuffer));
 
 	return 0;
 }

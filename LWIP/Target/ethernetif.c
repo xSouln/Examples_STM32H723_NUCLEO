@@ -54,12 +54,7 @@
 /* ETH_RX_BUFFER_SIZE parameter is defined in lwipopts.h */
 
 /* USER CODE BEGIN 1 */
-volatile struct
-{
-	uint32_t TxComplite : 1;
-	uint32_t RxComplite : 1;
 
-} Events;
 /* USER CODE END 1 */
 
 /* Private variables ---------------------------------------------------------*/
@@ -131,8 +126,6 @@ HAL_StatusTypeDef transmit_action_result;
 uint8_t lwip_mem[MEM_SIZE] __attribute__((section("._user_ram2_section")));
 
 uint8_t mMACAddr[6];
-
-uint32_t eth_dma_errors;
 /* USER CODE END 2 */
 
 osSemaphoreId RxPktSemaphore = NULL;   /* Semaphore to signal incoming packets */
@@ -242,7 +235,7 @@ static void low_level_init(struct netif *netif)
 	mMACAddr[5] = 0xDC;
 	heth.Init.MACAddr = mMACAddr;
 
-  lwip_mem[0] = 0;
+	lwip_mem[0] = 0;
   /* USER CODE END MACADDRESS */
 
   hal_eth_init_status = HAL_ETH_Init(&heth);

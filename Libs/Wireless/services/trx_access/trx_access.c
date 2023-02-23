@@ -88,10 +88,11 @@ void trx_disable_irq_handler(void)
 
 int trx_spi_transfer(uint8_t* data, uint16_t size)
 {
-	RF_SPI->Control2.CurrentDataSize = size;
-	RF_SPI->Control1.SpiEnable = true;
 	TRX_SELECT_DEVICE();
 	delay_us(1);
+
+	RF_SPI->Control2.CurrentDataSize = size;
+	RF_SPI->Control1.SpiEnable = true;
 	RF_SPI->Control1.MasterTransferStart = true;
 
 	while (size--)

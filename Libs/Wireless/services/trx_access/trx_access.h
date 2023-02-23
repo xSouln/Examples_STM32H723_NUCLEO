@@ -135,19 +135,19 @@ extern "C" {
  * Macros for TRX GPIO pins access.
  */
 /** Macro to set Reset pin to high */
-#define TRX_RST_HIGH()                  AT86RF233_RST_GPIO_Port->ODR |= AT86RF233_RST_Pin
+#define TRX_RST_HIGH()                  (AT86RF233_RST_GPIO_Port->ODR |= AT86RF233_RST_Pin)
 /** Macro to set Reset pin to low */
-#define TRX_RST_LOW()                   AT86RF233_RST_GPIO_Port->ODR &= ~AT86RF233_RST_Pin
+#define TRX_RST_LOW()                   (AT86RF233_RST_GPIO_Port->ODR &= ~AT86RF233_RST_Pin)
 /** Macro to set SLP_TR pin to high */
-#define TRX_SLP_TR_HIGH()               AT86RF233_SLP_TR_GPIO_Port->ODR |= AT86RF233_SLP_TR_Pin
+#define TRX_SLP_TR_HIGH()               (AT86RF233_SLP_TR_GPIO_Port->ODR |= AT86RF233_SLP_TR_Pin)
 /** Macro to set SLP_TR pin to low */
-#define TRX_SLP_TR_LOW()                AT86RF233_SLP_TR_GPIO_Port->ODR &= ~AT86RF233_SLP_TR_Pin
+#define TRX_SLP_TR_LOW()                (AT86RF233_SLP_TR_GPIO_Port->ODR &= ~AT86RF233_SLP_TR_Pin)
 /** Macro to get the transceiver's main IRQ status */
 #define TRX_IRQ_HIGH()					((AT86RF233_IRQ_GPIO_Port->IDR & AT86RF233_IRQ_Pin) > 0)
 
-#define TRX_SELECT_DEVICE()				AT86RF233_CS_GPIO_Port->ODR &= ~AT86RF233_CS_Pin
+#define TRX_SELECT_DEVICE()				(AT86RF233_CS_GPIO_Port->ODR &= ~AT86RF233_CS_Pin)
 
-#define TRX_DESELECT_DEVICE()			AT86RF233_CS_GPIO_Port->ODR |= AT86RF233_CS_Pin
+#define TRX_DESELECT_DEVICE()			(AT86RF233_CS_GPIO_Port->ODR |= AT86RF233_CS_Pin)
 
 #define TRX_DELAY(ms)					HAL_Delay(ms);
 

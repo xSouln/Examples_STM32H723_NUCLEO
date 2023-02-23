@@ -319,7 +319,7 @@ char *packet_names[] =
 
 SURENET_LOG_ENTRY surenet_log_entry[NUM_SURENET_LOG_ENTRIES];
 uint8_t	surenet_log_entry_in = 0;
-
+//------------------------------------------------------------------------------
 const char*	log_names[] =
 {
 	"SURENET_LOG_NOTHING                 ",
@@ -339,7 +339,7 @@ const char*	log_names[] =
 	"SURENET_LOG_DATA_RETRY_ATTEMPT      ",
 	"SURENET_LOG_END_OF_SESSION          "
 };
-
+//------------------------------------------------------------------------------
 const uint64_t dec_vals[] =
 {
 		1000000000000000000,
@@ -373,10 +373,10 @@ static ACKNOWLEDGE_QUEUE data_acknowledge_queue[DATA_ACKNOWLEDGE_QUEUE_SIZE] DAT
 static RECEIVED_SEQUENCE_NUMBER received_sequence_numbers[RX_SEQ_BUFFER_SIZE] RECEIVED_SEQUENCE_NUMBERS_MEM_SECTION;
 //------------------------------------------------------------------------------
 // set when a PACKET_DATA is received by surenet_data_received()
-static uint32_t most_recent_rx_time;
+static volatile uint32_t most_recent_rx_time;
 
 // Note that this variable is set by calls to sn_set_hub_pairing_mode(), and is read by calls to sn_get_hub_pairing_mode()
-static PAIRING_REQUEST pairing_mode;
+static volatile PAIRING_REQUEST pairing_mode;
 
 static volatile bool trigger_channel_hop = false;
 
@@ -413,7 +413,7 @@ FIRMWARE_CHUNK firmware_chunk[DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES] DEVICE_M
 //0x00 is when both segments of a chunk are needed, 0x01 when only the 2nd segment.
 uint8_t device_rcvd_segs[MAX_NUMBER_OF_DEVICES];
 
-HUB_STATE_2 hub_state = HUB_STATE_INIT;
+volatile HUB_STATE_2 hub_state = HUB_STATE_INIT;
 //------------------------------------------------------------------------------
 //Mailboxes to communicate with SureNet-Interface
 
@@ -448,6 +448,8 @@ EventGroupHandle_t xSurenet_EventGroup;
 
 StaticTask_t surenet_task_buffer SURENET_TASK_STACK_MEM_SECTION;
 StackType_t surenet_task_stack[SURENET_TASK_STACK_SIZE] SURENET_TASK_STACK_MEM_SECTION;
+
+DEVICE_FIRMWARE_CHUNK device_firmware_chunk;
 //==============================================================================
 //prototypes:
 
@@ -605,6 +607,15 @@ BaseType_t sn_init(uint64_t *mac, uint16_t panid, uint8_t channel)
 		#endif
 	}
 
+	// are required before initialisation is complete.
+	sn_devicetable_init();
+
+	// Do this after initialising device_status[] as SecretKey requires MAC addresses
+	for(int i = 0; i < MAX_NUMBER_OF_DEVICES; i++)
+	{
+		sn_CalculateSecretKey(i);
+	}
+
 	 // Create ISR task first
 	if (snd_init(mac, panid, channel) != pdPASS)
 	{
@@ -612,6 +623,8 @@ BaseType_t sn_init(uint64_t *mac, uint16_t panid, uint8_t channel)
 	}
 
 	SurnetStart_Task();
+
+	//osDelay(500);
 
     return pdPASS;
 }
@@ -649,21 +662,9 @@ void sn_task(void *pvParameters)
     bool bresult;
 	PAIRING_REQUEST presult;
 	PING_REQUEST_MAILBOX ping_request;
-	DEVICE_FIRMWARE_CHUNK device_firmware_chunk;
 	BUSY_STATE can_i_sleep;
-	uint8_t	i;
 
 	memset(&ping_stats, 0, sizeof(ping_stats));
-
-	// are required before initialisation is complete.
-    sn_devicetable_init();
-
-	// Do this after initialising device_status[] as SecretKey requires MAC addresses
-	for(i = 0; i < MAX_NUMBER_OF_DEVICES; i++)
-	{
-		sn_CalculateSecretKey(i);
-	}
-	
 
     while(1)
     {
@@ -998,7 +999,11 @@ int16_t sn_transmit_packet(PACKET_TYPE type,
     do
     {
     	// This is slightly hokey but as we are in the same task, we can't spin until the transmission has completed.
-        snd_stack_task(); // run the stack to facilitate the transmission
+        //snd_stack_task(); // run the stack to facilitate the transmission
+
+        wpan_task();
+        snd_stack_irq_task();
+
         osDelay(1);
     }
     while((sn_transmission_complete == false) && ((get_microseconds_tick() - timestamp) < (usTICK_MILLISECONDS * 100)));
@@ -1195,6 +1200,7 @@ BUSY_STATE detach_handler(void)
     static uint32_t detach_timer;
     static uint8_t detach_retry_counter;
 
+    //TODO: detach_handler
     switch(detach_state)
     {
         case DETACH_IDLE:
@@ -1241,7 +1247,7 @@ BUSY_STATE detach_handler(void)
 				detach_timer = get_microseconds_tick();
 				// found a valid pair, so detach it
 				detach_state = DETACH_SEND_DETACH_COMMAND;
-				detach_retry_counter=0;
+				detach_retry_counter = 0;
             }
             break;
 
@@ -1917,7 +1923,7 @@ void sn_send_chunk(uint8_t current_conversee,FIRMWARE_CHUNK *firmware_chunk)
 		payload[3] = seg2_length;
 
 		// status is 4 for last one, 1 for others.
-		payload[4] = (seg2_length<SECOND_SEGMENT_SIZE) ? DATA_SEGMENT_STATUS_LAST_CHUNK : DATA_SEGMENT_STATUS_LAST_SEG;
+		payload[4] = (seg2_length < SECOND_SEGMENT_SIZE) ? DATA_SEGMENT_STATUS_LAST_CHUNK : DATA_SEGMENT_STATUS_LAST_SEG;
 
 		if (seg2_length > 0)
 		{
@@ -2347,7 +2353,7 @@ bool sn_process_received_packet(RX_BUFFER *rx_buffer)
                     if (i < DATA_ACKNOWLEDGE_QUEUE_SIZE)
                     {
                         data_acknowledge_queue[i].valid = DATA_ACKNOWLEDGE_LIFETIME;
-                        data_acknowledge_queue[i].seq_acknowledged=rx_packet.packet.payload[0];
+                        data_acknowledge_queue[i].seq_acknowledged = rx_packet.packet.payload[0];
                         data_acknowledge_queue[i].ack_nack=rx_packet.packet.payload[1];
 					}
                     else
@@ -2417,6 +2423,7 @@ bool sn_process_received_packet(RX_BUFFER *rx_buffer)
                     break;
 
                 case PACKET_DEVICE_AWAKE:
+                	//TODO: PACKET_DEVICE_AWAKE
                 	// message received from device indicating that it is awake and wants a chat.
                     if(are_we_paired_with_source(rx_packet.packet.header.source_address))
                     {
@@ -2425,13 +2432,13 @@ bool sn_process_received_packet(RX_BUFFER *rx_buffer)
                         if((device_index < MAX_NUMBER_OF_DEVICES) && (device_index >= 0))
                         {
                             pda_payload = (PACKET_DEVICE_AWAKE_PAYLOAD*)(&rx_packet.packet.payload[0]);
-                            memcpy(&device_awake_mailbox.payload,pda_payload,sizeof(PACKET_DEVICE_AWAKE_PAYLOAD));
+                            memcpy(&device_awake_mailbox.payload, pda_payload, sizeof(PACKET_DEVICE_AWAKE_PAYLOAD));
                             device_awake_mailbox.src_addr = rx_packet.packet.header.source_address;
 
                             // put result in mailbox for Surenet-Interface
                             xQueueSend(xDeviceAwakeMessageMailbox, &device_awake_mailbox, 0);
 
-                            device_status_extra[device_index].device_awake_status.awake=DEVICE_AWAKE;
+                            device_status_extra[device_index].device_awake_status.awake = DEVICE_AWAKE;
                             if(pda_payload->device_data_status == DEVICE_SEND_KEY)
                             {
                                 device_status_extra[device_index].SendSecurityKey = SECURITY_KEY_RENEW;
@@ -2443,10 +2450,13 @@ bool sn_process_received_packet(RX_BUFFER *rx_buffer)
                                 pda_payload->device_data_status = DEVICE_HAS_NO_DATA;
                                 device_status[device_index].status.valid = 0;
                                 device_status[device_index].status.associated = 0;
+
                                 //call limted version so no time update flags set to limit message rate to Xively
                                 surenet_update_device_table_line(&device_status[device_index], device_index, true, true);
+
                                 // remove from NVM Device Stats
                                 sn_unpair_device(device_status[device_index].mac_address);
+
                                 surenet_printf( " Detached device \r\n");
                             }
 
@@ -2466,13 +2476,18 @@ bool sn_process_received_packet(RX_BUFFER *rx_buffer)
 								}
 
                                 pda_payload->device_data_status = DEVICE_HAS_NO_DATA;
+
                                 //keep this information at SureNet level as it is used when deciding which segments of a chunk to send.
 								device_rcvd_segs[device_index] = pda_payload->rcvd_segs_params.received_segments[0];
+
                                 memcpy(&device_rcvd_segs_parameters, &pda_payload->rcvd_segs_params, sizeof(device_rcvd_segs_parameters));
+
                                 // record which device made this request
 								device_rcvd_segs_parameters.device_mac = rx_packet.packet.header.source_address;
+
 								// put result in mailbox for Surenet-Interface
                                 xQueueSend(xDeviceRcvdSegsParametersMailbox, &device_rcvd_segs_parameters, 0);
+
 								// Now we are going to cheekily pause this task to give the DFU task
 								// an opportunity to find the required f/w page and load it into
 								// the mailbox for this task to consume. By doing this, it means that
@@ -2840,7 +2855,7 @@ void timeout_handler(void)
  **************************************************************/
 void store_firmware_chunk(DEVICE_FIRMWARE_CHUNK *device_firmware_chunk)
 {
-	uint8_t i=0;
+	uint8_t i = 0;
 	// first strategy to find an empty slot is to look for one where has_data == false
 	while(firmware_chunk[i].has_data && (i < DEVICE_MAX_SIMULTANEOUS_FIRMWARE_UPDATES))
 	{
@@ -2867,7 +2882,7 @@ void store_firmware_chunk(DEVICE_FIRMWARE_CHUNK *device_firmware_chunk)
 	}
 
 	// Now i is the index of either a free entry in firmware_chunk[] or the oldest
-	memcpy(firmware_chunk[i].data,device_firmware_chunk->chunk_data,CHUNK_SIZE);
+	memcpy(firmware_chunk[i].data, device_firmware_chunk->chunk_data, CHUNK_SIZE);
 	firmware_chunk[i].has_data = true;
 	firmware_chunk[i].timestamp = get_microseconds_tick();
 	firmware_chunk[i].device_index = device_firmware_chunk->device_index;

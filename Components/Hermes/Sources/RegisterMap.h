@@ -2,7 +2,7 @@
 *
 * SUREFLAP CONFIDENTIALITY & COPYRIGHT NOTICE
 *
-* Copyright © 2013-2021 Sureflap Limited.
+* Copyright ï¿½ 2013-2021 Sureflap Limited.
 * All Rights Reserved.
 *
 * All information contained herein is, and remains the property of Sureflap
@@ -24,9 +24,13 @@
 
 #ifndef __REGISTER_MAP_H__
 #define __REGISTER_MAP_H__
+//==============================================================================
+//includes:
 
 #include "Devices.h"
 #include "hermes.h"
+//==============================================================================
+//defines:
 
 #define PRINT_REG_MAP	false
 
@@ -35,6 +39,25 @@
 #else
 #define regmap_printf(...)
 #endif
+
+//lower nibble contains basic display mode (e.g. normal dim or off)
+#define LED_MODE_DISPLAY_MASK 0xf
+
+//Or with any of the modes sent by the server to display success then switch to one of the LED_DISPLAY modes
+#define LED_MODE_SUCCESS_BIT 0x80
+
+#define	RESET_PROCESSOR	0xdd
+
+// Use proper RF MAC as programmed into Flash
+#define RESET_PROCESSOR_AND_USE_8_BYTE_RF_MAC	0x80
+
+// Use 6 byte Ethernet MAC with 0xfffe padding for RF MAC
+#define	RESET_PROCESSOR_AND_USE_6_BYTE_RF_MAC	0x81
+
+#define MAX_REGISTERS_PER_MESSAGE		128
+#define MAX_PAIR_ENTRIES_PER_MESSAGE	(MAX_REGISTERS_PER_MESSAGE / sizeof(DEVICE_STATUS))
+//==============================================================================
+//types:
 
 // r = read only, w = write only (reading is meaningless), rw = read & write
 typedef enum
@@ -90,13 +113,11 @@ typedef enum
   HR_LAST_ELEMENT,
   //HR_HUB_HRS,
   //HR_HUB_MINS,
+
 } HUB_REGISTER_TYPE;
-
+//------------------------------------------------------------------------------
 #define HR_GET_DYNAMIC_SIZE()	(HR_DEVICE_TABLE + (sizeof(DEVICE_STATUS) * hubRegisterBank[HR_DEVICE_TABLE_SIZE].value))
-
-#define MAX_REGISTERS_PER_MESSAGE		128
-#define MAX_PAIR_ENTRIES_PER_MESSAGE	(MAX_REGISTERS_PER_MESSAGE / sizeof(DEVICE_STATUS))
-
+//------------------------------------------------------------------------------
 typedef struct
 {
     uint8_t 	(*read_handler_function)(uint16_t);
@@ -105,8 +126,9 @@ typedef struct
     bool		updateWebFlag;
     bool		end_of_block;
 	bool		include_in_hash;
-} T_HUB_REGISTER_ENTRY;
 
+} T_HUB_REGISTER_ENTRY;
+//------------------------------------------------------------------------------
 //LED mode commands sent by server to hub. Interpreted as a brightness
 typedef enum
 {
@@ -116,13 +138,8 @@ typedef enum
   LED_DISPLAY_ALERT,   // not used
   LED_DISPLAY_DIM,
 } LED_DISPLAY;
-
-#define LED_MODE_DISPLAY_MASK 0xf //lower nibble contains basic display mode (e.g. normal dim or off)
-#define LED_MODE_SUCCESS_BIT 0x80 //Or with any of the modes sent by the server to display success then switch to one of the LED_DISPLAY modes
-
-#define	RESET_PROCESSOR	0xdd
-#define RESET_PROCESSOR_AND_USE_8_BYTE_RF_MAC	0x80	// Use proper RF MAC as programmed into Flash
-#define	RESET_PROCESSOR_AND_USE_6_BYTE_RF_MAC	0x81	// Use 6 byte Ethernet MAC with 0xfffe padding for RF MAC
+//==============================================================================
+//functions:
 
 void		HubReg_Handle_Messages(void);
 void		HubReg_Dump(void);
@@ -135,5 +152,5 @@ void		HubReg_Send_All(void);
 void		HubReg_SetPairingMode(PAIRING_REQUEST mode);
 void		HubReg_Refresh_All(void);
 uint32_t	HubReg_Get_Integer(uint16_t address);
-
-#endif
+//==============================================================================
+#endif //__REGISTER_MAP_H__

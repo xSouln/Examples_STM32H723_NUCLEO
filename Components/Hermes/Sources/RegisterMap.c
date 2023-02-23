@@ -436,7 +436,10 @@ static void Hub_Registers_Send_Range(uint32_t start_index, uint32_t count)
 		count = HR_GET_DYNAMIC_SIZE() - start_index;
 	}
 
-	if( count == 0 ){ return; }
+	if(!count)
+	{
+		return;
+	}
 
 	pos = snprintf((char*)hub_reg_outgoing_message, sizeof(hub_reg_outgoing_message),
 					"%d %d %d %d",
@@ -447,11 +450,12 @@ static void Hub_Registers_Send_Range(uint32_t start_index, uint32_t count)
 
 	server_set_reg_count++;
 
-	for( i = 0; i < count; i++ )
+	for(i = 0; i < count; i++)
 	{
 		pos += snprintf((char*)&hub_reg_outgoing_message[pos],
 				sizeof(hub_reg_outgoing_message) - pos,
-				" %02x", hubRegisterBank[start_index + i].value);
+				" %02x",
+				hubRegisterBank[start_index + i].value);
 	}
 
 	if(server_buffer_add(&server_message))
@@ -492,7 +496,12 @@ uint8_t getHwVersion(uint16_t address)
  **************************************************************/
 void reg_write(uint16_t address,uint8_t value)
 {
-	if (address>HR_LAST_ELEMENT) return;  // just ignore writes to bum addresses
+	// just ignore writes to bum addresses
+	if (address > HR_LAST_ELEMENT)
+	{
+		return;
+	}
+
 	regmap_printf("reg_write() - address %d = %d\r\n",address,value);
 	hubRegisterBank[address].value = value;
 	hubRegisterBank[address].updateWebFlag = true;
@@ -548,34 +557,46 @@ uint8_t checksum_read(uint16_t address)
  **************************************************************/
 void pairing_handler_write(uint16_t address,uint8_t value)
 {
-	PAIRING_REQUEST request = {0,false,PAIRING_REQUEST_SOURCE_SERVER};
+	PAIRING_REQUEST request = { 0, false, PAIRING_REQUEST_SOURCE_SERVER };
 	PAIRING_REQUEST current_pairing_mode;
 
-	if( value == PAIRING_MANUAL_SERVER_INITIATED)
+	if(value == PAIRING_MANUAL_SERVER_INITIATED)
+	{
 		zprintf(LOW_IMPORTANCE,"pairing_handler_write(PAIRING_MANUAL_SERVER_INITIATED)\r\n");
-	else	// should be 0 for off
+	}
+	else
+	{
+		// should be 0 for off
 		zprintf(LOW_IMPORTANCE,"pairing_handler_write(%d)\r\n",value);
+	}
 
-    hubRegisterBank[address].value = value;   // somewhat pointless as we read from SureNet rather than this register
+	// somewhat pointless as we read from SureNet rather than this register
+    hubRegisterBank[address].value = value;
 
 	current_pairing_mode = surenet_get_hub_pairing_mode();
 
-	if( value == PAIRING_MANUAL_SERVER_INITIATED) request.enable = true;	// should be 0x02
+	//!!!
+	if(value == PAIRING_MANUAL_SERVER_INITIATED)
 	{
-		if( false == request.enable)
-		{	// we always honour the server disabling pairing mode
-			zprintf(LOW_IMPORTANCE,"Changing pairing mode to disabled\r\n");
+		request.enable = true;
+	}
+
+	if(!request.enable)
+	{
+		// we always honour the server disabling pairing mode
+		zprintf(LOW_IMPORTANCE,"Changing pairing mode to disabled\r\n");
+		surenet_set_hub_pairing_mode(request);
+	}
+	else
+	{
+		// request.enable == true
+		if(!current_pairing_mode.enable)
+		{
+			// only honour server requests to go into pairing mode if we are not already in pairing mode
+			zprintf(LOW_IMPORTANCE,"Changing pairing mode to enabled\r\n");
 			surenet_set_hub_pairing_mode(request);
 		}
-		else
-		{	// request.enable == true
-			if( false == current_pairing_mode.enable)
-			{	// only honour server requests to go into pairing mode if we are not already in pairing mode
-				zprintf(LOW_IMPORTANCE,"Changing pairing mode to enabled\r\n");
-				surenet_set_hub_pairing_mode(request);
-			}
-			// else drop the request
-		}
+		// else drop the request
 	}
 }
 
@@ -600,17 +621,23 @@ uint8_t pairing_handler_read(uint16_t address)
 void HubReg_SetPairingMode(PAIRING_REQUEST request)
 {
 	uint8_t value = PAIRING_OFF;
-	if( true == request.enable )
+	if(request.enable)
 	{
-		if( PAIRING_REQUEST_SOURCE_SERVER == request.source )
-			value = PAIRING_MANUAL_SERVER_INITIATED;	// This value does NOT elicit a server response.
+		if(PAIRING_REQUEST_SOURCE_SERVER == request.source)
+		{
+			// This value does NOT elicit a server response.
+			value = PAIRING_MANUAL_SERVER_INITIATED;
+		}
 		else
-			value = PAIRING_MANUAL_HUB_INITIATED;	// Note the server will respond by writing PAIRING_MANUAL_SERVER_INITIATED
-	}												// to the pairing mode register.
+		{
+			// Note the server will respond by writing PAIRING_MANUAL_SERVER_INITIATED
+			// to the pairing mode register.
+			value = PAIRING_MANUAL_HUB_INITIATED;
+		}
+	}
 
     hubRegisterBank[HR_PAIRING_STATE].value = value;
 	hubRegisterBank[HR_PAIRING_STATE].updateWebFlag = true;
-
 }
 
 /**************************************************************
@@ -669,7 +696,9 @@ void led_mode_write(uint16_t address, uint8_t value)
 	}
 
     hubRegisterBank[address].value = value;
-    hubRegisterBank[address].updateWebFlag = true;    // suspect this is a debug feature
+
+    // suspect this is a debug feature
+    hubRegisterBank[address].updateWebFlag = true;
 }
 
 /**************************************************************
@@ -684,11 +713,13 @@ void remote_reboot(uint16_t address, uint8_t value)
 		case RESET_PROCESSOR:
 			NVIC_SystemReset(); // never returns
 			break;
+
 		case RESET_PROCESSOR_AND_USE_8_BYTE_RF_MAC:
 			product_configuration.rf_mac_mangle = false;
 			write_product_configuration();
 			NVIC_SystemReset(); // never returns
 			break;
+
 		case RESET_PROCESSOR_AND_USE_6_BYTE_RF_MAC:
 			product_configuration.rf_mac_mangle = true;
 			write_product_configuration();
