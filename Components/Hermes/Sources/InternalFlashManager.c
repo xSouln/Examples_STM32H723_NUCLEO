@@ -108,6 +108,8 @@ FlashOperationResultT HermesFlashRead(uint32_t offset, void* out, uint32_t size)
 		ptr[i] = mem[i];
 	}
 
+	HermesConsoleWriteString("HermesFlashRead\r");
+
 	return 0;
 }
 //------------------------------------------------------------------------------
@@ -153,6 +155,8 @@ FlashOperationResultT HermesFlashWrite(uint32_t offset, void* in, uint32_t size)
 	}
 
 	HAL_FLASH_Lock();
+
+	HermesConsoleWriteString("HermesFlashWrite\r");
 
 	return result;
 }

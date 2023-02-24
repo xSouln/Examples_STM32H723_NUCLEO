@@ -57,7 +57,9 @@
 #ifdef BEACON_SUPPORT
 #include "tal_slotted_csma.h"
 #endif  /* BEACON_SUPPORT */
-
+#include "Hermes-console.h"
+#include "hermes.h"
+     
 /* === TYPES =============================================================== */
 
 /* === MACROS ============================================================== */
@@ -124,7 +126,9 @@ void handle_received_frame_irq(void)
 #ifdef PROMISCUOUS_MODE
 	if (tal_pib.PromiscuousMode) {
 		/* Check for valid FCS */
-		if (trx_bit_read(SR_RX_CRC_VALID) == CRC16_NOT_VALID) {
+		if (trx_bit_read(SR_RX_CRC_VALID) == CRC16_NOT_VALID) 
+        {
+            USER_LED_TOGGLE();  // toggle LED if faulty CRC received. note that frame isn't even read from RF chip
 			return;
 		}
 	}
@@ -186,7 +190,6 @@ void handle_received_frame_irq(void)
 	/* The previous buffer is eaten up and a new buffer is not assigned yet.
 	**/
 	tal_rx_buffer = bmm_buffer_alloc(LARGE_BUFFER_SIZE);
-
 	/* Check if receive buffer is available */
 	if (NULL == tal_rx_buffer) {
 		/*
@@ -197,6 +200,7 @@ void handle_received_frame_irq(void)
 		 */
 		set_trx_state(CMD_PLL_ON);
 		tal_rx_on_required = true;
+        zprintf(MEDIUM_IMPORTANCE, "No buffer for received RF message\r\n");
 	} else {
 		/*
 		 * Trx returns to RX_AACK_ON automatically, if this was its
@@ -228,6 +232,7 @@ void process_incoming_frame(buffer_t *buf_ptr)
 	frame_info_t *receive_frame
 		= (frame_info_t *)BMM_BUFFER_POINTER(buf_ptr);
 
+   
 	/* The frame is present towards the end of the buffer. */
 
 #ifndef TRX_REG_RAW_VALUE
@@ -241,6 +246,16 @@ void process_incoming_frame(buffer_t *buf_ptr)
 	last_frame_length = receive_frame->mpdu[0];
 #endif
 
+#if (true == DEBUG_RX)
+    uint8_t i;
+    zprintf(CRITICAL_IMPORTANCE, "%08d: RX: ", get_microseconds_tick());
+    for (i=0; i<frame_len; i++)
+    {
+        zprintf(CRITICAL_IMPORTANCE, " %02X", receive_frame->mpdu[i]);
+    }
+    zprintf(CRITICAL_IMPORTANCE, "\r\n");
+#endif
+	
 #ifdef PROMISCUOUS_MODE
 	if (tal_pib.PromiscuousMode) {
 #ifndef TRX_REG_RAW_VALUE

@@ -74,7 +74,10 @@
 #include "stb.h"
 #endif
 #endif
-
+#include "hermes-time.h"
+#include "Hermes-console.h"
+#include "hermes.h"
+#include "app_config.h" // Added by Chris to get access to EE_IEEE_ADDR
 /**
  * \addtogroup group_tal_init_233
  * @{
@@ -248,8 +251,8 @@ retval_t tal_init(void)
 #if ((defined BEACON_SUPPORT) || (defined ENABLE_TSTAMP)) && \
 	(DISABLE_TSTAMP_IRQ == 0)
 	/* Configure time stamp interrupt. */
-	////pal_trx_irq_init_tstamp((FUNC_PTR)trx_irq_timestamp_handler_cb);
-	////pal_trx_irq_en_tstamp(); /* Enable timestamp interrupt. */
+//	pal_trx_irq_init_tstamp((FUNC_PTR)trx_irq_timestamp_handler_cb);    // Commented out by Chris
+//	pal_trx_irq_en_tstamp(); /* Enable timestamp interrupt. */ // we are not using timestamps
 #endif
 
 	/* Initialize the buffer management module and get a buffer to store
@@ -327,7 +330,7 @@ static retval_t trx_init(void)
 		/* Wait a short time interval. */
 		pal_timer_delay(TRX_POLL_WAIT_TIME_US);
 
-		trx_status = /*(tal_trx_status_t)*/ trx_bit_read(SR_TRX_STATUS);
+		trx_status = (tal_trx_status_t) trx_bit_read(SR_TRX_STATUS);
 
 		/* Wait not more than max. value of TR15. */
 		if (poll_counter == P_ON_TO_TRX_OFF_ATTEMPTS) {
@@ -412,7 +415,7 @@ void trx_config(void)
 {
 	/* Set pin driver strength */
 	trx_bit_write(SR_CLKM_SHA_SEL, CLKM_SHA_DISABLE);
-	trx_bit_write(SR_CLKM_CTRL, CLKM_1MHZ);
+	trx_bit_write(SR_CLKM_CTRL, CLKM_16MHZ);
 
 	/*
 	 * After we have initialized a proper seed for rand(),
@@ -501,7 +504,7 @@ static retval_t trx_reset(void)
 		/* Wait a short time interval. */
 		pal_timer_delay(TRX_POLL_WAIT_TIME_US);
 
-		trx_status = /*(tal_trx_status_t)*/ trx_bit_read(SR_TRX_STATUS);
+		trx_status = (tal_trx_status_t) trx_bit_read(SR_TRX_STATUS);
 
 		/* Wait not more than max. value of TR2. */
 		if (poll_counter == SLEEP_TO_TRX_OFF_ATTEMPTS) {
@@ -549,7 +552,7 @@ retval_t tal_reset(bool set_default_pib)
 	}
 
 	ENTER_CRITICAL_REGION();
-	tal_timers_stop();
+	tal_timers_stop();      
 	LEAVE_CRITICAL_REGION();
 
 	/* Clear TAL Incoming Frame queue and free used buffers. */
@@ -591,9 +594,12 @@ retval_t tal_reset(bool set_default_pib)
 				(FUNC_PTR)calibration_timer_handler_cb,
 				NULL);
 
-		if (timer_status != MAC_SUCCESS) {
-			ASSERT("PLL calibration timer start problem" == 0);
-		}
+		if( timer_status != MAC_SUCCESS )
+        {
+            zprintf(CRITICAL_IMPORTANCE, "PLL Calibration timer fail status = %d\r\n", timer_status);
+			DbgConsole_Flush();
+            while(1);
+        }
 	}
 #endif  /* ENABLE_FTN_PLL_CALIBRATION */
 
@@ -623,7 +629,7 @@ retval_t tal_reset(bool set_default_pib)
  * Since in our case the function is called from TRX_OFF, this is not required
  * here.
  */
-void tal_generate_rand_seed(void)
+void tal_generate_rand_seed(void)	// this function is not used because we have a system wide properly seeded random number generator.
 {
 	uint16_t seed = 0;
 	uint8_t cur_random_val = 0;
@@ -670,7 +676,7 @@ void tal_generate_rand_seed(void)
 	LEAVE_TRX_CRITICAL_REGION();
 
 	/* Set the seed for the random number generator. */
-	srand(seed);
+	hermes_srand(seed);
 
 	/* Restore RPC settings. */
 	trx_reg_write(RG_TRX_RPC, previous_RPC_value);

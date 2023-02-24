@@ -358,6 +358,7 @@ void HermesInit_ProductConfiguredMode()
 		return;
 	}
 */
+
 	surenet_init(&rfmac, product_configuration.rf_pan_id, initial_RF_channel);
 
 	HermesStart_SNTP_Task();

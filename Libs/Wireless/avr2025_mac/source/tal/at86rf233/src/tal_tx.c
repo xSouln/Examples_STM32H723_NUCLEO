@@ -62,7 +62,8 @@
 #ifdef ENABLE_RTB
 #include "rtb.h"
 #endif  /* ENABLE_RTB */
-
+#include "hermes-time.h"
+#include "hermes.h"
 /* === TYPES =============================================================== */
 
 /* === MACROS ============================================================== */
@@ -299,6 +300,7 @@ void tx_done_handling(void)
  */
 void send_frame(csma_mode_t csma_mode, bool tx_retries)
 {
+
 	tal_trx_status_t trx_status;
 
 	/* Configure tx according to tx_retries */
@@ -311,7 +313,7 @@ void send_frame(csma_mode_t csma_mode, bool tx_retries)
 
 	/* Configure tx according to csma usage */
 	if ((csma_mode == NO_CSMA_NO_IFS) || (csma_mode == NO_CSMA_WITH_IFS)) {
-		trx_bit_write(SR_MAX_CSMA_RETRIES, 7); /* immediate
+		trx_bit_write(SR_MAX_CSMA_RETRIES, tal_pib.MaxFrameRetries); /* immediate
 		                                        * transmission */
 		if (tx_retries) {
 			tal_sw_retry_count = tal_pib.MaxFrameRetries;
@@ -344,11 +346,16 @@ void send_frame(csma_mode_t csma_mode, bool tx_retries)
 		}
 	}
 
-	/* Toggle the SLP_TR pin triggering transmission. */
-	TRX_SLP_TR_HIGH();
-	PAL_WAIT_65_NS();
-	TRX_SLP_TR_LOW();
-
+#if (true == DEBUG_TX)
+    uint8_t i;
+    zprintf(CRITICAL_IMPORTANCE, "%08d: TX:", get_microseconds_tick());
+    for (i=0; i<last_frame_length; i++)
+    {
+        zprintf(CRITICAL_IMPORTANCE, " %02X", tal_frame_to_tx[i]);
+    }
+    zprintf(CRITICAL_IMPORTANCE, "\r\n");
+#endif
+    // Modified from the reference code. See AT86RF233 datasheet pg142. Moved to non-time-optimised frame transmit procedure
 	/*
 	 * Send the frame to the transceiver.
 	 * Note: The PhyHeader is the first byte of the frame to
@@ -363,6 +370,11 @@ void send_frame(csma_mode_t csma_mode, bool tx_retries)
 	 */
 	trx_frame_write(tal_frame_to_tx, tal_frame_to_tx[0] - 1);
 
+    	/* Toggle the SLP_TR pin triggering transmission. */
+	TRX_SLP_TR_HIGH();
+	PAL_WAIT_65_NS();
+	TRX_SLP_TR_LOW();
+    
 	tal_state = TAL_TX_AUTO;
 
 #ifndef NON_BLOCKING_SPI
@@ -416,7 +428,7 @@ void handle_tx_end_irq(bool underrun_occured)
 		if (underrun_occured) {
 			trx_trac_status = TRAC_INVALID;
 		} else {
-			trx_trac_status = /*(trx_trac_status_t)*/ trx_bit_read(
+			trx_trac_status = (trx_trac_status_t) trx_bit_read(
 					SR_TRAC_STATUS);
 		}
 

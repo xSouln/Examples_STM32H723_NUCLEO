@@ -86,12 +86,12 @@
 /*
  * Default value of PIB attribute macMaxFrameRetries
  */
-#define TAL_MAXFRAMERETRIES_DEFAULT         (0x03)
+#define TAL_MAXFRAMERETRIES_DEFAULT         (0x07)
 
 /*
  * Default value of maximum csma ca backoffs
  */
-#define TAL_MAX_CSMA_BACKOFFS_DEFAULT       (0x04)
+#define TAL_MAX_CSMA_BACKOFFS_DEFAULT       (0x07) 	// 7 is the maximum
 
 /*
  * Default value of minimum backoff exponent used while performing csma ca
@@ -111,12 +111,12 @@
 /*
  * Default value of current channel in TAL
  */
-#define TAL_CURRENT_CHANNEL_DEFAULT         (0x0B)
+#define TAL_CURRENT_CHANNEL_DEFAULT         (0x0F)
 
 /*
  * Default value of promiscuous mode in TAL
  */
-#define TAL_PIB_PROMISCUOUS_MODE_DEFAULT    (false)
+#define TAL_PIB_PROMISCUOUS_MODE_DEFAULT    (true)
 
 #ifndef CUSTOM_DEFAULT_TX_PWR
 

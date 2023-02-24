@@ -685,12 +685,6 @@ void mac_process_beacon_request(buffer_t *msg)
 	    send_beacon = usr_mac_process_beacon_request(mac_parse_data.src_addr.long_address,
 	    		mac_parse_data.src_addr_mode,
 				mac_parse_data.mac_payload_data.beacon_req_data.req_info);
-		/*
-		 * The buffer in which the beacon request was received is freed up.
-		 * This is only done in a BEACON build, since a static buffer is used
-		 * to transmit the beacon frame.
-		 */
-		bmm_buffer_free((buffer_t *)msg);
 
 		// if we are not in pairing mode, then do not send a beacon. I suspect a bug in at least the Thalamus
 		// RF stack which causes a device to send an ASSOCIATION_REQUEST even if the BEACON it received has ASSOCIATION_PERMIT == 0;

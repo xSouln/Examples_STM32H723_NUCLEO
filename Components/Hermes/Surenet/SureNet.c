@@ -624,8 +624,6 @@ BaseType_t sn_init(uint64_t *mac, uint16_t panid, uint8_t channel)
 
 	SurnetStart_Task();
 
-	//osDelay(500);
-
     return pdPASS;
 }
 //------------------------------------------------------------------------------
@@ -665,6 +663,8 @@ void sn_task(void *pvParameters)
 	BUSY_STATE can_i_sleep;
 
 	memset(&ping_stats, 0, sizeof(ping_stats));
+
+	osDelay(2000);
 
     while(1)
     {

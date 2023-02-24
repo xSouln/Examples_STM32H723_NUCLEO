@@ -184,6 +184,10 @@ void hermes_app_init(void)
 
 	xBufferMessageMailbox = xQueueCreate(1, sizeof(SERVER_MESSAGE));
 	xSystemStatusMailbox = xQueueCreate(5, sizeof(SYSTEM_STATUS_EVENTS));
+
+	// initialise buffer for messages to go to Devices
+	device_buffer_init();
+	server_buffer_init();
 }
 //------------------------------------------------------------------------------
 // This is the main Hermes Application task
@@ -200,9 +204,6 @@ void hermes_app_task(void *pvParameters)
 	uint32_t signature_change_timestamp;
 	uint32_t random_value;
 
-	// initialise buffer for messages to go to Devices
-    device_buffer_init();
-    server_buffer_init();
     // This sets up the Device Table part of the register map.
     HubReg_Init();
 	DFU_init();
@@ -223,6 +224,8 @@ void hermes_app_task(void *pvParameters)
 
 	signature_change_timestamp = get_UpTime();
 
+	static uint32_t dbg_time = 0;
+
     while(1)
     {
     	vTaskDelay(pdMS_TO_TICKS(1));
@@ -240,8 +243,14 @@ void hermes_app_task(void *pvParameters)
 		// the faster we can reply, the longer their batteries will last.
     	DebugCounter.hermes_app_task_circle++;
 
-        Surenet_Interface_Handler();
+    	if ((get_UTC() - dbg_time) > 1)
+    	{
+    		dbg_time = get_UTC();
+    		HermesConsoleWriteString("============================hermes_app_task\r");
+    	}
 
+        Surenet_Interface_Handler();
+/*
 		if(SNTP_IsTimeValid())
 		{
 			// process any firmware update activity
@@ -253,7 +262,7 @@ void hermes_app_task(void *pvParameters)
 
 		// Do connection maintenance like LED states, hub report, and SNTP.
 		HermesApp_MaintainConnection();
-
+*/
 		// check for messages arriving from MQTT interface
 		if((uxQueueMessagesWaiting(xIncomingMQTTMessageMailbox) > 0)
 		&& (xQueueReceive(xIncomingMQTTMessageMailbox, &mqtt_message, 10)) == pdPASS)
@@ -907,7 +916,9 @@ void surenet_device_pairing_success_cb(ASSOCIATION_SUCCESS_INFORMATION *assoc_in
     zprintf(LOW_IMPORTANCE,"%08x\r\n", (uint32_t)(mac_addr&0xffffffff));
     //zprintf(CRITICAL_IMPORTANCE,"surenet_device_pairing_success_cb() - source = %d\r\n",assoc_info->source);
 
-	switch(assoc_info->source)
+    HermesConsoleWriteString("surenet_device_pairing_success_cb\r");
+
+	switch((int)assoc_info->source)
 	{
 		// flash LEDs if pairing completed and was initiated by one of the following
 		case PAIRING_REQUEST_SOURCE_SERVER:

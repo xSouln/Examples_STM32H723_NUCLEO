@@ -47,7 +47,8 @@
 #include "bmm.h"
 #include "qmm.h"
 #include "app_config.h"
-
+#include "FreeRTOS.h"
+#include "hermes.h"
 #if (TOTAL_NUMBER_OF_BUFS > 0)
 
 /* === Types =============================================================== */
@@ -104,6 +105,7 @@ void qmm_queue_init(queue_t *q)
  * Note that this pointer should be same as the
  * pointer returned by bmm_buffer_alloc.
  */
+
 #ifdef ENABLE_QUEUE_CAPACITY
 retval_t qmm_queue_append(queue_t *q, buffer_t *buf)
 #else
@@ -116,6 +118,23 @@ void qmm_queue_append(queue_t *q, buffer_t *buf)
 
 	ENTER_CRITICAL_REGION();
 
+	bool pre_existing = false;
+	// Check to see if buf already exists in queue.
+	if( 0 < q->size )
+	{
+		buffer_t* current = q->head;
+		while( NULL != current )
+		{
+			if( current == buf )
+			{	// Entry already exists!
+				zprintf(MEDIUM_IMPORTANCE, "Attempting to queue buffer that's already queued! 0x%p into 0x%p.\r\n", buf, q);
+				pre_existing = true;
+				break;
+			}
+			current = current->next;
+		}
+	}
+
 #ifdef ENABLE_QUEUE_CAPACITY
 	/* Check if queue is full */
 	if (q->size == q->capacity) {
@@ -123,6 +142,7 @@ void qmm_queue_append(queue_t *q, buffer_t *buf)
 		status = QUEUE_FULL;
 	} else
 #endif  /* ENABLE_QUEUE_CAPACITY */
+	if( false == pre_existing )
 	{
 		/* Check whether queue is empty */
 		if (q->size == 0) {
@@ -142,11 +162,14 @@ void qmm_queue_append(queue_t *q, buffer_t *buf)
 		/* Update size */
 		q->size++;
 
-#if (_DEBUG_ > 1)
+//#if (_DEBUG_ > 1)
 		if (q->head == NULL) {
-			Assert("Corrupted queue: Null pointer has been queued");
+			zprintf(TERMINAL_IMPORTANCE, "Corrupted queue: Null pointer has been queued");
+			zprintf(TERMINAL_IMPORTANCE, "Queue: 0x%p\r\nSize: %d\r\nBuffer: 0x%p\r\n", q, q->size, buf);
+			HermesConsoleFlush();
+			while(1);
 		}
-#endif
+//#endif
 
 #ifdef ENABLE_QUEUE_CAPACITY
 		status = MAC_SUCCESS;
@@ -220,6 +243,16 @@ static buffer_t *queue_read_or_remove(queue_t *q,
 				/* Update head if buffer removed is first node
 				**/
 				if (buffer_current == q->head) {
+					extern queue_t mac_nhle_q;
+					if( q == &mac_nhle_q )
+					{
+						if( (q->size != 1) && (buffer_current->next == NULL) )
+						{
+							zprintf(CRITICAL_IMPORTANCE, "Queue got buggered!\r\n");
+							HermesConsoleFlush();
+							while(1);
+						}
+					}
 					q->head = buffer_current->next;
 				} else {
 					/* Update the link by removing the

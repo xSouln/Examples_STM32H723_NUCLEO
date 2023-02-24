@@ -58,6 +58,7 @@
 #ifdef ENABLE_RTB
 #include "rtb.h"
 #endif  /* ENABLE_RTB */
+#include "hermes.h"	// for thread-safe random number functions
 
 /* === TYPES =============================================================== */
 
@@ -145,7 +146,7 @@ bool slotted_csma_start(bool perform_frame_retry)
 		calculate_transaction_duration();
 
 		/* Get a random backoff period duration. */
-		remaining_backoff_periods = (uint8_t)(rand() & ((1 << BE) - 1));
+		remaining_backoff_periods = (uint8_t)(hermes_rand() & ((1 << BE) - 1));
 
 		csma_backoff_calculation();
 
@@ -489,7 +490,7 @@ static void csma_backoff_calculation(void)
 				/* Restart again after next beacon. */
 				NB = 0;
 				remaining_backoff_periods
-					= (uint8_t)(rand() &
+					= (uint8_t)(hermes_rand() &
 						((1 << BE) - 1));
 				tal_csma_state = BACKOFF_WAITING_FOR_BEACON;
 
@@ -582,7 +583,7 @@ void slotted_csma_state_handling(void)
 
 			NB = 0;
 			remaining_backoff_periods
-				= (uint8_t)(rand() & ((1 << BE) - 1));
+				= (uint8_t)(hermes_rand() & ((1 << BE) - 1));
 			csma_backoff_calculation();
 		} else {
 			tx_done(MAC_NO_ACK);
