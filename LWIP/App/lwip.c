@@ -108,7 +108,7 @@ void MX_LWIP_Init(void)
     DNS_ADDRESS[2] = configDNS_SERVER_ADDR2;
     DNS_ADDRESS[3] = configDNS_SERVER_ADDR3;
 
-    osDelay(pdMS_TO_TICKS(1000));
+    osDelay(pdMS_TO_TICKS(100));
 /* USER CODE END IP_ADDRESSES */
 
   /* Initilialize the LwIP stack with RTOS */
@@ -154,8 +154,6 @@ void MX_LWIP_Init(void)
 									  DNS_ADDRESS[1],
 									  DNS_ADDRESS[2],
 									  DNS_ADDRESS[3]));
-
-  osDelay(1000);
   dns_setserver(0, &add1);
 /* USER CODE END 3 */
 }

@@ -23,11 +23,12 @@
 **************************************************************************/
 #ifndef __HERMES_BANC_MANAGER_H__
 #define __HERMES_BANC_MANAGER_H__
+//==============================================================================
+//includes:
 
 #include "Hermes-compiller.h"
-
-#include <stdint.h>
-#include <stdbool.h>
+//==============================================================================
+//defines:
 
 // DCP Config
 #define KEY_WORD_SWAP	0x00080000
@@ -44,6 +45,8 @@
 #else
 #define bm_printf(...)
 #endif
+//==============================================================================
+//types:
 
 typedef enum
 {
@@ -53,8 +56,9 @@ typedef enum
 	BANK_MARK_DEFAULT		= 1,
 
 	BANK_MARK_MAX = 0x7FFFFFFF
-} BANK_MARK;
 
+} BANK_MARK;
+//------------------------------------------------------------------------------
 typedef enum
 {
 	BM_BANK_UNKONWN,
@@ -62,7 +66,7 @@ typedef enum
 	BM_BANK_B
 
 } BM_BANK;
-
+//------------------------------------------------------------------------------
 typedef HERMES__PACKED_PREFIX struct
 {
 	// Bit-wise XOR of descriptor.
@@ -92,6 +96,8 @@ typedef HERMES__PACKED_PREFIX struct
 	uint8_t				garble[2];
 
 } HERMES__PACKED_POSTFIX BANK_DESCRIPTOR;
+//==============================================================================
+//functions:
 
 bool	BM_Init(void);	// Required before encryption.
 BM_BANK	BM_GetCurrentBank(void);
@@ -104,5 +110,5 @@ void	BM_ResolveBankUse(void);
 void	BM_ConfirmBank(bool force_encrypted);
 void	BM_BankSwitch(bool bank_b, bool encrypted);	// Sits in STARTUP.
 void 	BM_SetBankMark(BANK_MARK new_mark);
-
+//==============================================================================
 #endif //__HERMES_BANC_MANAGER_H__

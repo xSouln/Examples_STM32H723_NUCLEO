@@ -193,6 +193,7 @@ void HFU_trigger(bool retry)
  **************************************************************/
 void HFU_task(void *pvParameters)
 {
+	/*
     EventBits_t 				xEventBits;
 	uint32_t					page_to_fetch;
 	uint32_t					firmware_block;
@@ -203,7 +204,7 @@ void HFU_task(void *pvParameters)
 	uint32_t					pause_timestamp;
 	int32_t						encrypted_data;	// value of x-enc HTTP header field on a firmware page
 	uint32_t					bytes_read;		// how many bytes of firmware page were actually read
-	/*
+
 	while(1)
 	{
 		xEventBits = xEventGroupWaitBits(xHFU_EventGroup,
@@ -457,6 +458,7 @@ void hfu_fetch_page(uint32_t page, int32_t *encrypted_data, uint32_t *bytes_read
  **************************************************************/
 HFU_PROCESS_PAGE_RESULT hfu_process_page(uint32_t firmware_block, int32_t encrypted_data, uint32_t bytes_read)
 {
+	/*
 	uint32_t 	crc_sent, erase_addr, erase_count, prog_addr, prog_count, ver;
 	uint32_t 	crc_length;
 	uint16_t 	crc;
@@ -466,7 +468,7 @@ HFU_PROCESS_PAGE_RESULT hfu_process_page(uint32_t firmware_block, int32_t encryp
 	uint32_t	calc_crc;
 	bool 		res;
 	int i;
-	/*
+
 	// HTTP Header already trimmed off.
 	uint8_t *data_start = HFU_received_page;
 	
@@ -606,7 +608,7 @@ HFU_PROCESS_PAGE_RESULT hfu_process_page(uint32_t firmware_block, int32_t encryp
 			res = false;
 		}		
 	}
-	*/
+
 	if( false == res)
 	{
 		zprintf(HIGH_IMPORTANCE,"Flash write or verify failure\r\n");
@@ -615,6 +617,9 @@ HFU_PROCESS_PAGE_RESULT hfu_process_page(uint32_t firmware_block, int32_t encryp
 	{
 		return HFU_PAGE_OK;
 	}
+	*/
+
+	return 0;
 }
 
 void dump(uint8_t *addr, uint8_t lines)

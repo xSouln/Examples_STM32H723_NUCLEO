@@ -2,7 +2,7 @@
 *
 * SUREFLAP CONFIDENTIALITY & COPYRIGHT NOTICE
 *
-* Copyright © 2013-2021 Sureflap Limited.
+* Copyright ï¿½ 2013-2021 Sureflap Limited.
 * All Rights Reserved.
 *
 * All information contained herein is, and remains the property of Sureflap
@@ -21,9 +21,10 @@
 * Test cases are invoked by the CLI shell commands
 *
 **************************************************************************/
-
 #ifndef __HERMES_TEST_H__
 #define __HERMES_TEST_H__
+//==============================================================================
+//defines:
 
 #define PRINT_HERMES_TEST	false
 
@@ -32,6 +33,8 @@
 #else
 #define hermes_test_printf(...)
 #endif
+//==============================================================================
+//types:
 
 typedef enum
 {
@@ -62,8 +65,10 @@ typedef enum
     SET_FT_PASS_RESULTS,
     GET_FT_PASS_RESULTS,
     SET_PRODUCT_STATE,
-} TEST_ACTION;
 
+} TEST_ACTION;
+//==============================================================================
+//functions:
 
 void hermesTestTask(void *pvParameters);
 void hermesTestRunCase(uint8_t testCase, int8_t *pcParameterString);
@@ -71,9 +76,5 @@ void getProductConfig();
 void hermesTestProcessResponse();
 void getAesConfig();
 void getFTdata();
-
-
-
-#endif
-
-
+//==============================================================================
+#endif //__HERMES_TEST_H__

@@ -19,13 +19,8 @@
 * Purpose:  Parses messages received from Server, and despatch them.
 *
 **************************************************************************/
+#include "message_parser.h"
 #include "hermes.h"
-
-/* Standard includes. */
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
 
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
@@ -34,7 +29,6 @@
 #include "hermes-time.h"
 #include "hermes-app.h"
 #include "SureNet-Interface.h"
-#include "message_parser.h"
 #include "server_buffer.h"
 #include "device_buffer.h"
 #include "RegisterMap.h"
@@ -45,8 +39,10 @@
 
 #include "HubFirmwareUpdate.h"
 #include "credentials.h"
+//==============================================================================
+//defines:
 
-#include "Common/xConverter.h"
+
 //==============================================================================
 //types:
 
@@ -76,6 +72,7 @@ extern bool global_message_trace_flag;
 //==============================================================================
 // local functions
 void TranslateToDevice(uint64_t mac, uint16_t address, uint8_t *values, bool sendGet, uint32_t numVals);
+
 uint32_t msg_string_to_bytes(char *str,
 								char *header,
 								MSG_TYPE *cmd,
@@ -102,7 +99,7 @@ void process_MQTT_message_from_server(char *message,char *subtopic)
     MSG_TYPE 			command;
     int32_t 			index;
     uint16_t 			address;
-    uint16_t 			numValues;		// DNB was uint8_t
+    uint16_t 			numValues; // DNB was uint8_t
     uint64_t 			DeviceMAC;
 	uint8_t 			ping_value;
     MESSAGE_DESTINATION message_destination;
@@ -638,4 +635,4 @@ void TranslateToDevice(uint64_t mac, uint16_t address, uint8_t *values, bool sen
         device_buffer_add(mac, &message_for_device);
     }
 }
-
+//==============================================================================

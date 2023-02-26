@@ -81,6 +81,10 @@ extern QueueHandle_t		xSendDeviceTableMailbox;
 extern EventGroupHandle_t	xSurenet_EventGroup;
 extern QueueHandle_t		xLedMailbox;
 
+extern uint32_t		m_bank_a_start;
+extern uint32_t		m_bank_a_size;
+
+extern PRODUCT_CONFIGURATION product_configuration;
 //==============================================================================
 //variables:
 
@@ -171,6 +175,8 @@ T_HUB_REGISTER_ENTRY hubRegisterBank[HR_LAST_ELEMENT] HUB_REGISTER_BANK_MEM_SECT
 // we'll stuff the connection table entries programatically in clearHubBank()
 };
 //==============================================================================
+//functions:
+
 /**************************************************************
  * Function Name   : trigger_get_device_table
  * Description     : Gets an up to date copy of the Device Table.
@@ -181,7 +187,7 @@ uint8_t trigger_get_device_table(uint16_t address)
 	get_device_table(true);	// update register map
 	return hubRegisterBank[address].value;
 }
-
+//------------------------------------------------------------------------------
 void HubReg_Handle_Messages(void)
 {
 	if(uxQueueMessagesWaiting(xSendDeviceTableMailbox) > 0)
@@ -218,7 +224,7 @@ void get_device_table(bool trigger)
     if(xQueueReceive(xSendDeviceTableMailbox, &dev_table, pdMS_TO_TICKS(10000)) == pdPASS)
 	{
     	// a copy of the DEVICE_TABLE is now in dev_table, so we copy it into the register map
-		for (i = 0; i < (sizeof(DEVICE_STATUS)*MAX_NUMBER_OF_DEVICES); i++)
+		for (i = 0; i < (sizeof(DEVICE_STATUS) * MAX_NUMBER_OF_DEVICES); i++)
 		{
 			hubRegisterBank[i + HR_DEVICE_TABLE].value = dev_table[i];
 		}
@@ -244,25 +250,27 @@ static void HubReg_Handle_Device_Status(void)
 {
 	DEVICE_STATUS_REQUEST	request;
 	bool require_update = false;
-	if( pdPASS == xQueueReceive(xSendDeviceStatusMailbox, &request, 1) )
+
+	if(pdPASS == xQueueReceive(xSendDeviceStatusMailbox, &request, 1))
 	{
 		uint8_t* ptr = (uint8_t*)&request.device_status;
 		int i, j = HR_DEVICE_TABLE + request.line * sizeof(DEVICE_STATUS);
 
-		for( i = 0; i < sizeof(DEVICE_STATUS); i++ )
+		for(i = 0; i < sizeof(DEVICE_STATUS); i++)
 		{
-			if( hubRegisterBank[j+i].value != ptr[i] )
+			if(hubRegisterBank[j + i].value != ptr[i])
 			{
-				require_update = true;	// the two lines differ.
+				// the two lines differ.
+				require_update = true;
 			}
 		}
 
-		if (true == require_update)	// the lines differ so update hubRegisterBank
+		if (require_update)	// the lines differ so update hubRegisterBank
 		{
 			for( i = 0; i < sizeof(DEVICE_STATUS); i++)
 			{
 				hubRegisterBank[j+i].value = ptr[i];
-				if( (false == request.limited) || (i < DEVICE_STATUS_LAST_HEARD_POS) )
+				if((!request.limited) || (i < DEVICE_STATUS_LAST_HEARD_POS))
 				{
 					hubRegisterBank[j+i].updateWebFlag = true; // In limited mode, only update the non-time parts.
 				}
@@ -270,7 +278,8 @@ static void HubReg_Handle_Device_Status(void)
 		}
 		get_num_pairs(HR_DEVICE_TABLE_NUMBER_CONNECTIONS);  //ensure register 44 is properly initialised
 		hubRegisterBank[HR_DEVICE_TABLE_NUMBER_CONNECTIONS].updateWebFlag = true; // need to tell the server about this
-	} else
+	}
+	else
 	{
 		zprintf(MEDIUM_IMPORTANCE, "HubReg_Handle_Device_Status() failed to read mailbox\r\n");
 	}
@@ -321,7 +330,7 @@ void update_register_map_device_table_size(uint8_t number_of_devices)
 	if (number_of_devices>old_number_of_devices)
 	{
 		// set the update flags for the newly exposed part of the register map
-		for (i=(old_num_registers+1); i<num_registers; i++)
+		for (i = (old_num_registers + 1); i < num_registers; i++)
 		{
 			hubRegisterBank[i].updateWebFlag = false;
 		}
@@ -421,7 +430,7 @@ void HubReg_Check_Full(void)
 		}
 	}
 }
-
+//------------------------------------------------------------------------------
 static void Hub_Registers_Send_Range(uint32_t start_index, uint32_t count)
 {
 	// Will wrap around. Server has limit of 8 bit value
@@ -466,7 +475,7 @@ static void Hub_Registers_Send_Range(uint32_t start_index, uint32_t count)
 		}
 	}
 }
-
+//------------------------------------------------------------------------------
 void HubReg_Send_All(void)
 {
 	uint32_t i;
@@ -484,7 +493,7 @@ uint8_t reg_read(uint16_t address)
 {
 	return hubRegisterBank[address].value;
 }
-
+//------------------------------------------------------------------------------
 uint8_t getHwVersion(uint16_t address)
 {
 	return readHwVersion();
@@ -529,8 +538,7 @@ uint8_t null_read_fn(uint16_t address)
  * Function Name   : checksum_read
  * Description     : Calculates the checksum crc16 of active flash bank
  **************************************************************/
-extern uint32_t		m_bank_a_start;
-extern uint32_t		m_bank_a_size;
+//!!!
 uint8_t checksum_read(uint16_t address)
 {
 	/*
@@ -705,7 +713,6 @@ void led_mode_write(uint16_t address, uint8_t value)
  * Function Name   : remote_reboot
  * Description     : Reset the hub cpu if 0xdd written to it.
  **************************************************************/
-extern PRODUCT_CONFIGURATION product_configuration;
 void remote_reboot(uint16_t address, uint8_t value)
 {
 	switch( value )
@@ -731,7 +738,8 @@ void remote_reboot(uint16_t address, uint8_t value)
 /**************************************************************
  * Function Name   : clear_pairing_table
  **************************************************************/
-void clear_pairing_table(uint16_t address,uint8_t value)  // only value 0xff will cause table to be cleared
+// only value 0xff will cause table to be cleared
+void clear_pairing_table(uint16_t address,uint8_t value)
 {
 	regmap_printf("Called clear_pairing_table value=%x\r\n", value);
 	if (value==0xff)  // for safety only allow one specific value to trigger clearing
@@ -746,11 +754,15 @@ void clear_pairing_table(uint16_t address,uint8_t value)  // only value 0xff wil
 /**************************************************************
  * Function Name   : clear_pairing_table
  **************************************************************/
-void delete_pairing_table_entry(uint16_t address, uint8_t value)  //value is index to be cleared
+//value is index to be cleared
+void delete_pairing_table_entry(uint16_t address, uint8_t value)
 {
 	regmap_printf("Called delete_pairing_table entry %x\r\n", value);
 	zprintf(LOW_IMPORTANCE,"delete_pairing_table entry(%x)\r\n", value);
-	if( value < MAX_NUMBER_OF_DEVICES ){ surenet_unpair_device_by_index(value); }
+	if(value < MAX_NUMBER_OF_DEVICES)
+	{
+		surenet_unpair_device_by_index(value);
+	}
 }
 
 
@@ -804,7 +816,7 @@ void set_surenet_channel_number(uint16_t address,uint8_t channel)
  **************************************************************/
 uint8_t app_error_read(uint16_t address)
 {
-    return 0;   // we don't have application errors
+    return 0; // we don't have application errors
 }
 
 /**************************************************************
@@ -1000,7 +1012,7 @@ void hub_reg_dump(char* s, HUB_REGISTER_TYPE reg, uint32_t num_regs)
 	zprintf(CRITICAL_IMPORTANCE, "%*s]\r\n", 7-num_regs, "");
 	HermesConsoleFlush();
 }
-
+//------------------------------------------------------------------------------
 void HubReg_Dump(void)
 {
     uint32_t i,j;
@@ -1053,12 +1065,12 @@ void HubReg_Dump(void)
     }
 	zprintf(CRITICAL_IMPORTANCE, "\t[--- End Device Table ---]\r\n");
 }
-
+//------------------------------------------------------------------------------
 uint8_t HRM_Read_Image_Hash(uint16_t address)
 {
 	return hubRegisterBank[address].value;
 }
-
+//------------------------------------------------------------------------------
 uint32_t HubReg_Get_Integer(uint16_t address)
 {
 	uint32_t ret = hubRegisterBank[address].value;
@@ -1068,3 +1080,4 @@ uint32_t HubReg_Get_Integer(uint16_t address)
 
 	return ret;
 }
+//==============================================================================

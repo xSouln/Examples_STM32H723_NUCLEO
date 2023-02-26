@@ -39,44 +39,58 @@
 #include "api.h"
 #include "dns.h"
 //==============================================================================
-NTP_StatusT NTP_Status;
+SNTP_StatusT SNTP_Status;
+
+EventGroupHandle_t sntp_event_group;
 //==============================================================================
 void SNTP_Task(void *pvParameters)
 {
 	while(true)
 	{
-		if (NTP_Status.State == NTP_STATE_REQUEST_UPDATE)
+		EventBits_t xEventBits = xEventGroupWaitBits(sntp_event_group, SNTP_EVENT_UPDATE_REQUESTED, pdFALSE, pdFALSE, portMAX_DELAY);
+
+		if (!(xEventBits & SNTP_EVENT_UPDATE_REQUESTED))
 		{
-			NTP_Status.State = NTP_STATE_IN_PROGRESS;
-
-			NTP_Status.Result = SNTP_GetTime() ? NTP_RESULT_SUCCESS : NTP_RESULT_ERROR;
-
-			NTP_Status.State = NTP_STATE_STOPPED;
+			continue;
 		}
-		osDelay(pdMS_TO_TICKS(10));
+
+		if (SNTP_Status.State == SNTP_STATE_REQUEST_UPDATE)
+		{
+			SNTP_Status.State = SNTP_STATE_IN_PROGRESS;
+
+			SNTP_Status.Result = SNTP_GetTime() ? SNTP_RESULT_SUCCESS : SNTP_RESULT_ERROR;
+
+			SNTP_Status.State = SNTP_STATE_STOPPED;
+		}
+
+		xEventGroupSetBits(sntp_event_group, SNTP_EVENT_COMPLITE);
+		xEventGroupClearBits(sntp_event_group, SNTP_EVENT_UPDATE_REQUESTED);
 	};
 }
 //------------------------------------------------------------------------------
 void SNTP_Init(void)
 {
-	//xSNTP_EventGroup = xEventGroupCreate();
+	sntp_event_group = xEventGroupCreate();
 }
 //------------------------------------------------------------------------------
 bool SNTP_IsTimeValid(void)
 {
-	return NTP_Status.Result == NTP_RESULT_SUCCESS;
+	return SNTP_Status.Result == SNTP_RESULT_SUCCESS;
 }
 //------------------------------------------------------------------------------
 bool SNTP_DidUpdateFail(void)
 {
-	return NTP_Status.Result == NTP_RESULT_ERROR;
+	return SNTP_Status.Result == SNTP_RESULT_ERROR;
 }
 //------------------------------------------------------------------------------
 void SNTP_RequestUpdate()
 {
-	if (NTP_Status.State == NTP_STATE_STOPPED)
+	if (SNTP_Status.State == SNTP_STATE_STOPPED)
 	{
-		NTP_Status.State = NTP_STATE_REQUEST_UPDATE;
+		SNTP_Status.State = SNTP_STATE_REQUEST_UPDATE;
+
+		xEventGroupClearBits(sntp_event_group, SNTP_EVENT_COMPLITE);
+		xEventGroupSetBits(sntp_event_group, SNTP_EVENT_UPDATE_REQUESTED);
 	}
 }
 //------------------------------------------------------------------------------
@@ -84,12 +98,9 @@ bool SNTP_AwaitUpdate(bool MakeRequest, uint32_t TimeToWait)
 {
 	SNTP_RequestUpdate();
 
-	while (NTP_Status.State != NTP_STATE_STOPPED)
-	{
-		osDelay(5);
-	}
+	xEventGroupWaitBits(sntp_event_group, SNTP_EVENT_COMPLITE, pdFALSE, pdFALSE, TimeToWait);
 
-	if (NTP_Status.Result == NTP_RESULT_SUCCESS)
+	if (SNTP_Status.Result == SNTP_RESULT_SUCCESS)
 	{
 		return true;
 	}
@@ -210,6 +221,8 @@ bool SNTP_GetTime(void)
 					time.tm_sec);
 
 			success = true;
+
+			time = time;
 		}
 		else
 		{

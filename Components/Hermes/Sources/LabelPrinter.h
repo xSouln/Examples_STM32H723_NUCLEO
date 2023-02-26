@@ -2,7 +2,7 @@
 *
 * SUREFLAP CONFIDENTIALITY & COPYRIGHT NOTICE
 *
-* Copyright © 2013-2021 Sureflap Limited.
+* Copyright ï¿½ 2013-2021 Sureflap Limited.
 * All Rights Reserved.
 *
 * All information contained herein is, and remains the property of Sureflap 
@@ -19,12 +19,18 @@
 * Purpose:  Label Printer handler for Production Test   
 *             
 **************************************************************************/
-
 #ifndef __LABEL_PRINTER__
 #define __LABEL_PRINTER__
+//==============================================================================
+//includes:
+
+#include "Hermes-compiller.h"
+//==============================================================================
+//functions:
 
 void label_task(void *pvParameters);
-void restart_label_print(void);	// this is a bit naughty, but only needed for testing...
 
-
-#endif
+// this is a bit naughty, but only needed for testing...
+void restart_label_print(void);
+//==============================================================================
+#endif //__LABEL_PRINTER__

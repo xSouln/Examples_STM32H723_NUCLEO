@@ -30,8 +30,7 @@
 //==============================================================================
 //includes:
 
-#include "Components.h"
-#include "FreeRTOS.h"   // has some standard definitions
+#include "Hermes-compiller.h"
 #include "SureNet-Interface.h"
 //==============================================================================
 //defines:
@@ -62,7 +61,7 @@ typedef struct
 //==============================================================================
 //functions:
 
-BaseType_t snd_init(uint64_t *mac_addr, uint16_t panid, uint8_t channel);
+int snd_init(uint64_t *mac_addr, uint16_t panid, uint8_t channel);
 
 // called by MAC with payload from Beacon Request message from device
 bool set_beacon_request_data(uint64_t mac_address, uint8_t src_address_mode, uint8_t data);

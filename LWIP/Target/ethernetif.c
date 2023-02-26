@@ -34,7 +34,7 @@
 
 /* Within 'USER CODE' section, code will be kept by default at each generation */
 /* USER CODE BEGIN 0 */
-
+#include "hermes.h"
 /* USER CODE END 0 */
 
 /* Private define ------------------------------------------------------------*/
@@ -236,6 +236,7 @@ static void low_level_init(struct netif *netif)
 	heth.Init.MACAddr = mMACAddr;
 
 	lwip_mem[0] = 0;
+
   /* USER CODE END MACADDRESS */
 
   hal_eth_init_status = HAL_ETH_Init(&heth);
@@ -296,7 +297,12 @@ static void low_level_init(struct netif *netif)
   LAN8742_RegisterBusIO(&LAN8742, &LAN8742_IOCtx);
 
   /* Initialize the LAN8742 ETH PHY */
-  LAN8742_Init(&LAN8742);
+  int result = LAN8742_Init(&LAN8742);
+
+  if (result == LAN8742_STATUS_OK)
+  {
+	  HermesConsoleWriteString("LAN8742_Init(): true/r");
+  }
 
   if (hal_eth_init_status == HAL_OK)
   {

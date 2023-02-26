@@ -26,4 +26,4 @@
 
 void DisplayResetStatus(void);
 //==============================================================================
-#endif
+#endif //__RESET_HANDLER__

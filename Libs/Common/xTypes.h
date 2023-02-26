@@ -192,6 +192,12 @@ name##PropertyT value_name
 
 #define sizeof_str(str)(sizeof(str) / sizeof(str[0]) - 1)
 #define sizeof_array(array)(sizeof(array) / sizeof(array[0]))
+
+//max value: 4294967295 - 10 symbols
+#define uitn32_t_maximum_length_in_string 10
+
+//max value: 9223372036854775807 - 19 symbols
+#define uitn64_t_maximum_length_in_string 20
 //==============================================================================
 #ifdef __cplusplus
 }

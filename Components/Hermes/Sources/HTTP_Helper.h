@@ -30,6 +30,8 @@
 
 #include "hermes.h"
 
+#include "NetworkInterface.h"
+
 #include "wolfssl/ssl.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -101,6 +103,7 @@ typedef struct
 	int				socket;
 	int32_t			result;
 	uint32_t		bytes_read;
+
 } HTTP_CONNECTION;
 //==============================================================================
 //functions:

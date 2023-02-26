@@ -18,15 +18,12 @@
 * Author:   Chris Cowdery
 * Purpose:
 **************************************************************************/
-/* FreeRTOS includes. */
+//includes:
+
+#include "Hermes-compiller.h"
+
 #include "FreeRTOS.h"
 #include "task.h"
-
-/* Standard includes. */
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 
 /* FreeRTOS+CLI includes. */
 #include "FreeRTOS_CLI.h"
@@ -56,6 +53,12 @@
 
 #include "wolfssl/wolfcrypt/hash.h"
 #include "NetworkInterface.h"
+//==============================================================================
+//defines:
+
+
+//==============================================================================
+//types:
 
 typedef enum
 {
@@ -63,10 +66,38 @@ typedef enum
 	PIN_SPEED_MEDIUM,
 	PIN_SPEED_CRAZY_FAST,
 	PIN_SPEED_BACKSTOP,
-} PIN_SPEED;
 
-uint32_t uAppendString(char *pcDest, char *pcStr);
-uint64_t read_mac_address (char * tmac);
+} PIN_SPEED;
+//==============================================================================
+//externs:
+
+extern QueueHandle_t xLedMailbox;
+extern QueueHandle_t xRemoveFromPairingTable;
+extern QueueHandle_t xUnpairDeviceMailbox;
+extern QueueHandle_t xOutgoingMQTTMessageMailbox;
+extern uint8_t printLevel;
+
+extern PRODUCT_CONFIGURATION product_configuration;
+extern const BANK_DESCRIPTOR	BankA_Descriptor;
+extern const BANK_DESCRIPTOR	BankB_Descriptor;
+extern uint64_t	rfmac;
+
+extern uint32_t		m_bank_a_start;
+extern uint32_t		m_bank_b_start;
+extern uint32_t		m_bank_a_size;
+extern uint32_t		m_bank_b_size;
+
+extern bool global_message_trace_flag;
+
+extern bool display_pairing_success;
+
+extern const char *pin_speed_names[];
+//==============================================================================
+//variables:
+
+bool isCLIUnlocked = false;
+//==============================================================================
+//prototypes:
 
 static portBASE_TYPE prvTaskStatsCommand	(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString);
 static portBASE_TYPE prvRunTimeStatsCommand	(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString);
@@ -104,24 +135,19 @@ static portBASE_TYPE prvKeyUpdateCommand	(char *pcWriteBuffer, size_t xWriteBuff
 static portBASE_TYPE prvChecksumCommand		(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString);
 static portBASE_TYPE prvMessageDumpCommand	(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString);
 static portBASE_TYPE prvHRMFullDumpCommand	(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString);
+//------------------------------------------------------------------------------
 #if SURENET_ACTIVITY_LOG
 static portBASE_TYPE prvSNLogCommand		(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString);
+void dump_surenet_log(void);
 #endif
-
-static portBASE_TYPE prvGreetingCommand		(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString);//vRegisterBasicCLICommands
-static portBASE_TYPE prvUnlockCommand		(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString);//vRegisterBasicCLICommands
-
-
-
-extern QueueHandle_t xLedMailbox;
-extern QueueHandle_t xRemoveFromPairingTable;
-extern QueueHandle_t xUnpairDeviceMailbox;
-extern QueueHandle_t xOutgoingMQTTMessageMailbox;
-extern uint8_t printLevel;
-
-
-bool isCLIUnlocked = false;
-
+//------------------------------------------------------------------------------
+static portBASE_TYPE prvGreetingCommand(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString);
+static portBASE_TYPE prvUnlockCommand(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString);
+//------------------------------------------------------------------------------
+uint32_t uAppendString(char *pcDest, char *pcStr);
+uint64_t read_mac_address(char * tmac);
+void dump_bank_desc(const BANK_DESCRIPTOR *desc);
+//==============================================================================
 /* Structure that defines the "checksum" command line command. */
 CLI_Command_Definition_t prvChecksumCommandDefinition =
 {
@@ -157,7 +183,6 @@ CLI_Command_Definition_t prvKeyUpdateCommandDefinition =
 	prvKeyUpdateCommand, /* The function to run. */
 	0 /* No parameters are expected. */
 };
-
 
 /* Structure that defines the "run-time-stats" command line command.   This
 generates a table that shows how much run time each task has */
@@ -473,7 +498,8 @@ CLI_Command_Definition_t prvHRMFullDumpCommandDefinition =
 	0
 };
 
-/*-----------------------------------------------------------*/
+//==============================================================================
+//functions:
 
 void vRegisterBasicCLICommands(void)
 {
@@ -485,7 +511,7 @@ void vRegisterBasicCLICommands(void)
 	vRegisterSimulatorCLICommands();
 
 }
-
+//------------------------------------------------------------------------------
 void vRegisterCLICommands( void )
 {
 	/* Register all the command line commands defined immediately above. */
@@ -530,7 +556,7 @@ void vRegisterCLICommands( void )
 	vRegisterSimulatorCLICommands();
 
 }
-/*-----------------------------------------------------------*/
+//------------------------------------------------------------------------------
 
 static portBASE_TYPE prvTaskStatsCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
@@ -543,7 +569,6 @@ static portBASE_TYPE prvTaskStatsCommand( char *pcWriteBuffer, size_t xWriteBuff
 	TaskStatus_t *pxTaskStatusArray;
 	UBaseType_t uxArraySize, x;
 	uint32_t start,end;
-	uint32_t *ptr;
 	uint32_t percent_unused;
 
 	char *states[]={"Running","Ready","Blocked","Suspend","Deleted","Invalid"};
@@ -601,7 +626,7 @@ static portBASE_TYPE prvTaskStatsCommand( char *pcWriteBuffer, size_t xWriteBuff
 	*pcWriteBuffer='\0';	// stop previous content from being printed
 	return pdFALSE;
 }
-/*-----------------------------------------------------------*/
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvRunTimeStatsCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	/* Remove compile time warnings about unused parameters, and check the
@@ -671,11 +696,12 @@ static portBASE_TYPE prvRunTimeStatsCommand( char *pcWriteBuffer, size_t xWriteB
 		/* Free the array again.*/
 		vPortFree( pxTaskStatusArray );
 	}
-	*pcWriteBuffer='\0';	// stop previous content from being printed
+	*pcWriteBuffer = '\0';	// stop previous content from being printed
 	return pdFALSE;
 }
 
-/*-----------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//!!!
 static portBASE_TYPE prvFaultCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	/* Remove compile time warnings about unused parameters, and check the
@@ -684,14 +710,14 @@ static portBASE_TYPE prvFaultCommand( char *pcWriteBuffer, size_t xWriteBufferLe
 	( void ) pcCommandString;
 	( void ) xWriteBufferLen;
 	configASSERT( pcWriteBuffer );
-    void (*fn_ptr)()=(void (*)())0x30000000;    // no memory at this address
+    void (*fn_ptr)()=(void (*)())0x30000000; // no memory at this address
 
     fn_ptr();
 
 	return pdFALSE;
 }
 
-/*-----------------------------------------------------------*/
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvHFUCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	( void ) pcCommandString;
@@ -703,7 +729,7 @@ static portBASE_TYPE prvHFUCommand( char *pcWriteBuffer, size_t xWriteBufferLen,
 	return pdFALSE;
 }
 
-/*-----------------------------------------------------------*/
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvResetCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	/* Remove compile time warnings about unused parameters, and check the
@@ -719,7 +745,7 @@ static portBASE_TYPE prvResetCommand( char *pcWriteBuffer, size_t xWriteBufferLe
 	return pdFALSE;
 }
 
-/*-----------------------------------------------------------*/
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvWDTestCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	( void ) pcCommandString;
@@ -736,8 +762,7 @@ static portBASE_TYPE prvWDTestCommand( char *pcWriteBuffer, size_t xWriteBufferL
 #endif
 	return pdFALSE;
 }
-
-/*-----------------------------------------------------------*/
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvLabelResetCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	/* Remove compile time warnings about unused parameters, and check the
@@ -746,13 +771,14 @@ static portBASE_TYPE prvLabelResetCommand( char *pcWriteBuffer, size_t xWriteBuf
 	( void ) pcCommandString;
 	( void ) xWriteBufferLen;
 	configASSERT( pcWriteBuffer );
-	*pcWriteBuffer='\0';	// stop previous content from being printed
+	*pcWriteBuffer='\0'; // stop previous content from being printed
 	restart_label_print();
 
 	return pdFALSE;
 }
 
-/*-----------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//!!!
 static portBASE_TYPE prvCrashCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	/* Remove compile time warnings about unused parameters, and check the
@@ -761,7 +787,7 @@ static portBASE_TYPE prvCrashCommand( char *pcWriteBuffer, size_t xWriteBufferLe
 	( void ) pcCommandString;
 	( void ) xWriteBufferLen;
 	configASSERT( pcWriteBuffer );
-	*pcWriteBuffer='\0';	// stop previous content from being printed
+	*pcWriteBuffer = '\0'; // stop previous content from being printed
 
 	////CLOCK_ControlGate(kCLOCK_Gpio1,kCLOCK_ClockNotNeeded);
 	////volatile uint32_t t = GPIO1->DR;	// will trigger an exception
@@ -769,7 +795,7 @@ static portBASE_TYPE prvCrashCommand( char *pcWriteBuffer, size_t xWriteBufferLe
 	return pdFALSE;
 }
 
-/*-----------------------------------------------------------*/
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvSanitiseCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	/* Remove compile time warnings about unused parameters, and check the
@@ -778,15 +804,14 @@ static portBASE_TYPE prvSanitiseCommand( char *pcWriteBuffer, size_t xWriteBuffe
 	( void ) pcCommandString;
 	( void ) xWriteBufferLen;
 	configASSERT( pcWriteBuffer );
-	*pcWriteBuffer='\0';	// stop previous content from being printed
+	*pcWriteBuffer='\0'; // stop previous content from being printed
 	sanitise_product_config();
 
 	return pdFALSE;
 }
 
 #if SURENET_ACTIVITY_LOG
-void dump_surenet_log(void);
-/*-----------------------------------------------------------*/
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvSNLogCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	/* Remove compile time warnings about unused parameters, and check the
@@ -795,39 +820,36 @@ static portBASE_TYPE prvSNLogCommand( char *pcWriteBuffer, size_t xWriteBufferLe
 	( void ) pcCommandString;
 	( void ) xWriteBufferLen;
 	configASSERT( pcWriteBuffer );
-	*pcWriteBuffer='\0';	// stop previous content from being printed
+	*pcWriteBuffer='\0'; // stop previous content from being printed
 	dump_surenet_log();
 	return pdFALSE;
 }
 #endif
 
-/*-----------------------------------------------------------*/
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvKeyDumpCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	( void ) pcCommandString;
 	( void ) xWriteBufferLen;
 	configASSERT( pcWriteBuffer );
-	*pcWriteBuffer='\0';	// stop previous content from being printed
+	*pcWriteBuffer='\0'; // stop previous content from being printed
 	key_dump();
 	return pdFALSE;
 }
 
-/*-----------------------------------------------------------*/
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvKeyUpdateCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	( void ) pcCommandString;
 	( void ) xWriteBufferLen;
 	configASSERT( pcWriteBuffer );
-	*pcWriteBuffer='\0';	// stop previous content from being printed
+	*pcWriteBuffer='\0'; // stop previous content from being printed
 	send_shared_secret();
 	return pdFALSE;
 }
 
-/*-----------------------------------------------------------*/
-extern PRODUCT_CONFIGURATION product_configuration;
-extern const BANK_DESCRIPTOR	BankA_Descriptor;
-extern const BANK_DESCRIPTOR	BankB_Descriptor;
-extern uint64_t	rfmac;
+//------------------------------------------------------------------------------
+//!!!
 static portBASE_TYPE prvVersionCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	/* Remove compile time warnings about unused parameters, and check the
@@ -911,8 +933,7 @@ static portBASE_TYPE prvVersionCommand( char *pcWriteBuffer, size_t xWriteBuffer
 
 	return pdFALSE;
 }
-
-
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvGreetingCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	extern bool shouldICryptFlag;
@@ -920,8 +941,7 @@ static portBASE_TYPE prvGreetingCommand( char *pcWriteBuffer, size_t xWriteBuffe
 	int8_t 			*pcParameterString;
     portBASE_TYPE	xParameterNumber = 1;
     portBASE_TYPE 	xParameterStringLength;
-    char 			pcParameter[20];    // should only really need to be a few bytes long
-    int8_t 		packageValue;
+    char 			pcParameter[20]; // should only really need to be a few bytes long
 
     pcParameterString = (int8_t *) FreeRTOS_CLIGetParameter (pcCommandString,		 	/*The command string itself. */
 							                                xParameterNumber,		 	/*Return the next parameter. */
@@ -985,7 +1005,7 @@ static portBASE_TYPE prvGreetingCommand( char *pcWriteBuffer, size_t xWriteBuffe
 	//indication of if encrypted, packaged up, and locked/unlocked
 	return pdFALSE;
 }
-
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvUnlockCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	extern bool amILocked;
@@ -1018,9 +1038,8 @@ static portBASE_TYPE prvUnlockCommand( char *pcWriteBuffer, size_t xWriteBufferL
 	//amILocked = true;
 	return pdFALSE;
 }
-
-extern const BANK_DESCRIPTOR	BankA_Descriptor, BankB_Descriptor;
-void dump_bank_desc(const BANK_DESCRIPTOR *desc);
+//------------------------------------------------------------------------------
+//!!!
 static portBASE_TYPE prvBankCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	/* Remove compile time warnings about unused parameters, and check the
@@ -1043,7 +1062,7 @@ static portBASE_TYPE prvBankCommand( char *pcWriteBuffer, size_t xWriteBufferLen
     *pcWriteBuffer='\0';    */
     return pdFALSE;
 }
-
+//------------------------------------------------------------------------------
 void dump_bank_desc(const BANK_DESCRIPTOR *desc)
 {
 
@@ -1063,12 +1082,13 @@ void dump_bank_desc(const BANK_DESCRIPTOR *desc)
 		zprintf(CRITICAL_IMPORTANCE, "false\r\n");
 	zprintf(CRITICAL_IMPORTANCE, "watchdog resets : %d\r\n",desc->watchdog_resets);
 }
-
+//------------------------------------------------------------------------------
 void CLI_PingRespCallback(void)
 {
 	zprintf(CRITICAL_IMPORTANCE, "CLI Ping reply OK\r\n");
 }
-
+//------------------------------------------------------------------------------
+//!!!
 BaseType_t vSendPing(uint32_t ulIPAddress)
 {
     uint16_t usRequestSequenceNumber, usReplySequenceNumber;
@@ -1078,14 +1098,15 @@ BaseType_t vSendPing(uint32_t ulIPAddress)
 
     return pdPASS;
 }
-
+//------------------------------------------------------------------------------
+//!!!
 // ping command
 static portBASE_TYPE prvPingCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
     int8_t *pcParameterString;
     static portBASE_TYPE xParameterNumber = 1;
     portBASE_TYPE xParameterStringLength;
-    char pcParameter[20];    // ought to be long enough for an IP address
+    char pcParameter[20]; // ought to be long enough for an IP address
 	uint32_t ulIPAddress;
 
     pcParameterString = ( int8_t * ) FreeRTOS_CLIGetParameter
@@ -1113,12 +1134,7 @@ static portBASE_TYPE prvPingCommand( char *pcWriteBuffer, size_t xWriteBufferLen
 
     return pdFALSE;
 }
-
-extern uint32_t		m_bank_a_start;
-extern uint32_t		m_bank_b_start;
-extern uint32_t		m_bank_a_size;
-extern uint32_t		m_bank_b_size;
-
+//------------------------------------------------------------------------------
 void calc_checksum(uint8_t *addr, uint32_t length)
 {
 	char hash[WC_SHA256_DIGEST_SIZE];	// result
@@ -1144,7 +1160,8 @@ void calc_checksum(uint8_t *addr, uint32_t length)
 	crc = CRC16(addr, length, 0xcccc);
 	zprintf(CRITICAL_IMPORTANCE,"CRC = 0X%04x\r\n",crc);
 }
-
+//------------------------------------------------------------------------------
+//!!!
 static portBASE_TYPE prvChecksumCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	//!attention
@@ -1197,8 +1214,7 @@ static portBASE_TYPE prvChecksumCommand( char *pcWriteBuffer, size_t xWriteBuffe
 
     return pdFALSE;
 }
-
-extern bool global_message_trace_flag;
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvMessageDumpCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
     int8_t *pcParameterString;
@@ -1231,8 +1247,7 @@ static portBASE_TYPE prvMessageDumpCommand( char *pcWriteBuffer, size_t xWriteBu
     *pcWriteBuffer='\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
     return pdFALSE;
 }
-
-
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvRFMACMangleCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
     int8_t *pcParameterString;
@@ -1271,9 +1286,7 @@ static portBASE_TYPE prvRFMACMangleCommand( char *pcWriteBuffer, size_t xWriteBu
     *pcWriteBuffer='\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
     return pdFALSE;
 }
-
-// pairmode command
-extern bool display_pairing_success;
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvPairCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	PAIRING_REQUEST request = {0,true,PAIRING_REQUEST_SOURCE_CLI};
@@ -1305,7 +1318,7 @@ static portBASE_TYPE prvPairCommand( char *pcWriteBuffer, size_t xWriteBufferLen
     *pcWriteBuffer='\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
     return pdFALSE;
 }
-
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvPrintLevelCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
     int8_t 			*pcParameterString;
@@ -1318,8 +1331,9 @@ static portBASE_TYPE prvPrintLevelCommand( char *pcWriteBuffer, size_t xWriteBuf
     pcParameterString = (int8_t *) FreeRTOS_CLIGetParameter (pcCommandString,		/* The command string itself. */
 							                                xParameterNumber,		/* Return the next parameter. */
                             							    &xParameterStringLength);	/* Store the parameter string length. */
-	if( '\0' == pcParameterString )
-	{	// We've not been given the level, so just report it.
+	if(pcParameterString == 0)
+	{
+		// We've not been given the level, so just report it.
 //		sprintf(pcWriteBuffer, "Print Level: %d\r\n\0", printLevel);
 		return pdFALSE;
 	}
@@ -1353,8 +1367,8 @@ static portBASE_TYPE prvPrintLevelCommand( char *pcWriteBuffer, size_t xWriteBuf
 
 	return pdFALSE;
 }
-
-extern const char *pin_speed_names[];
+//------------------------------------------------------------------------------
+//!!!
 static portBASE_TYPE prvPinSpeedCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	//!attention
@@ -1413,8 +1427,7 @@ static portBASE_TYPE prvPinSpeedCommand( char *pcWriteBuffer, size_t xWriteBuffe
 
 	return pdFALSE;
 }
-
-
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvSetProductStateCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
     int8_t 			*pcParameterString;
@@ -1445,11 +1458,12 @@ static portBASE_TYPE prvSetProductStateCommand( char *pcWriteBuffer, size_t xWri
 
 	set_product_state((PRODUCT_STATE) state);
 
-	*pcWriteBuffer='\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
+	// ensure we don't return with duff info in write buffer (because it does get output!)
+	*pcWriteBuffer='\0';
 
 	return pdFALSE;
 }
-
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvForgetDeviceCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
     int8_t 					*pcParameterString;
@@ -1483,7 +1497,7 @@ static portBASE_TYPE prvForgetDeviceCommand( char *pcWriteBuffer, size_t xWriteB
 
     return pdFALSE;
 }
-
+//------------------------------------------------------------------------------
 // unpair command
 static portBASE_TYPE prvUnPairCommand (char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString)
 {
@@ -1510,7 +1524,7 @@ static portBASE_TYPE prvUnPairCommand (char *pcWriteBuffer, size_t xWriteBufferL
     *pcWriteBuffer='\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
     return pdFALSE;
 }
-
+//------------------------------------------------------------------------------
 // pairtable command
 static portBASE_TYPE prvPairTableCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
@@ -1518,7 +1532,7 @@ static portBASE_TYPE prvPairTableCommand( char *pcWriteBuffer, size_t xWriteBuff
     *pcWriteBuffer='\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
     return pdFALSE;
 }
-
+//------------------------------------------------------------------------------
 // serverbuf command
 static portBASE_TYPE prvServerBufferCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
@@ -1526,7 +1540,7 @@ static portBASE_TYPE prvServerBufferCommand( char *pcWriteBuffer, size_t xWriteB
     *pcWriteBuffer='\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
     return pdFALSE;
 }
-
+//------------------------------------------------------------------------------
 // devicebuf command
 static portBASE_TYPE prvDeviceBufferCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
@@ -1534,7 +1548,7 @@ static portBASE_TYPE prvDeviceBufferCommand( char *pcWriteBuffer, size_t xWriteB
     *pcWriteBuffer='\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
     return pdFALSE;
 }
-
+//------------------------------------------------------------------------------
 // mqttstat command
 static portBASE_TYPE prvMQTTStatusCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
@@ -1542,6 +1556,7 @@ static portBASE_TYPE prvMQTTStatusCommand( char *pcWriteBuffer, size_t xWriteBuf
 	*pcWriteBuffer='\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
     return pdFALSE;
 }
+//------------------------------------------------------------------------------
 // hubreg command
 static portBASE_TYPE prvDumpHubRegistersCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
@@ -1549,7 +1564,7 @@ static portBASE_TYPE prvDumpHubRegistersCommand( char *pcWriteBuffer, size_t xWr
     *pcWriteBuffer='\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
     return pdFALSE;
 }
-
+//------------------------------------------------------------------------------
 // Test LED driver
 static portBASE_TYPE prvLEDCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
@@ -1604,10 +1619,8 @@ static portBASE_TYPE prvLEDCommand( char *pcWriteBuffer, size_t xWriteBufferLen,
 	*pcWriteBuffer='\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
 	return pdFALSE;
 }
-
-// ifconfig command
-// extern phy_speed_t phy_speed;
-// extern phy_duplex_t phy_duplex;
+//------------------------------------------------------------------------------
+//!!!
 static portBASE_TYPE prvIfConfigCommand(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString)
 {
 	/* Remove compile time warnings about unused parameters, and check the
@@ -1667,7 +1680,8 @@ static portBASE_TYPE prvIfConfigCommand(char *pcWriteBuffer, size_t xWriteBuffer
 
 	return pdFALSE;
 }
-
+//------------------------------------------------------------------------------
+//!!!
 static portBASE_TYPE prvNetStatCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	/* Remove compile time warnings about unused parameters, and check the
@@ -1684,7 +1698,7 @@ static portBASE_TYPE prvNetStatCommand( char *pcWriteBuffer, size_t xWriteBuffer
 
 	return pdFALSE;
 }
-
+//------------------------------------------------------------------------------
 uint8_t hex_ascii_to_int (char * ptr)
 {
 	// convert a pointed-to ascii hex character to its integer (0-f) value
@@ -1692,33 +1706,33 @@ uint8_t hex_ascii_to_int (char * ptr)
 	// this is exposed in the .h file as MQTT_Simulator also needs it
 
 	uint8_t retval = 0;
-	if (*ptr < '0')				// less than '0'
+	if (*ptr < '0') // less than '0'
 	{
 		retval = 0;
 	}
-	else if (*ptr < 0x3a)		// decimal digit
+	else if (*ptr < 0x3a) // decimal digit
 	{
 		retval = *ptr - '0';
 	}
-	else if (*ptr < 'A')		// between digit and 'A'
+	else if (*ptr < 'A') // between digit and 'A'
 	{
 		retval = 0;
 	}
-	else if (*ptr < 'G')		// hex upper case digit
+	else if (*ptr < 'G') // hex upper case digit
 	{
 		retval = (*ptr - 'A') + 0x0a;
 	}
-	else if (*ptr < 'a')		// between 'F' and 'a'
+	else if (*ptr < 'a') // between 'F' and 'a'
 	{
 		retval = 0;
 	}
-	else if (*ptr < 'g')		// hex lower case digit
+	else if (*ptr < 'g') // hex lower case digit
 	{
 		retval = (*ptr - 'a') + 0x0a;
 	}
 	return retval;
 }
-
+//------------------------------------------------------------------------------
 uint64_t read_mac_address (char * tmac)
 {
 	// Convert a mac parameter from text to a uint64_t value
@@ -1763,7 +1777,7 @@ uint64_t read_mac_address (char * tmac)
 	}
 	return mac;
 }
-
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvAwakeCommand (char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString)
 {
 	// set the display visibility of device awake messages, by zapping a couple of variables in
@@ -1776,7 +1790,7 @@ static portBASE_TYPE prvAwakeCommand (char *pcWriteBuffer, size_t xWriteBufferLe
     int8_t 					*pcParameterString;
     portBASE_TYPE 			xParameterNumber = 1;
     portBASE_TYPE 			xParameterStringLength;
-    char 					pcParameter[128];   			// could be a long one
+    char 					pcParameter[128]; // could be a long one
 	extern 					bool SDAN_QUIET_MODE;
 	extern					bool SDAN_VERY_QUIET_MODE;
 	uint8_t					mode;
@@ -1814,7 +1828,7 @@ static portBASE_TYPE prvAwakeCommand (char *pcWriteBuffer, size_t xWriteBufferLe
 	*pcWriteBuffer='\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
     return pdFALSE;
 }
-
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvPublishCommand(char* pcWriteBuffer, size_t xWriteBufferLen, const char* pcCommandString)
 {
 	MQTT_MESSAGE	message;
@@ -1829,7 +1843,7 @@ static portBASE_TYPE prvPublishCommand(char* pcWriteBuffer, size_t xWriteBufferL
 	*pcWriteBuffer='\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
     return pdFALSE;
 }
-
+//------------------------------------------------------------------------------
 // Run test cases defined in Hermes-test.c
 static portBASE_TYPE prvTestCaseCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
@@ -1955,14 +1969,14 @@ static portBASE_TYPE prvTestCaseCommand( char *pcWriteBuffer, size_t xWriteBuffe
     *pcWriteBuffer='\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
     return pdFALSE;
 }
-
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvHRMFullDumpCommand( char* pcWriteBuffer, size_t xWriteBufferLen, const char* pcCommandString )
 {
 	sprintf(pcWriteBuffer, "Attempting a full register dump.\r\n");
 	HubReg_Send_All();
 	return pdFALSE;
 }
-
+//------------------------------------------------------------------------------
 static portBASE_TYPE prvTranscribeCommand( char* pcWriteBuffer, size_t xWriteBufferLen, const char* pcCommandString )
 {
 	int8_t*				pcParameterString;
@@ -1999,10 +2013,11 @@ static portBASE_TYPE prvTranscribeCommand( char* pcWriteBuffer, size_t xWriteBuf
 	*pcWriteBuffer = '\0';    // ensure we don't return with duff info in write buffer (because it does get output!)
 	return pdFALSE;
 }
+//------------------------------------------------------------------------------
 // Appends a string pcStr to an existing string pcDest. Returns how many characters appended
 uint32_t uAppendString(char *pcDest, char *pcStr)
 {
     strcpy(pcDest,pcStr);
     return strlen(pcStr);
 }
-
+//==============================================================================

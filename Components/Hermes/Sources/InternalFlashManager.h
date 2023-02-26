@@ -10,9 +10,11 @@
 #include "leds.h"
 #include "Devices.h"
 //==============================================================================
+//defines:
+
+//==============================================================================
 //types:
 
-//------------------------------------------------------------------------------
 // data definitions for Programmer test results
 typedef struct
 {
@@ -146,7 +148,7 @@ typedef struct
 
 extern HermesFlashManagerT HermesFlashManager;
 //==============================================================================
-// Prototypes
+//functions:
 
 FlashOperationResultT HermesFlashInit(void);
 
@@ -165,6 +167,6 @@ FlashOperationResultT HermesFlashReadFactoryTestData(FACTORY_TEST_DATA* out);
 FlashOperationResultT HermesFlashReadData();
 FlashOperationResultT HermesFlashSaveData();
 //==============================================================================
-#endif // _INTERNAL_FLASH_MANAGER_H_
+#endif //_INTERNAL_FLASH_MANAGER_H_
 
 

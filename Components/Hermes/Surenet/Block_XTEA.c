@@ -27,9 +27,9 @@
 * If this licence is removed your immortal soul is forfeit.
 *           
 **************************************************************************/
-
-#include "Components.h"
 #include "Block_XTEA.h"
+//==============================================================================
+//functions:
 
 //	Fundamtental encode function. Operates on a single word (BLOCK).
 //	Note that we only use the first 4 16-bit words of key, but SureNet provides

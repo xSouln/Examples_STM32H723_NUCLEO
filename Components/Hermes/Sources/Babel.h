@@ -2,7 +2,7 @@
 *
 * SUREFLAP CONFIDENTIALITY & COPYRIGHT NOTICE
 *
-* Copyright © 2013-2021 Sureflap Limited.
+* Copyright ï¿½ 2013-2021 Sureflap Limited.
 * All Rights Reserved.
 *
 * All information contained herein is, and remains the property of Sureflap 
@@ -17,16 +17,15 @@
 * Filename: Babel.h    
 * Author:   Tom Monkhouse
 * Purpose:     
-*             
-*             
 *
 **************************************************************************/
+#ifndef __BABEL_H__
+#define __BABEL_H__
+//==============================================================================
 #include <stdint.h>
 #include <stdbool.h>
-
-bool BABEL_aes_encrypt_init();
-void BABEL_set_aes_key(uint8_t serial_number_in[]);
-bool BABEL_aes_encrypt_isit();
+//==============================================================================
+//defines:
 
 #define ENCRYPT_PAYLOAD_KEY = 		
 #define ENCRYPT_CIPHER_ENCRYPT = 	
@@ -34,10 +33,13 @@ bool BABEL_aes_encrypt_isit();
 #define ENCRYPT_ENABLE_CIPHER =		
 #define ENCRYPT_DECR_SEMAPHORE = 		
 #define ENCRYPT_INTERRUPT = 		
-#define ENCRYPT_CIPHER_MODE = 		
+#define ENCRYPT_CIPHER_MODE =
+//==============================================================================
+//functions:
 
-
-
-
-
+bool BABEL_aes_encrypt_init();
+void BABEL_set_aes_key(uint8_t serial_number_in[]);
+bool BABEL_aes_encrypt_isit();
+//==============================================================================
+#endif //__BABEL_H__
 

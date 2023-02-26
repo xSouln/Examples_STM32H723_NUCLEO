@@ -26,47 +26,54 @@
  * 09/06/2020
  *
  */
+//==============================================================================
+///includes:
 
-#include "FreeRTOS.h"
-#include "hermes.h"
 #include "BankManager.h"
+#include "hermes.h"
+#include "FreeRTOS.h"
+//==============================================================================
+//variables:
 
 const volatile BANK_DESCRIPTOR*	CurrentDescriptor;
+//==============================================================================
+//functions:
 
 BM_BANK BM_GetCurrentBank(void)
 {
 	return BM_BANK_UNKONWN;
 }
-
+//------------------------------------------------------------------------------
 BM_BANK BM_ReportBank(void)
 {
 
 	return BM_BANK_UNKONWN;
 }
-
+//------------------------------------------------------------------------------
 bool BM_EnscribeData(uint8_t* data, uint32_t bank_address, uint32_t size)
 {
 	
 	return true;
 }
-
+//------------------------------------------------------------------------------
 bool BM_TranscribeBank(void)
 {
 	return true;
 }
-
+//------------------------------------------------------------------------------
 bool BM_Init(void)
 {
 
 	return true;
 }
-
+//------------------------------------------------------------------------------
 bool BM_Encrypt(uint8_t* destination, uint8_t* source, uint32_t size)
 {
 
 	return true;
 }
-
+//------------------------------------------------------------------------------
+//!!!
 // This sets the _other_ bank to be active.
 // Note it also zeroes the watchdog reset counter.
 void BM_ConfirmBank(bool force_encrypted)
@@ -100,6 +107,7 @@ void BM_ConfirmBank(bool force_encrypted)
  * Outputs         :
  * Returns         :
  **************************************************************/
+//!!!
 void BM_SetBankMark(BANK_MARK new_mark)
 {
 	/*
@@ -120,13 +128,13 @@ void BM_SetBankMark(BANK_MARK new_mark)
     */
 }
 
-
+//------------------------------------------------------------------------------
 // Switches banks!
 void BM_BankSwitch(bool bank_b, bool encrypted)
 {
 
 }
-
+//------------------------------------------------------------------------------
 // This function is used just after reset to establish which bank is to be run.
 // It then selects the appropriate bank.
 void BM_DetermineBankToBoot(void)
@@ -141,3 +149,4 @@ void BM_ResolveBankUse(void)
 
 
 }
+//==============================================================================

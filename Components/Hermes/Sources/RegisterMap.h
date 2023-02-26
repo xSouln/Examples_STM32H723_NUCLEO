@@ -137,20 +137,21 @@ typedef enum
   LED_DISPLAY_STEADY,  // not used no flashing LEDs, just static ones
   LED_DISPLAY_ALERT,   // not used
   LED_DISPLAY_DIM,
+
 } LED_DISPLAY;
 //==============================================================================
 //functions:
 
-void		HubReg_Handle_Messages(void);
-void		HubReg_Dump(void);
-void		HubReg_Init(void);
-void		HubReg_SetValues(uint16_t address, uint16_t numValues, uint8_t* values, bool set_update_flag);
-void		HubReg_GetValues(uint16_t address, uint16_t numValues);
-void		HubReg_SetDebugMode(uint16_t address, uint8_t value);
-void		HubReg_Check_Full(void);
-void		HubReg_Send_All(void);
-void		HubReg_SetPairingMode(PAIRING_REQUEST mode);
-void		HubReg_Refresh_All(void);
-uint32_t	HubReg_Get_Integer(uint16_t address);
+void HubReg_Handle_Messages(void);
+void HubReg_Dump(void);
+void HubReg_Init(void);
+void HubReg_SetValues(uint16_t address, uint16_t numValues, uint8_t* values, bool set_update_flag);
+void HubReg_GetValues(uint16_t address, uint16_t numValues);
+void HubReg_SetDebugMode(uint16_t address, uint8_t value);
+void HubReg_Check_Full(void);
+void HubReg_Send_All(void);
+void HubReg_SetPairingMode(PAIRING_REQUEST mode);
+void HubReg_Refresh_All(void);
+uint32_t HubReg_Get_Integer(uint16_t address);
 //==============================================================================
 #endif //__REGISTER_MAP_H__

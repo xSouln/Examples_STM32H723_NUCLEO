@@ -21,13 +21,8 @@
 *
 *
 **************************************************************************/
+#include "SureNet.h"
 #include "hermes.h"
-
-/* Standard includes. */
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
 
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
@@ -53,6 +48,7 @@
 
 #include "cmsis_os.h"
 //==============================================================================
+//defines:
 
 // This introduces a 50ms delay for Pet Doors between
 #define PET_DOOR_DELAY		true
@@ -496,7 +492,7 @@ int SurnetStart_Task();
  * Outputs         :
  * Returns         : pdPASS if it was successful, pdFAIL if it could not complete (e.g. couldn't set up a task)
  **************************************************************/
-BaseType_t sn_init(uint64_t *mac, uint16_t panid, uint8_t channel)
+int sn_init(uint64_t *mac, uint16_t panid, uint8_t channel)
 {
     // Now set up some mailboxes and an Event Group to allow data to be sent between SureNet and the outside world
     // We will extern them from SureNet.

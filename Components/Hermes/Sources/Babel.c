@@ -23,6 +23,8 @@
 **************************************************************************/
 #include "Babel.h"
 #include "hermes.h"
+//==============================================================================
+//variables:
 
 uint32_t 			*srcbuffer;
 uint32_t 			*dstbuffer;
@@ -30,16 +32,15 @@ uint32_t 			payload[8];
 const uint8_t 		key_count = 16;
 
 static uint8_t		encryption_key[16];
+//==============================================================================
+//functions:
 
 bool BABEL_aes_encrypt_init(void)
 {
 	
 	return false;
 }
-
-
-
-
+//==============================================================================
 void BABEL_set_aes_key(uint8_t serial_number_in[])
 {
 	memset(encryption_key,0,sizeof(encryption_key));
@@ -50,3 +51,4 @@ void BABEL_set_aes_key(uint8_t serial_number_in[])
 	encryption_key[14] = 0xDE;
 	encryption_key[15] = 0x17;		
 }
+//==============================================================================

@@ -24,14 +24,10 @@
 * We access the SPI via a FreeRTOS API, but the nRST, INT and SP signals are controlled directly
 *           
 **************************************************************************/
+#include "SureNetDriver.h"
+
 #include "hermes.h"
 #include "hermes-time.h"
-
-/* Standard includes. */
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
 
  // isxdigit()
 #include <ctype.h>
@@ -62,6 +58,8 @@
 
 #include "Hermes-console.h"
 //==============================================================================
+//defines:
+
 #define PAIRING_MODE_TIME					(90 * usTICK_SECONDS)
 #define	PAIRING_MODE_TIME_BEACON_REQUEST 	(10 * usTICK_SECONDS)
 
@@ -69,6 +67,8 @@
 // forces usage of long MAC always
 #define COORD_SHORT_ADDR MAC_NO_SHORT_ADDR_VALUE
 //==============================================================================
+//types:
+
 // Private typedefs
 // This is used to store the type of remote device requesting a Beacon
 typedef enum
@@ -192,7 +192,7 @@ static int assign_new_short_addr(uint64_t addr64, uint16_t *addr16);
 //functions:
 
 // This is called really early on, when tasks are being created.
-BaseType_t snd_init(uint64_t *mac_addr, uint16_t panid, uint8_t channel)
+int snd_init(uint64_t *mac_addr, uint16_t panid, uint8_t channel)
 {
     BaseType_t xReturn = pdPASS;
 
@@ -226,7 +226,7 @@ BaseType_t snd_init(uint64_t *mac_addr, uint16_t panid, uint8_t channel)
 		osDelay(5);
 	}
 */
-	bool paring_mode = true;
+	//bool paring_mode = true;
 	//wpan_mlme_set_req(macAssociationPermit, &paring_mode);
 
     return xReturn;

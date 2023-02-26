@@ -2,7 +2,7 @@
 *
 * SUREFLAP CONFIDENTIALITY & COPYRIGHT NOTICE
 *
-* Copyright © 2013-2021 Sureflap Limited.
+* Copyright ï¿½ 2013-2021 Sureflap Limited.
 * All Rights Reserved.
 *
 * All information contained herein is, and remains the property of Sureflap 
@@ -19,10 +19,36 @@
 * Purpose:  Parses messages received from Server, and despatch them.
 *             
 **************************************************************************/
-
-
 #ifndef __MESSAGE_PARSER_H__
 #define __MESSAGE_PARSER_H__
+//==============================================================================
+//includes:
+
+#include "Hermes-compiller.h"
+//==============================================================================
+//defines:
+
+//Dummy register values to indicate special commands which cannot be split for transmission or need special handling
+#define MOVEMENT_DUMMY_REGISTER 1024
+
+//NB there can only be an LSB change between the next two commands
+//THALLAMUS_MULTIPLE is only used from device to server
+#define THALAMUS_DUMMY_REGISTER 0x2000
+
+#define THALAMUS_MULTIPLE_DUMMY_REGISTER 0x2001
+#define HUB_SET_DEBUG_MODE_DUMMY_REGISTER 1025
+
+//NB currently less than maximum that could fir in a packet, set according to longest Thallamus command
+#define MAX_MESSAGE_BYTES 88
+
+//split messages for device into blocks of 8
+#define MAX_REGISTERS_TO_DEVICE 8
+
+// writing this value to the device register 0x00 (PRODUCT_TYPE) triggers the
+// Hub to detach the device.
+#define TRIGGER_DEVICE_DETACH 0xCC
+//==============================================================================
+//types:
 
 typedef enum
 {
@@ -49,10 +75,12 @@ typedef enum
   MSG_HUB_THALAMUS = 127,  //NB used in both directions
   MSG_HUB_THALAMUS_MULTIPLE = 126,  //NB currently only used from hiub to Xively
   MSG_REG_VALUES_INDEX_ADDED = 0x84     // This is magic - it is 0x80 | MSG_REG_VALUES
-} MSG_TYPE;
 
+} MSG_TYPE;
+//------------------------------------------------------------------------------
 // These are COMMAND types for messages to/from Devices. Most are not used.
-typedef enum{
+typedef enum
+{
 	COMMAND_INVALID =  0,
 //Messages to exchange register values
 	COMMAND_GET_REG,          // 1
@@ -87,24 +115,12 @@ typedef enum{
     COMMAND_UNPAIR_DEVICE,          // 35
     COMMAND_CHECK_DATA,             // 36
 	COMMAND_PROGRAMMER_DATA,        // 37 return values needed by programmer, currently just MAC address
-	COMMAND_PROGRAMMER_DATA_R       // 38		
-}DEVICE_COMMANDS;
+	COMMAND_PROGRAMMER_DATA_R       // 38
 
-//Dummy register values to indicate special commands which cannot be split for transmission or need special handling
-#define MOVEMENT_DUMMY_REGISTER 1024
-//NB there can only be an LSB change between the next two commands
-//THALLAMUS_MULTIPLE is only used from device to server
-#define THALAMUS_DUMMY_REGISTER 0x2000
-#define THALAMUS_MULTIPLE_DUMMY_REGISTER 0x2001
-#define HUB_SET_DEBUG_MODE_DUMMY_REGISTER 1025
-
-#define MAX_MESSAGE_BYTES 88  //NB currently less than maximum that could fir in a packet, set according to longest Thallamus command
-#define MAX_REGISTERS_TO_DEVICE 8   //split messages for device into blocks of 8
-
-#define TRIGGER_DEVICE_DETACH 0xCC  // writing this value to the device register 0x00 (PRODUCT_TYPE) triggers the 
-                                    // Hub to detach the device.
-
+} DEVICE_COMMANDS;
+//==============================================================================
+//prototypes:
 
 void process_MQTT_message_from_server(char *message,char *subtopic);
-
-#endif
+//==============================================================================
+#endif //__MESSAGE_PARSER_H__

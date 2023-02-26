@@ -23,5 +23,7 @@ void NetworkInterface_GetAddressConfiguration(uint32_t* ip,
 		uint32_t* mask,
 		uint32_t* gateway,
 		uint32_t* dns);
+
+bool NetworkInterface_IsActive();
 //==============================================================================
 #endif //_NETWORK_INTERFACE_H_

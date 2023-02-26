@@ -51,6 +51,11 @@ void MX_LWIP_Init(void)
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 //==============================================================================
+//variables:
+
+//custom heap definition - the definition of "configAPPLICATION_ALLOCATED_HEAP"
+//should be added to the section "right-clicking on a project" => "Properties"
+//=> "C/C++ General" => "Paths and Symbols" => "Symbols" of the project
 uint8_t ucHeap[configTOTAL_HEAP_SIZE];
 //==============================================================================
 /* USER CODE END Variables */
@@ -58,13 +63,15 @@ uint8_t ucHeap[configTOTAL_HEAP_SIZE];
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .stack_size = 512 * 4,
+  .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 extern void HermesComponentInit();
+
+static void MainTask(void *argument);
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
@@ -87,6 +94,11 @@ void vApplicationTickHook(void);
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
+	//override the default task and saving it when the CubeMX project is regenerated
+	defaultTaskHandle = osThreadNew(MainTask, NULL, &defaultTask_attributes);
+
+	//end of overrides
+	return;
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -132,40 +144,10 @@ void StartDefaultTask(void *argument)
   /* init code for LWIP */
   MX_LWIP_Init();
   /* USER CODE BEGIN StartDefaultTask */
-  /*
-	extern REG_TIM_T* Timer3;
-	extern REG_TIM_T* Timer12;
 
-  Timer3->Control1.CounterEnable = false;
-  Timer12->Control1.CounterEnable = false;
-
-  Timer3->CaptureCompareOutput.Compare3OutputEnable = true;
-  Timer3->BreakAndDeadTime.MainOutputEnable = true;
-
-  Timer12->CaptureCompareOutput.Compare1OutputEnable = true;
-  Timer12->BreakAndDeadTime.MainOutputEnable = true;
-
-  Timer3->Prescaler = 27499;
-  Timer3->Period = 9999;
-
-  Timer3->CaptureCompare3Value = Timer3->Period / 2;
-
-  Timer12->Prescaler = 27499;
-  Timer12->Period = 9999;
-
-  Timer12->CaptureCompare1Value = Timer12->Period / 2;
-
-  Timer3->Control1.CounterEnable = true;
-  Timer12->Control1.CounterEnable = true;
-*/
-  //osDelay(pdMS_TO_TICKS(500));
-
-  HermesComponentInit();
   /* Infinite loop */
   for(;;)
   {
-	  ComponentsHandler();
-
 	  osDelay(1);
   }
   /* USER CODE END StartDefaultTask */
@@ -173,6 +155,20 @@ void StartDefaultTask(void *argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+static void MainTask(void *argument)
+{
+	//waiting for stabilization (power supply, etc.) of the periphery.
+	//reducing the time may lead to initialization errors
+	osDelay(pdMS_TO_TICKS(4000));
 
+	HermesComponentInit();
+
+	while(true)
+	{
+		ComponentsHandler();
+
+		osDelay(1);
+	}
+}
 /* USER CODE END Application */
 

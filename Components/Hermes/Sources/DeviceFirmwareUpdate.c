@@ -58,14 +58,8 @@
 * The list also contains timestamps, so if a device stops requesting firmware
 * it's list entry will become stale and can be re-used.
 **************************************************************************/
+#include "DeviceFirmwareUpdate.h"
 #include "hermes.h"
-
-/* Standard includes. */
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <compiler.h>
 
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
@@ -80,6 +74,7 @@
 
 // for crc16Calc()
 #include "utilities.h"
+#include "Wireless/compiler.h"
 
 // for get_mqtt_connection_state() so we can hold off DFU unless we are connected.
 #include "../MQTT/MQTT.h"
@@ -266,7 +261,7 @@ void DFU_Handler(void)
 					DFU_queue[device_no].attempts++;
 
 					// Only bother with f/w update if connected.
-					if((DFU_queue[device_no].attempts<MAX_PAGE_FETCH_ATTEMPTS)
+					if((DFU_queue[device_no].attempts < MAX_PAGE_FETCH_ATTEMPTS)
 					&& (MQTT_STATE_CONNECTED == get_mqtt_connection_state()))
 					{
 						zprintf(LOW_IMPORTANCE,"DFU: Found queued request\r\n");
@@ -276,7 +271,7 @@ void DFU_Handler(void)
 					else
 					{
 						zprintf(LOW_IMPORTANCE,"DFU: Abandoning request - too many retries\r\n");
-						DFU_queue[device_no].in_use=false;
+						DFU_queue[device_no].in_use = false;
 					}
 						
 				}
@@ -294,7 +289,7 @@ void DFU_Handler(void)
 			{
 				// data being requested is not in the cache
 				zprintf(LOW_IMPORTANCE,"DFU: Cache miss - requesting data from server\r\n");
-				cache_entry = DFU_cache_fetch(device_no,DFU_queue[device_no].chunk_address, send_secret_next_time);
+				cache_entry = DFU_cache_fetch(device_no, DFU_queue[device_no].chunk_address, send_secret_next_time);
 				request_sent_timestamp = get_microseconds_tick();
 
 				// Wait for HTTP Post task to get the data and notify us

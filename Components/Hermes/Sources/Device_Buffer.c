@@ -17,8 +17,6 @@
 * Filename: Device_Buffer.c    
 * Author:   Chris Cowdery 9/10/2019
 * Purpose:  Handles messages for Devices
-*             
-*             
 *
 **************************************************************************/
 //
@@ -36,14 +34,11 @@
 // The buffer is an array of entries, each one large enough for a full size T_MESSAGE.
 // This is a bit wasteful, however it allows easy overwriting of old entries.
 // We deem an entry to be empty if the MAC address and timestamp are both zero.
+//==============================================================================
+//includes:
 
+#include "Device_Buffer.h"
 #include "hermes.h"
-
-/* Standard includes. */
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
 
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
@@ -51,6 +46,8 @@
 
 #include "SureNet-Interface.h"
 #include "Device_Buffer.h"
+//==============================================================================
+//defines:
 
 // Local #defines
 // Maximum number of messages in the buffer.
@@ -58,6 +55,8 @@
 
 // maximum messages allowed into the buffer for the same Device
 #define MAX_MESSAGES_FOR_SAME_DEVICE  8
+//==============================================================================
+//types:
 
 typedef struct
 {
@@ -67,10 +66,14 @@ typedef struct
 
 } DEVICE_BUFFER;
 
-// Local variables
+//==============================================================================
+//variables:
 
 // make us a nice buffer to hold messages
 DEVICE_BUFFER device_buffer[DEVICE_BUFFER_SIZE] DEVICE_BUFFER_MEM_SECTION;
+//==============================================================================
+//functions:
+
 /**************************************************************
  * Function Name   : device_buffer_init
  * Description     : Initialise our device buffer
@@ -386,3 +389,4 @@ void surenet_clear_message_cb(uint32_t current_request_handle)
 	device_buffer_clear_entry(current_request_handle);
     return;
 }
+//==============================================================================

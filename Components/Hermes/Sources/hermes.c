@@ -362,10 +362,12 @@ void HermesInit_ProductConfiguredMode()
 	surenet_init(&rfmac, product_configuration.rf_pan_id, initial_RF_channel);
 
 	HermesStart_SNTP_Task();
+
 	HermesStart_LedTask();
 	HermesStart_AppTask();
-	//HermesStart_HTTP_PostTask();
-	//HermesStart_MQTT_Task();
+
+	HermesStart_HTTP_PostTask();
+	HermesStart_MQTT_Task();
 
 	// from nvm
 	set_led_brightness(get_led_brightness(), false);
@@ -382,11 +384,14 @@ void HermesInit_FirmwareUpdatedMode()
 	// Now we need to wait for DHCP, then trigger a SNTP fetch, and finally
 	// kick off a Hub Firmware Update
 	extern EventGroupHandle_t xConnectionStatus_EventGroup;
-	xEventGroupWaitBits(xConnectionStatus_EventGroup, CONN_STATUS_NETWORK_UP, false, false, portMAX_DELAY );
-	while(false == SNTP_AwaitUpdate(true, portMAX_DELAY))
+
+	xEventGroupWaitBits(xConnectionStatus_EventGroup, CONN_STATUS_NETWORK_UP, false, false, portMAX_DELAY);
+
+	while(!SNTP_AwaitUpdate(true, portMAX_DELAY))
 	{
 
 	}
+
 	HFU_trigger(true);
 }
 //------------------------------------------------------------------------------
@@ -441,6 +446,8 @@ void HermesComponentInit()
 	vRegisterBasicCLICommands();
 
 	osDelay(pdMS_TO_TICKS(100));
+
+	MX_LWIP_Init();
 
 	xNetworkInterfaceInitialise();
 

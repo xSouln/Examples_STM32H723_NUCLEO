@@ -24,13 +24,8 @@
 * This is because there is a lot of interaction, and handler functions would be cumbersome.
 *           
 **************************************************************************/
+#include "Devices.h"
 #include "hermes.h"
-
-/* Standard includes. */
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
 
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
@@ -41,7 +36,6 @@
 // SureNet
 #include "Surenet-Interface.h"
 #include "SureNetDriver.h"
-#include "devices.h"
 #include "SureNet.h"
 #include "hermes-time.h"
 #include "InternalFlashManager.h"
@@ -492,7 +486,6 @@ uint32_t last_heard_from(void)
 {
 	uint8_t i;
 	uint8_t num_valid		= 0;
-	uint32_t now 			= get_microseconds_tick();
 	uint32_t most_recent 	= 0xffffffff;
 	
 	for(i = 0; i < MAX_NUMBER_OF_DEVICES; i++)

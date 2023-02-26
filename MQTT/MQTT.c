@@ -175,6 +175,7 @@ void MQTT_Task(void *pvParameters)
 					{
 						mqtt_connection_state = MQTT_STATE_GET_CREDENTIALS;
 						//process_system_event(STATUS_GETTING_CREDENTIALS);//Alternate Red
+						HermesConsoleWriteString("MQTT_STATE_GET_CREDENTIALS\r");
 					}
 					else
 					{
@@ -183,6 +184,8 @@ void MQTT_Task(void *pvParameters)
 
 						// randomise it a bit to hopefully avoid NTP kiss of death
 						vTaskDelay(pdMS_TO_TICKS(3000 + (rand & 0xfff)));
+
+						HermesConsoleWriteString("MQTT_STATE_GET_TIME: ERROR\r");
 					}
 				}
 				break;
@@ -202,6 +205,8 @@ void MQTT_Task(void *pvParameters)
 					{
 						connection_attempts_timestamp = get_microseconds_tick();
 						mqtt_connection_state = MQTT_STATE_CONNECT;
+
+						HermesConsoleWriteString("MQTT_STATE_GET_CREDENTIALS\r");
 					}
 					mqtt_printf("\tConnecting\r\n");
 				}
@@ -222,6 +227,8 @@ void MQTT_Task(void *pvParameters)
 				if(MQTT_Connect(&aws_client, &aws_credentials, clean_connect))
 				{
 					mqtt_connection_state = MQTT_STATE_SUBSCRIBE;
+
+					HermesConsoleWriteString("MQTT_STATE_SUBSCRIBE\r");
 				}
 
 				if((get_microseconds_tick() - connection_attempts_timestamp) > CONNECT_ATTEMPTS_TIMEOUT)
@@ -242,6 +249,7 @@ void MQTT_Task(void *pvParameters)
 					process_system_event(STATUS_CONNECTED_TO_CLOUD);
 					mqtt_printf("\tConnected\r\n");
 					xEventGroupSetBits(xConnectionStatus_EventGroup, CONN_STATUS_MQTT_UP);
+					HermesConsoleWriteString("MQTT_STATE_CONNECTED\r");
 				}
 				break;
 
@@ -249,6 +257,7 @@ void MQTT_Task(void *pvParameters)
 				if(!MQTT_Poll(&aws_client, &aws_credentials))
 				{
 					mqtt_connection_state = MQTT_STATE_DISCONNECT;
+					HermesConsoleWriteString("MQTT_STATE_DISCONNECT\r");
 				}
 				break;
 

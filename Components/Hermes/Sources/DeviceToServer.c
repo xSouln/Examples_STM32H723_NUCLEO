@@ -22,13 +22,8 @@
 * It handles the necessary format translation from T_MESSAGE to a string formatted for the server        
 *             
 **************************************************************************/
+#include "DeviceToServer.h"
 #include "hermes.h"
-
-/* Standard includes. */
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
 
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"

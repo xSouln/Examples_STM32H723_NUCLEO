@@ -16,11 +16,14 @@ extern "C" {
 
 #include "Components_Config.h"
 #include "Components_Types.h"
+
 //==============================================================================
 //defines:
 
 #define HERMES__PACKED_PREFIX
 #define HERMES__PACKED_POSTFIX __packed
+
+#define HERMES_PERIPHERAL_STABILIZATION_TIME_MS 4000
 //------------------------------------------------------------------------------
 //memories sections:
 
@@ -62,14 +65,14 @@ extern "C" {
 #define HERMES_CONSOL_RX_BUFFER_MEM_LOCATION
 #define HERMES_CONSOL_TX_BUFFER_MEM_LOCATION __attribute__((section("._user_dtcmram_section")));
 //------------------------------------------------------------------------------
-// Task stack sizes in words:
+//Task stack sizes in words:
 
 #define LED_TASK_PRIORITY osPriorityNormal
 #define LED_TASK_STACK_SIZE (0x400/4) //(0x800/4)
 #define LED_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 
 #define SNTP_TASK_PRIORITY osPriorityNormal
-#define SNTP_TASK_STACK_SIZE (0x400/4) //(0x400/4)
+#define SNTP_TASK_STACK_SIZE (0x800/4) //(0x400/4)
 #define SNTP_TASK_STACK_MEM_SECTION __attribute__((section("._user_dtcmram_section")))
 
 #define MQTT_TASK_PRIORITY osPriorityNormal

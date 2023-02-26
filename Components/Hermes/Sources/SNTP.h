@@ -29,7 +29,10 @@
 //defines:
 
 #define SNTP_SERVER		"pool.ntp.org"
+
+#ifndef SNTP_PORT
 #define SNTP_PORT		123
+#endif
 
 // Epoch starts: 01-Jan-1970 00:00:00 //2208988800U
 #define SNTP_EPOCH 		(86400ul * (365ul * 70ul + 17ul))
@@ -44,7 +47,7 @@
 #define sntp_printf(...)	zprintf(CRITICAL_IMPORTANCE, __VA_ARGS__)
 #define sntp_flush			DbgConsole_Flush
 #else
-#define sntp_printf(...)
+#define sntp_printf(note, ...) HermesConsoleWriteString(note);
 #define sntp_flush()
 #endif
 //==============================================================================
@@ -52,10 +55,11 @@
 
 typedef enum
 {
-	SNTP_EVENT_UPDATE_REQUESTED	= (1<<0),
-	SNTP_EVENT_UPDATE_UNDERWAY	= (1<<1),
-	SNTP_EVENT_TIME_VALID		= (1<<2),
-	SNTP_EVENT_UPDATE_FAILED	= (1<<3),
+	SNTP_EVENT_UPDATE_REQUESTED	= (1 << 0),
+	SNTP_EVENT_UPDATE_UNDERWAY	= (1 << 1),
+	SNTP_EVENT_TIME_VALID		= (1 << 2),
+	SNTP_EVENT_UPDATE_FAILED	= (1 << 3),
+	SNTP_EVENT_COMPLITE	= (1 << 4),
 
 } SNTP_EVENT_BITS;
 //------------------------------------------------------------------------------
@@ -88,19 +92,19 @@ typedef struct
 //------------------------------------------------------------------------------
 typedef enum
 {
-	NTP_STATE_STOPPED,
-	NTP_STATE_REQUEST_UPDATE,
-	NTP_STATE_IN_PROGRESS,
+	SNTP_STATE_STOPPED,
+	SNTP_STATE_REQUEST_UPDATE,
+	SNTP_STATE_IN_PROGRESS,
 
-} NTP_StatesT;
+} SNTP_StatesT;
 //------------------------------------------------------------------------------
 typedef enum
 {
-	NTP_RESULT_IDLE,
-	NTP_RESULT_SUCCESS,
-	NTP_RESULT_ERROR,
+	SNTP_RESULT_IDLE,
+	SNTP_RESULT_SUCCESS,
+	SNTP_RESULT_ERROR,
 
-} NTP_ResultsT;
+} SNTP_ResultsT;
 //------------------------------------------------------------------------------
 typedef struct
 {
@@ -111,10 +115,10 @@ typedef struct
 
 	};
 
-	NTP_StatesT State;
-	NTP_ResultsT Result;
+	SNTP_StatesT State;
+	SNTP_ResultsT Result;
 
-} NTP_StatusT;
+} SNTP_StatusT;
 //==============================================================================
 //functions:
 

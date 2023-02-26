@@ -2,7 +2,7 @@
 *
 * SUREFLAP CONFIDENTIALITY & COPYRIGHT NOTICE
 *
-* Copyright © 2013-2021 Sureflap Limited.
+* Copyright ï¿½ 2013-2021 Sureflap Limited.
 * All Rights Reserved.
 *
 * All information contained herein is, and remains the property of Sureflap 
@@ -29,26 +29,36 @@
 **************************************************************************/
 #ifndef __BLOCK_XTEA_H_
 #define __BLOCK_XTEA_H_
+//==============================================================================
+//includes:
 
 #include <stdint.h>
 #include <stdbool.h>
+//==============================================================================
+//defines:
 
 #define XTEA_LOOPS			32
 #define XTEA_64_BLOCK_SIZE	4
 #define XTEA_KEY_SIZE		16
+//==============================================================================
+//types:
 
-typedef uint16_t	XTEA_64_KEY[XTEA_KEY_SIZE/2];
+typedef uint16_t XTEA_64_KEY[XTEA_KEY_SIZE/2];
+//------------------------------------------------------------------------------
 typedef union
 {
 	uint32_t	word;
 	uint16_t	halves[2];
 	uint8_t		bytes[4];
+
 } XTEA_64_BLOCK;
+//==============================================================================
+//functions:
 
 XTEA_64_BLOCK	XTEA_64_Encode(XTEA_64_BLOCK source, XTEA_64_KEY key);
 void			XTEA_64_CTR_Encode(uint8_t* source, uint16_t length, XTEA_64_KEY key);
 XTEA_64_BLOCK	XTEA_64_GenerateMIC(uint8_t* source, uint32_t length, XTEA_64_KEY key);
 void			XTEA_64_Encrypt(uint8_t* source, uint32_t length, uint8_t* key);
 bool			XTEA_64_Decrypt(uint8_t* source, uint32_t length, uint8_t* key);
-
-#endif
+//==============================================================================
+#endif //__BLOCK_XTEA_H_

@@ -48,7 +48,7 @@ extern EventGroupHandle_t xConnectionStatus_EventGroup;
 //==============================================================================
 //variables:
 
-static TaskHandle_t xNetworkWatchdog_task_handle = NULL;
+//static TaskHandle_t xNetworkWatchdog_task_handle = NULL;
 static TaskHandle_t xNetworkHandler_task_handle = NULL;
 
 static bool network_is_connected;
@@ -178,11 +178,11 @@ void NetworkInterfaceLinkDown(void* arg)
 	}
 }
 //------------------------------------------------------------------------------
-bool NetworkInterface_IsActive(void* arg)
+bool NetworkInterface_IsActive()
 {
 	if (xConnectionStatus_EventGroup)
 	{
-		return ((CONN_STATUS_NETWORK_UP & xEventGroupGetBits(xConnectionStatus_EventGroup)) > 0);
+		return ((xEventGroupGetBits(xConnectionStatus_EventGroup) & CONN_STATUS_NETWORK_UP) > 0);
 	}
 
 	return 0;

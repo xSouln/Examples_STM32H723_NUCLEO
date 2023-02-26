@@ -110,4 +110,4 @@ void send_shared_secret(void);
 // Check an incoming MQTT message is correctly signed
 bool check_recd_mqtt_signature( char *message,char *subtopic);
 //==============================================================================
-#endif
+#endif //__SIGNING_H__

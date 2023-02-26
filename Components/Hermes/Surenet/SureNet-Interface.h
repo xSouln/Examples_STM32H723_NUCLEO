@@ -199,7 +199,7 @@ typedef struct
 
 // The following are interface calls to / from SureNet
 // initialises SureNet, SureNet Driver and the RF Stack.
-BaseType_t surenet_init(uint64_t *mac, uint16_t panid, uint8_t channel);
+int surenet_init(uint64_t *mac, uint16_t panid, uint8_t channel);
 
 void surenet_send_firmware_chunk(DEVICE_FIRMWARE_CHUNK *device_firmware_chunk);
 
@@ -223,7 +223,7 @@ uint8_t surenet_get_channel(void);	// This will spin until it gets the answer
 uint8_t surenet_set_channel(uint8_t channel);
 void surenet_ping_device(uint64_t mac_address, uint8_t value);
 uint32_t surenet_get_last_heard_from(void);
-BaseType_t surenet_update_device_table_line(DEVICE_STATUS* status, uint32_t line, bool limited, bool wait);
+int surenet_update_device_table_line(DEVICE_STATUS* status, uint32_t line, bool limited, bool wait);
 
 // callbacks
 void surenet_device_rcvd_segs_cb(DEVICE_RCVD_SEGS_PARAMETERS_MAILBOX *params);

@@ -224,8 +224,6 @@ void hermes_app_task(void *pvParameters)
 
 	signature_change_timestamp = get_UpTime();
 
-	static uint32_t dbg_time = 0;
-
     while(1)
     {
     	vTaskDelay(pdMS_TO_TICKS(1));
@@ -243,14 +241,8 @@ void hermes_app_task(void *pvParameters)
 		// the faster we can reply, the longer their batteries will last.
     	DebugCounter.hermes_app_task_circle++;
 
-    	if ((get_UTC() - dbg_time) > 1)
-    	{
-    		dbg_time = get_UTC();
-    		HermesConsoleWriteString("============================hermes_app_task\r");
-    	}
-
         Surenet_Interface_Handler();
-/*
+
 		if(SNTP_IsTimeValid())
 		{
 			// process any firmware update activity
@@ -262,7 +254,7 @@ void hermes_app_task(void *pvParameters)
 
 		// Do connection maintenance like LED states, hub report, and SNTP.
 		HermesApp_MaintainConnection();
-*/
+
 		// check for messages arriving from MQTT interface
 		if((uxQueueMessagesWaiting(xIncomingMQTTMessageMailbox) > 0)
 		&& (xQueueReceive(xIncomingMQTTMessageMailbox, &mqtt_message, 10)) == pdPASS)
@@ -307,7 +299,7 @@ void hermes_app_task(void *pvParameters)
 			{
 				// Note this will copy the full size of the structure
 				// which could be much more than the message.
-				xQueueSend(xOutgoingMQTTMessageMailbox, outgoing_message, 10);
+				xQueueSend(xOutgoingMQTTMessageMailbox, outgoing_message, 0);
 				outgoing_message = NULL;
 			}
         }
@@ -604,60 +596,77 @@ void button_handler(void)
 
 	switch(button_handler_state)
 	{
-    	case BUTTON_HANDLER_IDLE:	// wait for the button to be pressed
-			if( READ_BUTTON() == BUTTON_PRESSED)
+    	case BUTTON_HANDLER_IDLE:
+    		// wait for the button to be pressed
+
+			if(READ_BUTTON() == BUTTON_PRESSED)
 			{
 				button_handler_state = BUTTON_HANDLER_START_PRESSED_TIMER;
 			}
 			break;
 
-		case BUTTON_HANDLER_START_PRESSED_TIMER:	// start the pressed timer
+		case BUTTON_HANDLER_START_PRESSED_TIMER:
+			// start the pressed timer
+
 			button_timer = get_microseconds_tick();
 			button_handler_state = BUTTON_HANDLER_PRESSED;
-			break;  // do nothing
+			break;
 
-		case BUTTON_HANDLER_PRESSED:	// wait for 125milliseconds
-			if( READ_BUTTON() != BUTTON_PRESSED)
+		case BUTTON_HANDLER_PRESSED:
+			// wait for 125milliseconds
+
+			if(READ_BUTTON() != BUTTON_PRESSED)
 			{
 				button_handler_state = BUTTON_HANDLER_IDLE;
-			} else
+			}
+			else
 			{
-				if((get_microseconds_tick()-button_timer) >= (usTICK_MILLISECONDS*125))  //125ms
+				if((get_microseconds_tick()-button_timer) >= (usTICK_MILLISECONDS * 125))
 				{
 					button_handler_state = BUTTON_HANDLER_WAIT_PAIRING;
 				}
     		}
 			break;
 
-		case BUTTON_HANDLER_WAIT_PAIRING:	// set pairing mode and wait for either button release or 10 seconds
+		case BUTTON_HANDLER_WAIT_PAIRING:
+			// set pairing mode and wait for either button release or 10 seconds
+
 			if (READ_BUTTON() != BUTTON_PRESSED)
 			{
         		surenet_set_hub_pairing_mode(request);
 				button_handler_state = BUTTON_HANDLER_START_RELEASE_TIMER;
-			} else
+			}
+			else
     		{
 				if((get_microseconds_tick()-button_timer) >= (usTICK_SECONDS*10))
 				{
-					surenet_hub_clear_pairing_table();	// unpair all devices
+					// unpair all devices
+					surenet_hub_clear_pairing_table();
 					button_handler_state = BUTTON_HANDLER_START_RELEASE_TIMER;
 				}
     		}
 			break;
 
-		case BUTTON_HANDLER_START_RELEASE_TIMER:	// start timer for button release
+		case BUTTON_HANDLER_START_RELEASE_TIMER:
+			// start timer for button release
+
 			button_timer = get_microseconds_tick();
 			button_handler_state = BUTTON_HANDLER_WAIT_RELEASE;
 			break;
 
-		case BUTTON_HANDLER_WAIT_RELEASE:	// wait for button to be released
+		case BUTTON_HANDLER_WAIT_RELEASE:
+			// wait for button to be released
 		default:
-			if (READ_BUTTON() != BUTTON_PRESSED)  //ensure button is released for at least a second before doing anything else to avoid e.g. pairing mode inadvertently following clear pairing table
+			//ensure button is released for at least a second before doing anything else to avoid e.g.
+			//pairing mode inadvertently following clear pairing table
+			if (READ_BUTTON() != BUTTON_PRESSED)
 			{
-				if((get_microseconds_tick()-button_timer) >= usTICK_SECONDS)
+				if((get_microseconds_tick() - button_timer) >= usTICK_SECONDS)
 				{
 					button_handler_state = BUTTON_HANDLER_IDLE;
 				}
-			} else
+			}
+			else
 			{
 				button_timer = get_microseconds_tick();
 			}
@@ -986,7 +995,7 @@ uint32_t readHwVersion(void)
  **************************************************************/
 #define BLOCKING_SAMPLE_SIZE	50
 static uint32_t block_buf[BLOCKING_SAMPLE_SIZE];
-static uint8_t block_inptr=0;
+static uint8_t block_inptr = 0;
 static uint32_t last_block_timestamp = 0;
 
 void surenet_blocking_test_cb(uint32_t blocking_test_value)

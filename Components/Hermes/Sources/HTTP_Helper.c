@@ -21,7 +21,7 @@
 * Provides blocking and non-blocking interface to HTTP Post request function.
 *
 **************************************************************************/
-/* Standard includes. */
+#include "HTTP_Helper.h"
 
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
@@ -36,7 +36,6 @@
 #include "tls/network_platform.h"
 
 #include "lwip.h"
-//#include "ap"
 #include "sockets.h"
 #include "netdb.h"
 #include "api.h"
@@ -71,7 +70,7 @@ static bool HTTP_Calculate_Signature(HTTP_CONNECTION* connection, HTTP_RESPONSE_
 void HTTPPostTask_init(void)
 {
 	// incoming mailbox queue for HTTP Post requests
-	xHTTPPostRequestMailbox = xQueueCreate(1,sizeof(HTTP_POST_Request_params));
+	xHTTPPostRequestMailbox = xQueueCreate(1, sizeof(HTTP_POST_Request_params));
 	xHTTPPostSemaphoreHandle = xSemaphoreCreateMutex();
 }
 
@@ -87,10 +86,10 @@ void HTTPPostTask(void *pvParameters)
 
 	while(1)
 	{
-		if (xQueueReceive( xHTTPPostRequestMailbox, &params, portMAX_DELAY ) == pdPASS )
+		if (xQueueReceive(xHTTPPostRequestMailbox, &params, portMAX_DELAY) == pdPASS)
 		{
 			// sleep task until we get a request
-			if (true == NetworkInterface_IsActive())
+			if (NetworkInterface_IsActive())
 			{
 				// only make a request if the TCP/IP connection is up.
 				zprintf(LOW_IMPORTANCE,"HTTP_POST_Request to %s\r\n",params.URL);
@@ -528,17 +527,6 @@ static bool HTTP_Transmit_Message(WOLFSSL* ssl, char* URL, char* resource, char*
 	zprintf(LOW_IMPORTANCE, "%s%s%s\r\n", postHeader3, postLength, contents);
 
 	uint32_t transmitted_length = 0;
-/*
-	int result = wolfSSL_connect(ssl);
-
-	if (result != WOLFSSL_SUCCESS)
-	{
-		result = wolfSSL_get_error(ssl, 0);
-
-		http_printf(HTTP_LINE "Connection Error. %d/%d bytes sent.\r\n", transmitted_length, total_length);
-		return false;
-	}
-*/
 	transmitted_length += wolfSSL_write(ssl, postHeader1, strlen(postHeader1));
 	transmitted_length += wolfSSL_write(ssl, resource, strlen(resource));
 	transmitted_length += wolfSSL_write(ssl, postHeader2, strlen(postHeader2));
@@ -730,6 +718,8 @@ static bool HTTP_Process_Header(WOLFSSL* ssl, HTTP_RESPONSE_DATA* response_data)
  * Inputs          : Pointers to the relevant data to check, and a reference to the key to use
  * Returns         : Sets response_data->signature_matches, and returns that value.
  **************************************************************/
+char block_to_sign[8182];
+
 static bool HTTP_Calculate_Signature(HTTP_CONNECTION* connection, HTTP_RESPONSE_DATA* response_data, DERIVED_KEY_SOURCE rx_key)
 {
 	response_data->signature_matches = false;
@@ -739,14 +729,17 @@ static bool HTTP_Calculate_Signature(HTTP_CONNECTION* connection, HTTP_RESPONSE_
 		// need to calculate the signature of the response
 		// Note that the signature is calculated over the X-Time field, the Content-Length field
 		// and the actual response. So we need to generate that as a single data block! A bit of a faff, easy on the Server though!
-		static char block_to_sign[4096];
+
 		char *bptr;
+
 		// Note this is different to the format of the incoming response!
 		char xupdate_s[] = "X-Update:1;";
 		char content[] = "Content-Length:";
 		char xtime_s[] = "X-Time:";
 		char xenc_s[] = "X-Enc:";
+
 		uint32_t bytes_to_sign;
+		uint32_t total_length = 0;
 		
 		// The Server may send extra bytes (to workaround an issue with Vodafone routers).
 		// Under these circumstances, we must ignore bytes_read, and use content_length instead.
@@ -766,28 +759,39 @@ static bool HTTP_Calculate_Signature(HTTP_CONNECTION* connection, HTTP_RESPONSE_
 			return false;
 		}
 
-		//uint32_t time_len = sprintf(NULL,"%llu", response_data->message_time);
-		//uint32_t time_len = xConverterUInt64ToStr(block_to_sign, response_data->message_time);
-
-		//uint32_t content_len = sprintf(NULL,"%d", bytes_to_sign);
-		//uint32_t length_to_sign = strlen(xtime_s) + time_len + 1 + strlen(content) + content_len + 1 + bytes_to_sign;
-/*
-		if(response_data->got_update)
+		//if()
 		{
 			// add on space for x-update if it was present
-			length_to_sign += strlen(xupdate_s);
+			total_length += sizeof_str(xupdate_s);
 		}
-		
-		if(response_data->encrypted_data != -1)
-		{
-			// add on space for x-enc and it's parameter and the semicolon if it was present
-			length_to_sign += (strlen(xenc_s) + 2);
-		}
-		*/
-		//block_to_sign = pvPortMalloc(length_to_sign + 1);
+
+		// add on space for x-enc and it's parameter and the semicolon if it was present
+		total_length += sizeof_str(xenc_s);
+
+		// time header
+		total_length += sizeof_str(xtime_s);
+
+		// time length
+		total_length += uitn64_t_maximum_length_in_string;
+
+		// content header length
+		total_length += sizeof_str(content);
+
+		// content length (bytes_to_sign)
+		total_length += uitn32_t_maximum_length_in_string;
+
+		// content
+		total_length += bytes_to_sign;
+
+		// additionally
+		total_length += 10;
+
+		total_length = sizeof(block_to_sign);
+
+		//block_to_sign = pvPortMalloc(total_length);
 		//if(block_to_sign)
 		{
-			memset(block_to_sign, 0, sizeof(block_to_sign));
+			memset(block_to_sign, 0, total_length);
 
 			bptr = block_to_sign;
 			if(response_data->got_update)
@@ -804,7 +808,7 @@ static bool HTTP_Calculate_Signature(HTTP_CONNECTION* connection, HTTP_RESPONSE_
 
 			if(response_data->encrypted_data != -1)
 			{
-				bptr += sprintf(bptr,"%s%d;", xenc_s, response_data->encrypted_data);
+				bptr += sprintf(bptr, "%s%d;", xenc_s, response_data->encrypted_data);
 			}
 
 			bptr += sprintf(bptr, "%s%d;", content, bytes_to_sign);
@@ -824,6 +828,8 @@ static bool HTTP_Calculate_Signature(HTTP_CONNECTION* connection, HTTP_RESPONSE_
 			{
 				response_data->signature_matches = false;
 			}
+
+			//vPortFree(block_to_sign);
 
 			return response_data->signature_matches;
 		}

@@ -1,5 +1,8 @@
+//==============================================================================
 #ifndef __BUILD_NUMBER_H_
 #define __BUILD_NUMBER_H_
+//==============================================================================
+//defines:
 
 #define SVN_REVISION_STRING	"Unversioned directory"
 #define SVN_REVISION	741
@@ -10,5 +13,5 @@
 #define BUILD_NAME	"Tom Monkhouse"
 
 #define BUILDNUMBER		(((SVN_REVISION & 0x00FF) << 8) | (BUILD_MARK & 0xFF))
-
-#endif
+//==============================================================================
+#endif //__BUILD_NUMBER_H_

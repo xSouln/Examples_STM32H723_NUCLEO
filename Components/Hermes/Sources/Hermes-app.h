@@ -97,4 +97,4 @@ uint32_t readHwVersion(void);
 void update_led_view(void);
 LED_MODE get_led_brightness(void);
 //==============================================================================
-#endif
+#endif //__HERMES_APP_H__

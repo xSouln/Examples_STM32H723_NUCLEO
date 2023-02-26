@@ -2,7 +2,7 @@
 *
 * SUREFLAP CONFIDENTIALITY & COPYRIGHT NOTICE
 *
-* Copyright © 2013-2021 Sureflap Limited.
+* Copyright ï¿½ 2013-2021 Sureflap Limited.
 * All Rights Reserved.
 *
 * All information contained herein is, and remains the property of Sureflap 
@@ -22,22 +22,26 @@
 * coming down from the Server.
 *            
 **************************************************************************/
-
 #ifndef __HUB_FIRMWARE_UPDATE_H__
 #define __HUB_FIRMWARE_UPDATE_H__
+//==============================================================================
+//defines:
 
-#define FIRMWARE_ENCRYPTION	"&enc=1"	// "" requests unencrypted firmware
-										// "&enc=1" requests AES encrypted firmware
+// "" requests unencrypted firmware
+// "&enc=1" requests AES encrypted firmware
+#define FIRMWARE_ENCRYPTION	"&enc=1"
 
 #define REPROG_CRYPT_NOT_SPECIFIED 	-1
 #define REPROG_CRYPT_XOR			0
 #define REPROG_CRYPT_XOR_AES		1
+//==============================================================================
+//functions:
 
 void HFU_trigger(bool retry);
 void HFU_init(void);
 void HFU_task(void *pvParameters);
-
-#endif
+//==============================================================================
+#endif //__HUB_FIRMWARE_UPDATE_H__
 
 
 

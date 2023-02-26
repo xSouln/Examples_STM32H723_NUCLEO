@@ -44,10 +44,10 @@
 
 typedef HERMES__PACKED_PREFIX struct
 {
-	uint8_t		day;
-	uint8_t		hour;
-	uint8_t		minute;
-	uint8_t		second;
+	uint8_t day;
+	uint8_t hour;
+	uint8_t minute;
+	uint8_t second;
 
 } HERMES__PACKED_POSTFIX HERMES_TIME_GMT;
 //==============================================================================
@@ -66,4 +66,4 @@ struct tm *hermes_gmtime(time_t *tod);
 int time_string(char *str);
 time_t wc_time(time_t* t);
 //==============================================================================
-#endif
+#endif //__HERMES_TIME_H__

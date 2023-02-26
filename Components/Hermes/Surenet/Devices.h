@@ -30,9 +30,6 @@
 //includes:
 
 #include "Hermes-compiller.h"
-
-#include <stdint.h>
-#include <stdbool.h>
 //==============================================================================
 //defines:
 
@@ -298,4 +295,4 @@ uint64_t get_mac_from_index (uint8_t index);
 bool store_device_table(void);
 uint32_t last_heard_from(void);
 //==============================================================================
-#endif //__PAIRING_H__
+#endif //__DEVICES_H__

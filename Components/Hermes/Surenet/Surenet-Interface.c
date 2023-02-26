@@ -23,14 +23,10 @@
 *
 *
 **************************************************************************/
+//includes:
 
+#include "SureNet-Interface.h"
 #include "hermes.h"
-
-/* Standard includes. */
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
 
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
@@ -46,8 +42,19 @@
 #include "devices.h"
 
 #include "RegisterMap.h"
+//==============================================================================
+//defines:
 
-// local functions
+
+//==============================================================================
+//types:
+
+
+//==============================================================================
+//externs:
+
+// EventGroup to communicate with SureNet
+extern EventGroupHandle_t xSurenet_EventGroup;
 
 // These mailboxes are used to transfer data into / out of the SureNet stack
 extern QueueHandle_t xAssociationSuccessfulMailbox;
@@ -72,17 +79,18 @@ extern QueueHandle_t xDeviceRcvdSegsParametersMailbox;
 extern QueueHandle_t xDeviceFirmwareChunkMailbox;
 extern QueueHandle_t xGetLastHeardFromMailbox_resp;
 extern QueueHandle_t xBlockingTestMailbox;
+//==============================================================================
+//variables:
 
 QueueHandle_t xSendDeviceStatusMailbox;
-
-// EventGroup to communicate with SureNet
-extern EventGroupHandle_t xSurenet_EventGroup;
 
 // display a muted notification if there is no data waiting
 bool SDAN_QUIET_MODE		= true;
 
 // don't show the muted notification
 bool SDAN_VERY_QUIET_MODE	= true;
+//==============================================================================
+//functions:
 
 /**************************************************************
  * Function Name   : Surenet_Interface_Handler
@@ -183,7 +191,7 @@ void Surenet_Interface_Handler(void)
  * Outputs         :
  * Returns         : pdPASS if it was successful, pdFAIL if it could not complete (e.g. couldn't set up a task)
  **************************************************************/
-BaseType_t surenet_init(uint64_t *mac, uint16_t panid, uint8_t channel)
+int surenet_init(uint64_t *mac, uint16_t panid, uint8_t channel)
 {
     xSendDeviceStatusMailbox = xQueueCreate(1, sizeof(DEVICE_STATUS_REQUEST));
     return sn_init(mac, panid, channel);
@@ -234,7 +242,7 @@ void surenet_ping_device(uint64_t mac_address, uint8_t value)
 	PING_REQUEST_MAILBOX ping_request;
 	ping_request.mac_address = mac_address;
 	ping_request.value = value;
-    xQueueSend(xPingDeviceMailbox,&ping_request,0);
+    xQueueSend(xPingDeviceMailbox, &ping_request, 0);
 }
 
 /**************************************************************
@@ -412,7 +420,7 @@ void surenet_trigger_channel_hop(void)
  * Function Name   : surenet_update_device_table_line
  * Description     : Sends message to Application to update Device Table values.
  **************************************************************/
-BaseType_t surenet_update_device_table_line(DEVICE_STATUS* status, uint32_t line, bool limited, bool wait)
+int surenet_update_device_table_line(DEVICE_STATUS* status, uint32_t line, bool limited, bool wait)
 {
 	TickType_t wait_period;
 	DEVICE_STATUS_REQUEST	request;
@@ -432,8 +440,6 @@ BaseType_t surenet_update_device_table_line(DEVICE_STATUS* status, uint32_t line
 
 	return xQueueSend(xSendDeviceStatusMailbox, &request, wait_period);
 }
-
-
 ///// Callbacks
 /**************************************************************
  * Function Name   : surenet_device_rcvd_segs_cb

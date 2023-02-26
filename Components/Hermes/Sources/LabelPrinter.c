@@ -19,10 +19,9 @@
 * Purpose:  Label Printer handler for Production Test   
 *             
 **************************************************************************/
-#include <stdlib.h>
-#include <stdio.h>
+#include "LabelPrinter.h"
+
 #include "hermes.h"
-#include "utilities.h"
 
 /* FreeRTOS kernel includes. */
 #include "FreeRTOS.h"
@@ -32,7 +31,6 @@
 #include "list.h"
 
 // Other includes
-#include "LabelPrinter.h"
 #include "utilities.h"	// for crc16Calc()
 #include "devices.h"	// for DEVICE_TYPE_HUB
 #include "leds.h"
@@ -60,6 +58,8 @@
 //    The PRODUCT_CONFIGURATION is changed to PRODUCT_CONFIGURED. Doing this makes Label Printing a one-time process.
 //
 // The final "Button press" string causes the Label Printer to print out the label for that specific Hub2. 
+//==============================================================================
+//defines:
 
 #define PRINT_LBL	false
 
@@ -70,6 +70,14 @@
 #define lbl_printf(...)
 #define lbl_flush()
 #endif
+
+#define LBL_SERVER_1	192
+#define LBL_SERVER_2	168
+#define LBL_SERVER_3	0
+#define LBL_SERVER_4	1
+#define LBL_PORT		1800
+//==============================================================================
+//types:
 
 typedef enum
 {
@@ -82,18 +90,19 @@ typedef enum
 	LABEL_BUTTON_PRESS,
 	LABEL_FAIL,
 	LABEL_DONE,
+
 } LABEL_PRINT_STATE;
-
-LABEL_PRINT_STATE label_print_state;
-
-#define LBL_SERVER_1	192
-#define LBL_SERVER_2	168
-#define LBL_SERVER_3	0
-#define LBL_SERVER_4	1
-#define LBL_PORT		1800
+//==============================================================================
+//externs:
 
 // This is a RAM copy of the product info from Flash.
 extern PRODUCT_CONFIGURATION product_configuration;
+//==============================================================================
+//variables:
+
+LABEL_PRINT_STATE label_print_state;
+//==============================================================================
+//functions:
 
 // test function, invoked by typing 'labelreset' from CLI
 // this is a bit naughty, but only needed for testing...
@@ -166,6 +175,7 @@ void label_task(void *pvParameters)
 			case LABEL_OPEN_SOCKET:
 				// open a socket to 192.168.0.1 on port 1800
 				lblSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
 				if (lblSocket < 0)
 				{
 					address.sin_addr.s_addr = LWIP_MAKEU32(LBL_SERVER_1, LBL_SERVER_2, LBL_SERVER_3, LBL_SERVER_4);
@@ -178,13 +188,17 @@ void label_task(void *pvParameters)
 						label_print_state = LABEL_IDENTIFY;
 					}
 					else
-					{	// couldn't connect to printer
+					{
+						// couldn't connect to printer
+
 						lbl_printf("Could not connect to printer\r\n");								
 						label_print_state = LABEL_FAIL;
 					}
 				}
-				else	// couldn't open socket
+				else
 				{
+					// couldn't open socket
+
 					lbl_printf("Couldn't open socket\r\n");				
 					label_print_state = LABEL_FAIL;
 				}
@@ -193,9 +207,9 @@ void label_task(void *pvParameters)
 			case LABEL_IDENTIFY:
 				// Send the ID string to the Label Printer
 				sprintf(mac_string, "0000%02X%02X%02X%02X%02X%02X",
-						product_configuration.ethernet_mac[0],product_configuration.ethernet_mac[1],
-						product_configuration.ethernet_mac[2],product_configuration.ethernet_mac[3],
-						product_configuration.ethernet_mac[4],product_configuration.ethernet_mac[5]);
+						product_configuration.ethernet_mac[0], product_configuration.ethernet_mac[1],
+						product_configuration.ethernet_mac[2], product_configuration.ethernet_mac[3],
+						product_configuration.ethernet_mac[4], product_configuration.ethernet_mac[5]);
 
 				sprintf(idstring,"serial_number=%s&mac_address=%s&product_id=%1d",
 								product_configuration.serial_number,
@@ -220,11 +234,15 @@ void label_task(void *pvParameters)
 				{
 					len+=6;
 				}
+
 				crc = CRC16((uint8_t *)idstring, len, 0xcccc);
 				byte = crc >> 8;
+
 				send(lblSocket, &byte, sizeof(byte), 0);
 				byte = crc & 0xff;
+
 				send(lblSocket, &byte, sizeof(byte), 0);
+
 				if(send(lblSocket, &idstring, len, 0) != len)
 				{
 					lbl_printf("Failed to send to socket\r\n");						
@@ -240,11 +258,14 @@ void label_task(void *pvParameters)
 			case LABEL_WAIT_OKAY:
 				// wait for the Label Printer to respond with "Okay"
 				len = recv(lblSocket, reply, sizeof(reply), 0);
+
 				if(strcmp(reply,"Okay") == 0)
 				{
 					led_cycle_state = 0;
 					led_cycle_timer = get_microseconds_tick();
+
 					LED_Request_Pattern(LED_MODE_NORMAL, COLOUR_GREEN, LED_PATTERN_SOLID_LEFT, 250);
+
 					old_button_state = !BUTTON_PRESSED;					
 					label_print_state = LABEL_CYCLE_LEDS;
 				}
@@ -257,7 +278,8 @@ void label_task(void *pvParameters)
 
 			case LABEL_CYCLE_LEDS:
 				// advance the LED
-				if( (get_microseconds_tick()-led_cycle_timer) > 250000)
+
+				if((get_microseconds_tick() - led_cycle_timer) > 250000)
 				{
 					led_cycle_timer = get_microseconds_tick();
 
@@ -267,23 +289,28 @@ void label_task(void *pvParameters)
 							LED_Request_Pattern(LED_MODE_NORMAL, COLOUR_GREEN, LED_PATTERN_SOLID_LEFT, 0);
 							led_cycle_state++;						
 							break;
+
 						case 1:
 							LED_Request_Pattern(LED_MODE_NORMAL, COLOUR_RED, LED_PATTERN_SOLID_LEFT, 0);
 							led_cycle_state++;
 							break;
+
 						case 2:
 							LED_Request_Pattern(LED_MODE_NORMAL, COLOUR_GREEN, LED_PATTERN_SOLID_RIGHT, 0);
 							led_cycle_state++;
 							break;
+
 						case 3:
 							LED_Request_Pattern(LED_MODE_NORMAL, COLOUR_RED, LED_PATTERN_SOLID_RIGHT, 0);
 							led_cycle_state = 0;
 							break;
+
 						default:
 							led_cycle_state = 0;
 							break;
 					}
 				}
+
 				if((!BUTTON_PRESSED == old_button_state) && (BUTTON_PRESSED == READ_BUTTON()))
 				{
 					old_button_state = BUTTON_PRESSED;
@@ -295,7 +322,7 @@ void label_task(void *pvParameters)
 					old_button_state = !BUTTON_PRESSED;
 				}
 
-				if( (250000<(get_microseconds_tick()-button_timer)) && (BUTTON_PRESSED == old_button_state))
+				if((250000 < (get_microseconds_tick()-button_timer)) && (BUTTON_PRESSED == old_button_state))
 				{
 					product_configuration.product_state = PRODUCT_CONFIGURED;					
 					write_product_configuration();	
@@ -319,3 +346,4 @@ void label_task(void *pvParameters)
 		}
 	}
 }
+//==============================================================================
