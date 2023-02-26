@@ -23,6 +23,8 @@ extern "C" {
 #define HERMES__PACKED_PREFIX
 #define HERMES__PACKED_POSTFIX __packed
 
+//waiting for stabilization (power supply, etc.) of the periphery.
+//reducing the time may lead to initialization errors
 #define HERMES_PERIPHERAL_STABILIZATION_TIME_MS 4000
 //------------------------------------------------------------------------------
 //memories sections:

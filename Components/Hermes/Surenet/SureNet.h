@@ -110,6 +110,7 @@ typedef struct
 //functions:
 
 int sn_init(uint64_t *mac, uint16_t panid, uint8_t channel);
+int sn_start_task();
 
 // call back to say association successful
 void sn_device_pairing_success(ASSOCIATION_SUCCESS_INFORMATION *assoc_info);

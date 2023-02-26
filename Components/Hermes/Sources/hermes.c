@@ -361,10 +361,12 @@ void HermesInit_ProductConfiguredMode()
 
 	surenet_init(&rfmac, product_configuration.rf_pan_id, initial_RF_channel);
 
-	HermesStart_SNTP_Task();
+	sn_start_task();
 
 	HermesStart_LedTask();
 	HermesStart_AppTask();
+
+	HermesStart_SNTP_Task();
 
 	HermesStart_HTTP_PostTask();
 	HermesStart_MQTT_Task();

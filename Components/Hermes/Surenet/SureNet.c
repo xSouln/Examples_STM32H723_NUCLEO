@@ -480,7 +480,7 @@ void ChaCha_Encrypt(uint8_t* data, uint32_t length, uint32_t position, uint8_t p
 PACKET_TYPE	sn_Encrypt(uint8_t* data, uint32_t length, uint32_t position, uint8_t dest_index);
 void sn_Decrypt(uint8_t* data, uint32_t length, uint32_t pair_index, uint32_t position);
 
-int SurnetStart_Task();
+int sn_start_task();
 //==============================================================================
 //functions:
 
@@ -606,6 +606,8 @@ int sn_init(uint64_t *mac, uint16_t panid, uint8_t channel)
 	// are required before initialisation is complete.
 	sn_devicetable_init();
 
+	memset(&ping_stats, 0, sizeof(ping_stats));
+
 	// Do this after initialising device_status[] as SecretKey requires MAC addresses
 	for(int i = 0; i < MAX_NUMBER_OF_DEVICES; i++)
 	{
@@ -618,13 +620,11 @@ int sn_init(uint64_t *mac, uint16_t panid, uint8_t channel)
 		return pdFAIL;
 	}
 
-	SurnetStart_Task();
-
     return pdPASS;
 }
 //------------------------------------------------------------------------------
 
-int SurnetStart_Task()
+int sn_start_task()
 {
 	surenet_task_handle =
 			xTaskCreateStatic(sn_task, // Function that implements the task.
@@ -657,10 +657,6 @@ void sn_task(void *pvParameters)
 	PAIRING_REQUEST presult;
 	PING_REQUEST_MAILBOX ping_request;
 	BUSY_STATE can_i_sleep;
-
-	memset(&ping_stats, 0, sizeof(ping_stats));
-
-	osDelay(2000);
 
     while(1)
     {

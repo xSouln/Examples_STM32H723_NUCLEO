@@ -159,7 +159,7 @@ static void MainTask(void *argument)
 {
 	//waiting for stabilization (power supply, etc.) of the periphery.
 	//reducing the time may lead to initialization errors
-	osDelay(pdMS_TO_TICKS(4000));
+	osDelay(pdMS_TO_TICKS(HERMES_PERIPHERAL_STABILIZATION_TIME_MS));
 
 	HermesComponentInit();
 
